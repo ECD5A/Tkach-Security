@@ -13,6 +13,8 @@
   requested resource, even when a trusted policy matcher used a prefix;
 - derived model output retains Niti lineage and the maximum parent Metka;
   model-only declassification is rejected;
+- Diode treats read/export/reverse/onward edges as separate decisions and denies
+  protected public export deterministically;
 - untrusted data cannot mint authority, capabilities, or policy changes;
 - provenance and conservative protected classification are retained through
   controlled transformations;
@@ -40,7 +42,7 @@ fully compromised operating system.
 ## Current implementation status
 
 The domain model, Krosna, Zaslon, Gnezdo, Propusk, and Niti/Metka are implemented
-and tested.
+and Diode are implemented and tested.
 Zaslon's
 canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
 representations; it does not detect every semantic paraphrase. Krosna's

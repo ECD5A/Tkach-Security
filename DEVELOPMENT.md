@@ -114,3 +114,22 @@
   and that declassification cannot be reached through model-facing APIs; the
   empty-parent path remains conservative (`Unknown` + `Derived`).
 - Commit: `niti-metka: preserve lineage and conservative classification`.
+
+## Mandate 7 — Diode directional information flow
+
+- Architecture: typed `FlowRequest`, `FlowSource`, `FlowOperation`,
+  `FlowMatcher`, and effect-ranked `Diode`; Krosna can compose it ahead of
+  policy authorization.
+- Security: read/export/reverse/onward edges are independent; unknown
+  endpoints/operations fail closed; protected public export is a hard gate;
+  tagged model flows copy Niti/Metka and cannot supply an arbitrary source or
+  principal claim.
+- Tests: 54 tests pass, including read-vs-export/reverse goldens, unknown
+  destination, mixed-provenance route-laundering, classification property,
+  deterministic conflict ordering, payload-free evidence, and Krosna/Diode
+  composition.
+- Weaknesses and hardening: public arbitrary flow source construction was found
+  capable of metadata/route laundering; source construction was restricted to
+  crate-private context mapping or fixed-Model tagged mapping, with regression
+  coverage.
+- Commit: `diode: enforce directional provenance-aware information flow`.

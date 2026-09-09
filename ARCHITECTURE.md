@@ -70,6 +70,14 @@ model summary of mixed public/secret input remains protected-derived. Lowering a
 Metka requires an opaque `DeclassificationPermit`; there is no public issuer,
 and model self-declassification always returns an error.
 
+Diode evaluates an explicit directed `FlowRequest` with source endpoint,
+destination, flow operation, provenance, and classification. It has fixed effect
+precedence and default denial; unknown endpoints/operations and protected
+export to `PublicExternal` are denied. Public tagged-data mapping fixes the
+source as `Model` and copies Niti/Metka, while Krosna's context mapper is
+crate-private. Thus `READ` into model context is not an inferred `EXPORT`, and
+reverse/onward edges require their own rules.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

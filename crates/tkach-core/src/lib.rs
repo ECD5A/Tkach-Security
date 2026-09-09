@@ -21,6 +21,9 @@
 /// these stable conceptual boundaries in small, auditable increments.
 pub mod domain;
 
+/// Directional information-flow policy and Diode evaluator.
+pub mod diode;
+
 /// DATA/CONTROL authority containment boundary.
 pub mod gnezdo;
 

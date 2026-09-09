@@ -10,7 +10,8 @@ repository, not future product marketing.
 - DONE — Mandate 4: Gnezdo data/control containment.
 - DONE — Mandate 5: Propusk scoped authorization.
 - DONE — Mandate 6: Niti and Metka conservative lineage.
-- CURRENT — Mandate 7: Diode directional flow enforcement.
-- NEXT — Mandate 8: Pechat opaque secret broker.
+- DONE — Mandate 7: Diode directional flow enforcement.
+- CURRENT — Mandate 8: Pechat opaque secret broker.
+- NEXT — Mandate 9: Sled and enforcement testbed.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

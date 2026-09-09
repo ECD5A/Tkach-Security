@@ -286,6 +286,7 @@ enum PolicyState {
 pub struct Krosna {
     policy: PolicyState,
     zaslon: Option<crate::zaslon::Zaslon>,
+    diode: Option<crate::diode::Diode>,
 }
 
 impl Krosna {
@@ -295,6 +296,7 @@ impl Krosna {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: None,
+            diode: None,
         }
     }
 
@@ -306,6 +308,7 @@ impl Krosna {
             Err(_) => Self {
                 policy: PolicyState::Failed,
                 zaslon: None,
+                diode: None,
             },
         }
     }
@@ -316,6 +319,31 @@ impl Krosna {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: Some(zaslon),
+            diode: None,
+        }
+    }
+
+    /// Create a kernel with a deterministic Diode flow plane.
+    #[must_use]
+    pub fn with_diode(policy: Policy, diode: crate::diode::Diode) -> Self {
+        Self {
+            policy: PolicyState::Ready(policy),
+            zaslon: None,
+            diode: Some(diode),
+        }
+    }
+
+    /// Create a kernel with both hard-deny and directional-flow planes.
+    #[must_use]
+    pub fn with_zaslon_and_diode(
+        policy: Policy,
+        zaslon: crate::zaslon::Zaslon,
+        diode: crate::diode::Diode,
+    ) -> Self {
+        Self {
+            policy: PolicyState::Ready(policy),
+            zaslon: Some(zaslon),
+            diode: Some(diode),
         }
     }
 
@@ -349,6 +377,14 @@ impl Krosna {
 
         if !is_known_capability(request) {
             return Self::deny(context, request, None, SledReason::UnknownDenied);
+        }
+
+        if let Some(diode) = &self.diode {
+            let flow = crate::diode::flow_from_action(context, request);
+            let decision = diode.evaluate(&flow);
+            if !decision.is_allowed() {
+                return decision;
+            }
         }
 
         if context.classification().is_protected()
@@ -502,6 +538,7 @@ fn requires_trusted_control(operation: &Operation) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
     use crate::domain::{
         Classification, Identity, Provenance, ProvenanceSource, Resource, ResourceId, ResourceKind,
     };
@@ -781,6 +818,54 @@ mod tests {
         let request = fixture_request(Operation::NetworkSend, Destination::PublicExternal);
         let decision =
             Krosna::new(policy).evaluate(&fixture_context(Classification::Secret), &request);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+    }
+
+    #[test]
+    fn configured_diode_allows_read_but_denies_protected_export() {
+        let database = Resource::new(
+            ResourceKind::Database,
+            ResourceId::new("customer.db").unwrap(),
+        );
+        let read_request = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            database.clone(),
+            Destination::Model,
+            crate::domain::CapabilityName::new("database.read").unwrap(),
+        );
+        let read_policy = RuleMatcher::any()
+            .principal(Principal::Model)
+            .operation(Operation::Read)
+            .capability(crate::domain::CapabilityName::new("database.read").unwrap())
+            .resource(ResourceScope::exact(&database))
+            .destination(Destination::Model)
+            .classification(Classification::Secret);
+        let read_flow = FlowMatcher::any()
+            .source(FlowSource::Resource(database))
+            .destination(Destination::Model)
+            .operation(FlowOperation::Read)
+            .classification(Classification::Secret);
+        let policy = Policy::new(
+            PolicyId::new("diode-composition").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-db-read").unwrap(),
+                read_policy,
+            )],
+        )
+        .unwrap();
+        let diode = Diode::new(vec![
+            FlowRule::allow(RuleId::new("allow-db-to-model").unwrap(), read_flow),
+            FlowRule::allow(RuleId::new("allow-any-flow").unwrap(), FlowMatcher::any()),
+        ])
+        .unwrap();
+        let kernel = Krosna::with_diode(policy, diode);
+        let context = fixture_context(Classification::Secret);
+        assert!(kernel.authorize(&context, &read_request).is_ok());
+
+        let export_request = fixture_request(Operation::NetworkSend, Destination::PublicExternal);
+        let decision = kernel.evaluate(&context, &export_request);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
     }
