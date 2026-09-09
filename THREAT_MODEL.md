@@ -20,3 +20,8 @@ the deterministic authority boundary, not the model's reasoning process.
 The table is a living summary; each completed mandate adds executable coverage
 and records discovered weaknesses in `DEVELOPMENT.md`.
 
+The enforcement testbed exercises this table without a real model, network, or
+provider: hostile typed proposals are evaluated by Krosna, every decision is
+recorded in bounded Sled evidence, and only a kernel-issued `Propusk` can reach
+the fake executor. Secret-destination proposals require an explicit Pechat
+broker; an absent broker does not fall back to executor execution.

@@ -78,6 +78,17 @@ source as `Model` and copies Niti/Metka, while Krosna's context mapper is
 crate-private. Thus `READ` into model context is not an inferred `EXPORT`, and
 reverse/onward edges require their own rules.
 
+Pechat exposes only validated `SecretHandle` values to model-facing code. The
+fake broker stores raw bytes in a private non-serializable `SecretValue`, accepts
+only a Krosna-issued exact `Propusk` for `secret.use`, and refuses every reveal
+request. Receipts, errors, and debug output contain no broker secret.
+
+Sled records bounded, trace-local decision IDs alongside the existing typed
+evidence and serializes only those payload-free records. The enforcement
+testbed models hostile proposals, sends allowed non-secret effects through a
+`ProtectedExecutor`, and routes an authorized secret-use effect through Pechat;
+missing broker or token conversion fails closed.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

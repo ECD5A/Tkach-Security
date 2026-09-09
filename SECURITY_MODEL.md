@@ -20,7 +20,13 @@
   controlled transformations;
 - information-flow decisions are directional and separate read from export;
 - broker-held secrets remain outside normal model-visible structures;
-- important decisions carry safe structured evidence without payload logging.
+- authorized broker use requires an exact `Propusk`, while raw reveal is
+  denied;
+- Pechat handles, receipts, errors, and debug output do not contain broker
+  secret values;
+- important decisions carry safe structured evidence without payload logging;
+- Sled trace growth and hostile-model inputs are bounded, and the fake
+  protected executor accepts only `Propusk`.
 
 These guarantees apply only to validated inputs reaching the core and to
 executors that do not provide an out-of-band bypass.
@@ -41,11 +47,11 @@ fully compromised operating system.
 
 ## Current implementation status
 
-The domain model, Krosna, Zaslon, Gnezdo, Propusk, and Niti/Metka are implemented
-and Diode are implemented and tested.
-Zaslon's
+The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Diode, Pechat,
+Sled, and the enforcement testbed are implemented and tested. Zaslon's
 canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
-representations; it does not detect every semantic paraphrase. Krosna's
-deterministic rules are not a substitute for the later Gnezdo, Propusk, Niti/Metka,
-Diode, Pechat, and enforcement-testbed mandates; the Strong Core checkpoint is
-the only completion authority.
+representations; it does not detect
+every semantic paraphrase. Pechat does not defend against a fully compromised
+host or a deployment that separately exposes the real secret. The enforcement
+testbed proves effect containment for the canonical hostile fixture; composition
+scenarios, red-team pass, and final checkpoint remain pending.

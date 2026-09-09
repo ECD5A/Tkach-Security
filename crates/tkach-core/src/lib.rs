@@ -33,8 +33,14 @@ pub mod krosna;
 /// Provenance lineage and conservative classification/taint semantics.
 pub mod niti_metka;
 
+/// Opaque secret-handle broker boundary and fake test broker.
+pub mod pechat;
+
 /// Kernel-issued scoped execution authority and protected executor boundary.
 pub mod propusk;
+
+/// Safe decision traces and a provider-independent hostile execution testbed.
+pub mod sled;
 
 /// Deterministic ingress/egress hard-deny boundary and formal matcher.
 pub mod zaslon;

@@ -133,3 +133,38 @@
   crate-private context mapping or fixed-Model tagged mapping, with regression
   coverage.
 - Commit: `diode: enforce directional provenance-aware information flow`.
+
+## Mandate 8 — Pechat opaque secret broker
+
+- Architecture: Pechat exposes validated opaque `SecretHandle` values and
+  keeps raw bytes in a private non-serializable broker value. Authorized
+  `secret.use` requires a kernel-issued exact `Propusk`; raw reveal is denied.
+- Security: handles, receipts, errors, and debug output contain no secret
+  value. Duplicate and malformed handles fail closed, and a mismatched token
+  is rejected before broker lookup.
+- Tests: 60 tests pass, including model-visible handle checks, reveal denial,
+  authorized mock use, Propusk mismatch, duplicate registration, and safe
+  serialization/debug assertions.
+- Weaknesses and hardening: a public broker method initially leaked a private
+  secret type in its return signature; it was replaced with a payload-free
+  unit error result before the full validation rerun.
+- Commit: `pechat: isolate broker secrets behind opaque handles`.
+
+## Mandate 9 — Sled and enforcement testbed
+
+- Architecture: Sled records bounded trace-local decision IDs and typed
+  payload-free evidence. The testbed models hostile typed proposals, routes
+  authorized non-secret effects through `ProtectedExecutor`, and routes
+  authorized `secret.use` through Pechat.
+- Security: trace serialization and all testbed debug/receipt surfaces contain
+  metadata only; oversized model input, trace exhaustion, missing Pechat, and
+  token conversion mismatch fail closed.
+- Tests: 67 tests pass, including monotonic/bounded traces, safe JSON,
+  hostile DATA containment, canonical hostile-chain outcomes, exact denial
+  reasons, executor boundary behavior, and broker-route isolation.
+- Weaknesses and hardening: the initial hostile export fixture used a database
+  resource with `network.send`, so Krosna correctly rejected it as unknown
+  before Diode. The fixture was corrected to a typed network resource so the
+  test now exercises Diode's default-deny path; missing-broker behavior also
+  has explicit regression coverage.
+- Commit: `sled: add safe evidence and hostile enforcement testbed`.
