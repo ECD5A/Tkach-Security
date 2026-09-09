@@ -168,3 +168,20 @@
   test now exercises Diode's default-deny path; missing-broker behavior also
   has explicit regression coverage.
 - Commit: `sled: add safe evidence and hostile enforcement testbed`.
+
+## Mandate 10 — Composition testing
+
+- Architecture: independent integration scenarios combine Gnezdo, Zaslon,
+  Krosna/Propusk, Diode, Niti/Metka, Pechat, Sled, and the fake executor.
+  Scenarios cover hostile DATA, formal blocking, authorization, directional
+  exfiltration, secret handles, mixed lineage, detector absence, and multiple
+  simultaneous defense failures.
+- Security: deterministic containment remains effective when the ingress
+  detector is absent; only explicit allow produces an executor effect, while
+  protected external export and secret reveal remain denied.
+- Tests: 76 tests pass, including 9 independent composition/state-space tests
+  and all prior unit/property/regression coverage.
+- Weaknesses and hardening: the state-space test uses valid typed network
+  resources and confirms protected external flows cannot be re-enabled by a
+  wildcard allow policy.
+- Commit: `composition: add adversarial Strong Core scenarios`.

@@ -13,7 +13,8 @@ repository, not future product marketing.
 - DONE — Mandate 7: Diode directional flow enforcement.
 - DONE — Mandate 8: Pechat opaque secret broker.
 - DONE — Mandate 9: Sled and enforcement testbed.
-- CURRENT — Mandate 10: composition testing.
-- NEXT — Mandate 11: core red team.
+- DONE — Mandate 10: composition testing.
+- CURRENT — Mandate 11: core red team.
+- NEXT — Mandate 12: production-oriented core hardening.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

@@ -89,6 +89,11 @@ testbed models hostile proposals, sends allowed non-secret effects through a
 `ProtectedExecutor`, and routes an authorized secret-use effect through Pechat;
 missing broker or token conversion fails closed.
 
+Independent composition tests exercise Gnezdo, Zaslon, Propusk, Diode,
+Niti/Metka, Pechat, and Sled together. They include detection-independent and
+multiple-defense-failure scenarios; no heuristic result is treated as an
+authority input.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

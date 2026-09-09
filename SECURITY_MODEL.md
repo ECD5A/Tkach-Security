@@ -54,4 +54,5 @@ representations; it does not detect
 every semantic paraphrase. Pechat does not defend against a fully compromised
 host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
-scenarios, red-team pass, and final checkpoint remain pending.
+scenarios A–H and tractable state-space combinations pass. The red-team pass
+and final checkpoint remain pending.
