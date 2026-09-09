@@ -46,3 +46,20 @@
   validation bypass and now re-enters `Policy::new`; a failed policy state is
   intentionally non-executable and cannot be interpreted as allow.
 - Commit: `krosna: implement deterministic fail-closed policy evaluation`.
+
+## Mandate 3 — Zaslon hard-deny enforcement
+
+- Architecture: Zaslon owns explicit action hard-deny and formal ingress/egress
+  content rules; canonical text and stateful stream matching are separate from
+  semantic detection. Krosna can install Zaslon before policy evaluation.
+- Security: strict ASCII canonicalization rejects controls, non-ASCII/zero-width
+  and bidi characters, backslash escapes, malformed/empty/oversized values;
+  sorted unique rule IDs and sticky stream blocks make precedence and chunk
+  behavior deterministic.
+- Tests: 27 tests pass, including canonicalization adversarials, direction
+  isolation, cross-chunk matching, malformed-input fail-closed, duplicate rule
+  rejection, payload-free evidence, and policy-vs-Zaslon integration.
+- Weaknesses and hardening: review identified the need to prove the installed
+  Zaslon is consulted before an explicit policy allow; the integration
+  regression test now asserts the Zaslon rule ID and hard-deny reason.
+- Commit: `zaslon: add canonical hard-deny boundaries and stream safety`.

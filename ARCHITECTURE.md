@@ -7,6 +7,13 @@ member, `tkach-core`. The crate has an explicit domain module with validated
 security types and a synchronous Krosna evaluator. It has no provider,
 network, database, runtime, or external execution dependency.
 
+Zaslon provides sorted, unique action hard-deny rules and formal content rules.
+Its canonicalizer uses only ASCII lowercase and ASCII-space folding; controls,
+non-ASCII (including zero-width and bidi), backslash escapes, and empty/oversize
+values are rejected. Its streaming matcher retains a suffix so a forbidden
+sequence cannot be bypassed by chunking. Zaslon reports ingress and egress
+separately and can be installed ahead of Krosna policy.
+
 Krosna applies these gates in a fixed order: invalid principal/context,
 unknown operation or destination, trusted-control requirements, protected
 public-export denial, then policy rules ordered by `HardDeny`, `Deny`,
@@ -40,7 +47,8 @@ At the checkpoint, the TCB is intended to be the typed domain and synchronous
 policy kernel in `tkach-core`, plus Rust's type/visibility rules. Policy and
 provenance deserialization re-run validation before entering the domain.
 Adapters, logging, serialization boundaries, and provider integrations must not
-define security semantics.
+define security semantics. Zaslon does not claim semantic prompt-injection
+detection; its guarantee is limited to configured formal representations.
 
 ## Future, not implemented
 

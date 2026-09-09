@@ -23,3 +23,6 @@ pub mod domain;
 
 /// Deterministic policy representation and Krosna evaluation kernel.
 pub mod krosna;
+
+/// Deterministic ingress/egress hard-deny boundary and formal matcher.
+pub mod zaslon;

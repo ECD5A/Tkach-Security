@@ -4,6 +4,8 @@
 
 - protected privileged actions require deterministic Tkach authorization;
 - unknown privileged behavior fails closed;
+- configured formal Zaslon action/content rules cannot be negotiated by model
+  output, including across supported stream chunk boundaries;
 - untrusted data cannot mint authority, capabilities, or policy changes;
 - provenance and conservative protected classification are retained through
   controlled transformations;
@@ -30,7 +32,9 @@ fully compromised operating system.
 
 ## Current implementation status
 
-The domain model and Krosna are implemented and tested. Krosna's deterministic
-rules are not a substitute for the later Zaslon, Gnezdo, Propusk, Niti/Metka,
+The domain model, Krosna, and Zaslon are implemented and tested. Zaslon's
+canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
+representations; it does not detect every semantic paraphrase. Krosna's
+deterministic rules are not a substitute for the later Gnezdo, Propusk, Niti/Metka,
 Diode, Pechat, and enforcement-testbed mandates; the Strong Core checkpoint is
 the only completion authority.

@@ -160,6 +160,15 @@ pub enum Lane {
     Control,
 }
 
+/// Direction of a security-relevant information or content boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FlowDirection {
+    /// Content entering the protected model/system boundary.
+    Ingress,
+    /// Content or information leaving the protected model/system boundary.
+    Egress,
+}
+
 /// Formal origins used by Niti.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProvenanceSource {
@@ -729,6 +738,8 @@ pub struct SledEvidence {
     pub classification: Classification,
     /// Destination involved in the decision.
     pub destination: Destination,
+    /// Direction of the boundary, when the decision concerns one.
+    pub direction: Option<FlowDirection>,
     /// Controlled reason code.
     pub reason: SledReason,
 }

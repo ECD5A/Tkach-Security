@@ -133,7 +133,7 @@ impl RuleMatcher {
         self
     }
 
-    fn matches(&self, context: &SecurityContext, request: &ActionRequest) -> bool {
+    pub(crate) fn matches(&self, context: &SecurityContext, request: &ActionRequest) -> bool {
         self.principal
             .as_ref()
             .is_none_or(|principal| principal == request.principal())
@@ -284,6 +284,7 @@ enum PolicyState {
 /// The deterministic Krosna policy evaluator.
 pub struct Krosna {
     policy: PolicyState,
+    zaslon: Option<crate::zaslon::Zaslon>,
 }
 
 impl Krosna {
@@ -292,6 +293,7 @@ impl Krosna {
     pub fn new(policy: Policy) -> Self {
         Self {
             policy: PolicyState::Ready(policy),
+            zaslon: None,
         }
     }
 
@@ -302,7 +304,17 @@ impl Krosna {
             Ok(policy) => Self::new(policy),
             Err(_) => Self {
                 policy: PolicyState::Failed,
+                zaslon: None,
             },
+        }
+    }
+
+    /// Create a kernel with a deterministic Zaslon hard-deny plane.
+    #[must_use]
+    pub fn with_zaslon(policy: Policy, zaslon: crate::zaslon::Zaslon) -> Self {
+        Self {
+            policy: PolicyState::Ready(policy),
+            zaslon: Some(zaslon),
         }
     }
 
@@ -320,6 +332,12 @@ impl Krosna {
 
         if is_unknown_request(request) {
             return Self::deny(context, request, None, SledReason::UnknownDenied);
+        }
+
+        if let Some(zaslon) = &self.zaslon {
+            if let Some(decision) = zaslon.action_decision(context, request) {
+                return decision;
+            }
         }
 
         if requires_trusted_control(request.operation())
@@ -385,6 +403,7 @@ impl Krosna {
             provenance: context.provenance().source().clone(),
             classification: context.classification(),
             destination: request.destination().clone(),
+            direction: None,
             reason,
         }
     }
@@ -426,6 +445,7 @@ mod tests {
     use crate::domain::{
         Classification, Identity, Provenance, ProvenanceSource, Resource, ResourceId, ResourceKind,
     };
+    use crate::zaslon::{ActionRule, Zaslon};
     use proptest::prelude::*;
 
     fn fixture_ids() -> (PolicyId, RuleId, crate::domain::CapabilityName) {
@@ -627,6 +647,36 @@ mod tests {
             assert_eq!(decision.kind, DecisionKind::Deny);
             assert_eq!(decision.evidence.reason, SledReason::HardDeny);
         }
+    }
+
+    #[test]
+    fn configured_zaslon_cannot_be_overridden_by_policy_allow() {
+        let policy = Policy::new(
+            PolicyId::new("with-zaslon").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-exec").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let zaslon = Zaslon::new(
+            vec![ActionRule::deny(
+                RuleId::new("zaslon-exec").unwrap(),
+                RuleMatcher::any().operation(Operation::Execute),
+            )],
+            Vec::new(),
+        )
+        .unwrap();
+        let decision = Krosna::with_zaslon(policy, zaslon).evaluate(
+            &fixture_context(Classification::Public),
+            &fixture_request(Operation::Execute, Destination::Model),
+        );
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::HardDeny);
+        assert_eq!(
+            decision.evidence.rule_id.as_ref().unwrap().as_str(),
+            "zaslon-exec"
+        );
     }
 
     #[test]
