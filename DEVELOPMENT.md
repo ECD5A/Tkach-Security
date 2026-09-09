@@ -98,3 +98,19 @@
   fixture was corrected and the generated non-security proptest artifact was
   removed.
 - Commit: `propusk: enforce scoped kernel-issued execution authority`.
+
+## Mandate 6 — Niti and Metka
+
+- Architecture: immutable `Niti`, `Metka`, and generic `TaggedData<T>` wrappers;
+  derivation is explicit and joins parent lineage/classification.
+- Security: known lineage cannot be stripped through Niti decode; mixed model
+  output inherits the highest parent class; self-declassification is always
+  denied; lowering is possible only through an opaque trusted permit with no
+  public issuer.
+- Tests: 43 tests pass, including mixed public/secret derivation, lineage
+  preservation, forged Niti wire rejection, trusted-permit target checks, and
+  independent classification monotonicity property testing.
+- Weaknesses and hardening: review confirmed tagged payloads are serialize-only
+  and that declassification cannot be reached through model-facing APIs; the
+  empty-parent path remains conservative (`Unknown` + `Derived`).
+- Commit: `niti-metka: preserve lineage and conservative classification`.

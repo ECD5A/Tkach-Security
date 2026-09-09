@@ -27,6 +27,9 @@ pub mod gnezdo;
 /// Deterministic policy representation and Krosna evaluation kernel.
 pub mod krosna;
 
+/// Provenance lineage and conservative classification/taint semantics.
+pub mod niti_metka;
+
 /// Kernel-issued scoped execution authority and protected executor boundary.
 pub mod propusk;
 

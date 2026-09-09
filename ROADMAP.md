@@ -9,7 +9,8 @@ repository, not future product marketing.
 - DONE — Mandate 3: Zaslon hard-deny enforcement.
 - DONE — Mandate 4: Gnezdo data/control containment.
 - DONE — Mandate 5: Propusk scoped authorization.
-- CURRENT — Mandate 6: Niti and Metka conservative lineage.
-- NEXT — Mandate 7: Diode directional flow enforcement.
+- DONE — Mandate 6: Niti and Metka conservative lineage.
+- CURRENT — Mandate 7: Diode directional flow enforcement.
+- NEXT — Mandate 8: Pechat opaque secret broker.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

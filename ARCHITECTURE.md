@@ -64,6 +64,12 @@ public `ProtectedExecutor` trait accepts the `Propusk` alias, never a raw
 `ActionRequest`. The initial scope supports exact resources and canonical
 relative file prefixes with complete-segment matching.
 
+Niti wraps retained provenance and Metka wraps classification. `TaggedData<T>`
+derivation joins every parent thread and takes the most restrictive class, so a
+model summary of mixed public/secret input remains protected-derived. Lowering a
+Metka requires an opaque `DeclassificationPermit`; there is no public issuer,
+and model self-declassification always returns an error.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

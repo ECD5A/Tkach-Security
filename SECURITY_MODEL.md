@@ -11,6 +11,8 @@
 - raw action requests cannot reach the protected executor type boundary;
 - kernel-issued capability grants are principal-bound and narrowed to the exact
   requested resource, even when a trusted policy matcher used a prefix;
+- derived model output retains Niti lineage and the maximum parent Metka;
+  model-only declassification is rejected;
 - untrusted data cannot mint authority, capabilities, or policy changes;
 - provenance and conservative protected classification are retained through
   controlled transformations;
@@ -37,7 +39,8 @@ fully compromised operating system.
 
 ## Current implementation status
 
-The domain model, Krosna, Zaslon, Gnezdo, and Propusk are implemented and tested.
+The domain model, Krosna, Zaslon, Gnezdo, Propusk, and Niti/Metka are implemented
+and tested.
 Zaslon's
 canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
 representations; it does not detect every semantic paraphrase. Krosna's
