@@ -1,0 +1,18 @@
+[package]
+name = "tkach-core"
+version = "0.1.0"
+description = "Provider-independent deterministic security kernel for Tkach Security"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true
+

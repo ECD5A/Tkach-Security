@@ -1,0 +1,43 @@
+# Architecture
+
+## Implemented baseline
+
+The repository currently contains one provider-independent Rust workspace
+member, `tkach-core`. The crate has an explicit domain module and no provider,
+network, database, runtime, or external execution dependency. The initial
+baseline establishes the trust boundary; typed enforcement is added by the
+mandates in `ROADMAP.md`.
+
+## Target Strong Core shape
+
+```text
+validated SecurityEnvelope
+          |
+          v
+        Krosna
+   /      |       \
+Zaslon  Propusk  Diode
+   \      |       /
+      decision + Sled
+          |
+     Pechat boundary
+```
+
+Gnezdo contains untrusted content in a data lane. Niti and Metka preserve
+provenance and conservative classification. No model output is trusted as
+policy or authority. The protected executor boundary accepts only kernel-issued
+authorization once that mandate is implemented.
+
+## Trusted Computing Base
+
+At the checkpoint, the TCB is intended to be the typed domain and synchronous
+policy kernel in `tkach-core`, plus Rust's type/visibility rules. Adapters,
+logging, serialization boundaries, and provider integrations must not define
+security semantics.
+
+## Future, not implemented
+
+OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and
+human approval services are explicitly deferred until after owner review of the
+Strong Core checkpoint.
+
