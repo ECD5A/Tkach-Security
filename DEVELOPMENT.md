@@ -80,3 +80,21 @@
   removed, leaving trusted control unconstructible until a later kernel-issued
   primitive is introduced.
 - Commit: `gnezdo: isolate untrusted data from control authority`.
+
+## Mandate 5 — Propusk scoped authorization
+
+- Architecture: canonical exact/prefix `ResourceScope`; known capability
+  registry; `Krosna::authorize`; private `CapabilityGrant` and
+  `AuthorizedAction`; `ProtectedExecutor` accepts only the `Propusk` alias.
+- Security: unknown capabilities fail closed; principal/operation/capability/
+  scope are bound into the token; broad policy matching cannot widen the issued
+  exact resource token; path lookalikes, traversal, malformed wire scopes, raw
+  requests, and incoherent internal grants are rejected.
+- Tests: 38 tests pass, including authorize-only-after-allow, unknown-capability
+  denial under wildcard policy, prefix child/lookalike scope checks, executor
+  type boundary, and incoherent grant rejection.
+- Weaknesses and hardening: a fixture mismatch exposed that strict capability
+  validation was correctly denying a stale `file.read`/resource pair; the
+  fixture was corrected and the generated non-security proptest artifact was
+  removed.
+- Commit: `propusk: enforce scoped kernel-issued execution authority`.

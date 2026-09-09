@@ -17,7 +17,8 @@
 
 use crate::domain::{
     ActionRequest, Authority, Classification, Decision, DecisionKind, Destination, Operation,
-    PolicyId, Principal, ResourceScope, RuleId, SecurityContext, SledEvidence, SledReason,
+    PolicyId, Principal, ResourceKind, ResourceScope, RuleId, SecurityContext, SledEvidence,
+    SledReason,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -346,6 +347,10 @@ impl Krosna {
             return Self::deny(context, request, None, SledReason::HardDeny);
         }
 
+        if !is_known_capability(request) {
+            return Self::deny(context, request, None, SledReason::UnknownDenied);
+        }
+
         if context.classification().is_protected()
             && request.operation() == &Operation::NetworkSend
             && request.destination().is_public_external()
@@ -375,6 +380,32 @@ impl Krosna {
             }
             None => Self::deny(context, request, None, SledReason::NoAuthorization),
         }
+    }
+
+    /// Authorize a request and mint a scoped Propusk only for an explicit allow.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::propusk::AuthorizationError::Denied`] for every deny or
+    /// approval result. No execution token is created in those cases.
+    pub fn authorize(
+        &self,
+        context: &SecurityContext,
+        request: &ActionRequest,
+    ) -> Result<crate::propusk::AuthorizedAction, crate::propusk::AuthorizationError> {
+        let decision = self.evaluate(context, request);
+        if !decision.is_allowed() {
+            return Err(crate::propusk::AuthorizationError::Denied(Box::new(
+                decision,
+            )));
+        }
+        let grant = crate::propusk::CapabilityGrant::issue(
+            request.principal().clone(),
+            request.capability().clone(),
+            request.operation().clone(),
+            ResourceScope::exact(request.resource()),
+        );
+        crate::propusk::AuthorizedAction::issue(request.clone(), grant)
     }
 
     fn deny(
@@ -432,6 +463,35 @@ fn is_unknown_request(request: &ActionRequest) -> bool {
         || matches!(request.destination(), Destination::Unknown(_))
 }
 
+fn is_known_capability(request: &ActionRequest) -> bool {
+    let capability = request.capability().as_str();
+    match request.operation() {
+        Operation::Read => matches!(
+            (request.resource().kind(), capability),
+            (ResourceKind::File, "file.read") | (ResourceKind::Database, "database.read")
+        ),
+        Operation::Write => matches!(
+            (request.resource().kind(), capability),
+            (ResourceKind::File, "file.write") | (ResourceKind::Database, "database.write")
+        ),
+        Operation::Execute => matches!(
+            (request.resource().kind(), capability),
+            (ResourceKind::Tool, "tool.execute") | (ResourceKind::Secret, "secret.use")
+        ),
+        Operation::NetworkSend => {
+            request.resource().kind() == ResourceKind::Network && capability == "network.send"
+        }
+        Operation::RevealSecret => {
+            request.resource().kind() == ResourceKind::Secret && capability == "secret.reveal"
+        }
+        Operation::Declassify => capability == "data.declassify",
+        Operation::MutatePolicy => {
+            request.resource().kind() == ResourceKind::Policy && capability == "policy.mutate"
+        }
+        Operation::Unknown(_) => false,
+    }
+}
+
 fn requires_trusted_control(operation: &Operation) -> bool {
     matches!(
         operation,
@@ -475,13 +535,22 @@ mod tests {
     }
 
     fn fixture_request(operation: Operation, destination: Destination) -> ActionRequest {
-        let resource = fixture_resource();
+        let (kind, capability) = match &operation {
+            Operation::Read => (ResourceKind::File, "file.read"),
+            Operation::Write => (ResourceKind::File, "file.write"),
+            Operation::Execute => (ResourceKind::Tool, "tool.execute"),
+            Operation::NetworkSend => (ResourceKind::Network, "network.send"),
+            Operation::RevealSecret => (ResourceKind::Secret, "secret.reveal"),
+            Operation::Declassify => (ResourceKind::Policy, "data.declassify"),
+            Operation::MutatePolicy => (ResourceKind::Policy, "policy.mutate"),
+            Operation::Unknown(_) => (ResourceKind::Unknown, "unknown.capability"),
+        };
         ActionRequest::new(
             Principal::Model,
             operation,
-            resource,
+            Resource::new(kind, ResourceId::new("workspace/data.txt").unwrap()),
             destination,
-            crate::domain::CapabilityName::new("file.read").unwrap(),
+            crate::domain::CapabilityName::new(capability).unwrap(),
         )
     }
 
@@ -512,6 +581,97 @@ mod tests {
             "allow-read"
         );
         assert_eq!(first, kernel.evaluate(&context, &request));
+    }
+
+    #[test]
+    fn authorize_mints_only_a_bound_exact_scope_token() {
+        let policy = Policy::new(
+            PolicyId::new("authorize").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-read").unwrap(),
+                read_matcher(),
+            )],
+        )
+        .unwrap();
+        let kernel = Krosna::new(policy);
+        let request = fixture_request(Operation::Read, Destination::Model);
+        let token = kernel
+            .authorize(&fixture_context(Classification::Public), &request)
+            .unwrap();
+        assert_eq!(token.request(), &request);
+        assert_eq!(token.grant().principal(), &Principal::Model);
+        assert_eq!(token.grant().operation(), &Operation::Read);
+        assert!(token.grant().scope().contains(request.resource()));
+    }
+
+    #[test]
+    fn unknown_capability_denies_even_with_wildcard_policy() {
+        let policy = Policy::new(
+            PolicyId::new("unknown-capability").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-any").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let resource = fixture_resource();
+        let request = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            resource,
+            Destination::Model,
+            crate::domain::CapabilityName::new("future.read").unwrap(),
+        );
+        let decision =
+            Krosna::new(policy).evaluate(&fixture_context(Classification::Public), &request);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::UnknownDenied);
+    }
+
+    #[test]
+    fn prefix_policy_scope_allows_child_but_not_lookalike_path() {
+        let prefix = ResourceScope::file_prefix("workspace/src").unwrap();
+        let policy = Policy::new(
+            PolicyId::new("prefix").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-src").unwrap(),
+                RuleMatcher::any()
+                    .principal(Principal::Model)
+                    .operation(Operation::Read)
+                    .capability(crate::domain::CapabilityName::new("file.read").unwrap())
+                    .resource(prefix)
+                    .destination(Destination::Model)
+                    .classification(Classification::Public),
+            )],
+        )
+        .unwrap();
+        let kernel = Krosna::new(policy);
+        let context = fixture_context(Classification::Public);
+        let child = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            Resource::new(
+                ResourceKind::File,
+                ResourceId::new("workspace/src/lib.rs").unwrap(),
+            ),
+            Destination::Model,
+            crate::domain::CapabilityName::new("file.read").unwrap(),
+        );
+        let lookalike = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            Resource::new(
+                ResourceKind::File,
+                ResourceId::new("workspace/src-private/lib.rs").unwrap(),
+            ),
+            Destination::Model,
+            crate::domain::CapabilityName::new("file.read").unwrap(),
+        );
+        assert!(kernel.authorize(&context, &child).is_ok());
+        assert!(matches!(
+            kernel.authorize(&context, &lookalike),
+            Err(crate::propusk::AuthorizationError::Denied(_))
+        ));
     }
 
     #[test]

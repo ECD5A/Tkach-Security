@@ -8,7 +8,8 @@ repository, not future product marketing.
 - DONE — Mandate 2: Krosna deterministic kernel.
 - DONE — Mandate 3: Zaslon hard-deny enforcement.
 - DONE — Mandate 4: Gnezdo data/control containment.
-- CURRENT — Mandate 5: Propusk scoped authorization.
-- NEXT — Mandate 6: Niti and Metka conservative lineage.
+- DONE — Mandate 5: Propusk scoped authorization.
+- CURRENT — Mandate 6: Niti and Metka conservative lineage.
+- NEXT — Mandate 7: Diode directional flow enforcement.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

@@ -57,6 +57,13 @@ DATA-to-CONTROL constructor; the opaque `TrustedControl` type has a private
 field and is not deserializable. Natural-language content is not interpreted as
 policy, capability, declassification, or authority.
 
+Propusk is issued only by `Krosna::authorize` after an explicit allow. The
+resulting `AuthorizedAction` contains a private request/grant pair and validates
+that principal, operation, capability, and exact resource scope agree. The
+public `ProtectedExecutor` trait accepts the `Propusk` alias, never a raw
+`ActionRequest`. The initial scope supports exact resources and canonical
+relative file prefixes with complete-segment matching.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

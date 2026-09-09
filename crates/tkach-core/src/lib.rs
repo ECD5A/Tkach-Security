@@ -27,5 +27,8 @@ pub mod gnezdo;
 /// Deterministic policy representation and Krosna evaluation kernel.
 pub mod krosna;
 
+/// Kernel-issued scoped execution authority and protected executor boundary.
+pub mod propusk;
+
 /// Deterministic ingress/egress hard-deny boundary and formal matcher.
 pub mod zaslon;

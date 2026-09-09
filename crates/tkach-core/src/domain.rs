@@ -387,12 +387,51 @@ impl Resource {
     }
 }
 
-/// A deliberately narrow initial scope. Broader forms require explicit
-/// canonicalization in the Propusk mandate and are not implicit here.
+/// A canonical relative path used by a file-prefix scope.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+struct CanonicalPath(String);
+
+impl CanonicalPath {
+    fn new(value: &str) -> Result<Self, CoreError> {
+        let valid = !value.is_empty()
+            && value.len() <= MAX_ID_BYTES * 8
+            && !value.starts_with('/')
+            && !value.ends_with('/')
+            && !value.contains('\\')
+            && value.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '/' | '-')
+            })
+            && !value
+                .split('/')
+                .any(|segment| segment.is_empty() || matches!(segment, "." | ".."));
+        valid
+            .then_some(Self(value.to_owned()))
+            .ok_or(CoreError::InvalidResourceScope)
+    }
+}
+
+impl<'de> Deserialize<'de> for CanonicalPath {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::new(&value).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+enum ScopePattern {
+    Exact(ResourceId),
+    FilePrefix(CanonicalPath),
+}
+
+/// A canonical resource scope. Prefix scopes are available only for relative
+/// file paths and match complete path segments, never string lookalikes.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct ResourceScope {
     kind: ResourceKind,
-    resource: ResourceId,
+    pattern: ScopePattern,
 }
 
 impl ResourceScope {
@@ -401,14 +440,62 @@ impl ResourceScope {
     pub fn exact(resource: &Resource) -> Self {
         Self {
             kind: resource.kind,
-            resource: resource.id.clone(),
+            pattern: ScopePattern::Exact(resource.id.clone()),
         }
+    }
+
+    /// Grant a canonical relative file-path prefix scope.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::InvalidResourceScope`] for ambiguous, absolute,
+    /// oversized, non-ASCII, or traversal-containing paths.
+    pub fn file_prefix(prefix: &str) -> Result<Self, CoreError> {
+        Ok(Self {
+            kind: ResourceKind::File,
+            pattern: ScopePattern::FilePrefix(CanonicalPath::new(prefix)?),
+        })
     }
 
     /// Return whether this exact scope contains the resource.
     #[must_use]
     pub fn contains(&self, resource: &Resource) -> bool {
-        self.kind == resource.kind && self.resource == resource.id
+        if self.kind != resource.kind {
+            return false;
+        }
+        match &self.pattern {
+            ScopePattern::Exact(id) => id == &resource.id,
+            ScopePattern::FilePrefix(prefix) => {
+                resource.id.as_str() == prefix.0
+                    || resource
+                        .id
+                        .as_str()
+                        .strip_prefix(&prefix.0)
+                        .is_some_and(|rest| rest.starts_with('/'))
+            }
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct ResourceScopeWire {
+    kind: ResourceKind,
+    pattern: ScopePattern,
+}
+
+impl<'de> Deserialize<'de> for ResourceScope {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let wire = ResourceScopeWire::deserialize(deserializer)?;
+        if matches!(wire.pattern, ScopePattern::FilePrefix(_)) && wire.kind != ResourceKind::File {
+            return Err(serde::de::Error::custom(CoreError::InvalidResourceScope));
+        }
+        Ok(Self {
+            kind: wire.kind,
+            pattern: wire.pattern,
+        })
     }
 }
 
@@ -795,6 +882,40 @@ mod tests {
             ResourceKind::File,
             ResourceId::new("workspace/src/main.rs").unwrap(),
         )));
+    }
+
+    #[test]
+    fn file_prefix_scope_matches_only_complete_segments() {
+        let scope = ResourceScope::file_prefix("workspace/src").unwrap();
+        assert!(scope.contains(&Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/src/lib.rs").unwrap(),
+        )));
+        assert!(scope.contains(&Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/src").unwrap(),
+        )));
+        assert!(!scope.contains(&Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/src-private/file.rs").unwrap(),
+        )));
+        assert!(!scope.contains(&Resource::new(
+            ResourceKind::Database,
+            ResourceId::new("workspace/src/lib.rs").unwrap(),
+        )));
+    }
+
+    #[test]
+    fn file_prefix_rejects_path_ambiguity_and_invalid_wire_kind() {
+        assert!(ResourceScope::file_prefix("/workspace/src").is_err());
+        assert!(ResourceScope::file_prefix("workspace//src").is_err());
+        assert!(ResourceScope::file_prefix("workspace/../secret").is_err());
+        assert!(ResourceScope::file_prefix("workspace\\src").is_err());
+        let forged = serde_json::json!({
+            "kind": "Database",
+            "pattern": {"FilePrefix": "workspace/src"}
+        });
+        assert!(serde_json::from_value::<ResourceScope>(forged).is_err());
     }
 
     #[test]
