@@ -50,6 +50,13 @@ Adapters, logging, serialization boundaries, and provider integrations must not
 define security semantics. Zaslon does not claim semantic prompt-injection
 detection; its guarantee is limited to configured formal representations.
 
+Gnezdo's `UntrustedContent` is a model-readable DATA-lane value whose context is
+always `Lane::Data`, `Authority::None`, and `Trust::Untrusted`. Derived values
+join parent classifications and preserve parent provenance. There is no public
+DATA-to-CONTROL constructor; the opaque `TrustedControl` type has a private
+field and is not deserializable. Natural-language content is not interpreted as
+policy, capability, declassification, or authority.
+
 ## Future, not implemented
 
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and

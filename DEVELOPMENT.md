@@ -63,3 +63,20 @@
   Zaslon is consulted before an explicit policy allow; the integration
   regression test now asserts the Zaslon rule ID and hard-deny reason.
 - Commit: `zaslon: add canonical hard-deny boundaries and stream safety`.
+
+## Mandate 4 — Gnezdo data/control containment
+
+- Architecture: `UntrustedContent` is a model-readable DATA-lane value;
+  `DataLane` exposes no authority or direction; `TrustedControl` is opaque and
+  has no public constructor. Derived data is explicit and lineage-preserving.
+- Security: web/document-like imperative text remains data, cannot promote
+  itself, cannot mint control, and cannot be reconstructed from arbitrary wire
+  state; content is bounded without echoing payloads in errors.
+- Tests: 30 tests pass, including hostile web injection containment, nested
+  derived lineage/classification, promotion denial, bounded-content error
+  behavior, and data-lane invariants.
+- Weaknesses and hardening: review found that even crate-private trusted
+  construction was unused and could become an accidental authority path; it was
+  removed, leaving trusted control unconstructible until a later kernel-issued
+  primitive is introduced.
+- Commit: `gnezdo: isolate untrusted data from control authority`.

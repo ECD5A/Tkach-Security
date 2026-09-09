@@ -6,6 +6,8 @@
 - unknown privileged behavior fails closed;
 - configured formal Zaslon action/content rules cannot be negotiated by model
   output, including across supported stream chunk boundaries;
+- Gnezdo untrusted content remains in a data lane and cannot be deserialized or
+  promoted into trusted control through a public API;
 - untrusted data cannot mint authority, capabilities, or policy changes;
 - provenance and conservative protected classification are retained through
   controlled transformations;
@@ -32,7 +34,7 @@ fully compromised operating system.
 
 ## Current implementation status
 
-The domain model, Krosna, and Zaslon are implemented and tested. Zaslon's
+The domain model, Krosna, Zaslon, and Gnezdo are implemented and tested. Zaslon's
 canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
 representations; it does not detect every semantic paraphrase. Krosna's
 deterministic rules are not a substitute for the later Gnezdo, Propusk, Niti/Metka,

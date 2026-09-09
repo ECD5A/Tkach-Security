@@ -21,6 +21,9 @@
 /// these stable conceptual boundaries in small, auditable increments.
 pub mod domain;
 
+/// DATA/CONTROL authority containment boundary.
+pub mod gnezdo;
+
 /// Deterministic policy representation and Krosna evaluation kernel.
 pub mod krosna;
 

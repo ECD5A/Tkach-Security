@@ -582,70 +582,23 @@ impl<'de> Deserialize<'de> for SecurityContext {
         D: serde::Deserializer<'de>,
     {
         let wire = SecurityContextWire::deserialize(deserializer)?;
-        Self::try_new(
+        if wire.authority != Authority::None
+            || wire.trust != Trust::Untrusted
+            || wire.lane != Lane::Data
+        {
+            return Err(serde::de::Error::custom(CoreError::InvalidSerialization {
+                kind: "untrusted security context",
+            }));
+        }
+        Ok(Self::untrusted_data(
             wire.principal,
-            wire.authority,
-            wire.trust,
-            wire.lane,
             wire.provenance,
             wire.classification,
-        )
-        .map_err(serde::de::Error::custom)
+        ))
     }
 }
 
 impl SecurityContext {
-    /// Construct and validate a complete security context.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreError::InvalidContext`] when trusted control is paired
-    /// with an untrusted source, data lane, or model principal.
-    pub fn try_new(
-        principal: Principal,
-        authority: Authority,
-        trust: Trust,
-        lane: Lane,
-        provenance: Provenance,
-        classification: Classification,
-    ) -> Result<Self, CoreError> {
-        if lane == Lane::Control && authority != Authority::TrustedControl {
-            return Err(CoreError::InvalidContext {
-                reason: "control lane requires trusted control authority",
-            });
-        }
-        if authority == Authority::TrustedControl
-            && (trust != Trust::Trusted || lane != Lane::Control)
-        {
-            return Err(CoreError::InvalidContext {
-                reason: "trusted control requires trusted control lane",
-            });
-        }
-        if authority == Authority::TrustedControl && principal == Principal::Model {
-            return Err(CoreError::InvalidContext {
-                reason: "model cannot be trusted control authority",
-            });
-        }
-        if lane == Lane::Data && authority == Authority::TrustedControl {
-            return Err(CoreError::InvalidContext {
-                reason: "data lane cannot carry trusted control",
-            });
-        }
-        if trust == Trust::Untrusted && authority == Authority::TrustedControl {
-            return Err(CoreError::InvalidContext {
-                reason: "untrusted source cannot carry trusted control",
-            });
-        }
-        Ok(Self {
-            principal,
-            authority,
-            trust,
-            lane,
-            provenance,
-            classification,
-        })
-    }
-
     /// Construct the canonical untrusted data context used by Gnezdo.
     #[must_use]
     pub fn untrusted_data(
@@ -798,33 +751,6 @@ mod tests {
         assert!(ResourceId::new("zero\u{200b}width").is_err());
         assert!(ResourceId::new("unsafe space").is_err());
         assert!(ResourceId::new("a".repeat(MAX_ID_BYTES + 1)).is_err());
-    }
-
-    #[test]
-    fn trusted_control_cannot_be_model_or_data() {
-        let provenance = Provenance::from_source(ProvenanceSource::System).unwrap();
-        assert!(
-            SecurityContext::try_new(
-                Principal::Model,
-                Authority::TrustedControl,
-                Trust::Trusted,
-                Lane::Control,
-                provenance.clone(),
-                Classification::Public,
-            )
-            .is_err()
-        );
-        assert!(
-            SecurityContext::try_new(
-                Principal::System,
-                Authority::TrustedControl,
-                Trust::Trusted,
-                Lane::Data,
-                provenance,
-                Classification::Public,
-            )
-            .is_err()
-        );
     }
 
     #[test]
