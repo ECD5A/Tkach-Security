@@ -3,10 +3,9 @@
 ## Implemented baseline
 
 The repository currently contains one provider-independent Rust workspace
-member, `tkach-core`. The crate has an explicit domain module and no provider,
-network, database, runtime, or external execution dependency. The initial
-baseline establishes the trust boundary; typed enforcement is added by the
-mandates in `ROADMAP.md`.
+member, `tkach-core`. The crate has an explicit domain module with validated
+security types and no provider, network, database, runtime, or external
+execution dependency. Krosna enforcement is the next mandate.
 
 ## Target Strong Core shape
 
@@ -40,4 +39,3 @@ security semantics.
 OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and
 human approval services are explicitly deferred until after owner review of the
 Strong Core checkpoint.
-
