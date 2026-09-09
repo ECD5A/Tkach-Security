@@ -29,3 +29,20 @@
   bypass invariants and path-like IDs could be ambiguous; custom validated
   deserializers and segment checks were added with regression tests.
 - Commit: `domain: establish typed security domain model`.
+
+## Mandate 2 — Krosna deterministic kernel
+
+- Architecture: typed policy/rule/matcher representation; explicit rule IDs;
+  fixed effect precedence; stable ID tie-break; synchronous evaluation; policy
+  loading and evaluation are separate from external persistence.
+- Security: unknown operations/destinations, control-sensitive model actions,
+  principal mismatch, policy failure, and protected public export fail closed;
+  allow rules cannot override deny or hard gates; decisions always carry
+  payload-free Sled evidence.
+- Tests: 20 tests pass, including deterministic conflict order, hard-deny
+  precedence, duplicate-policy serde rejection, policy-failure denial,
+  unknown-state denial, protected export, and model authority gates.
+- Weaknesses and hardening: initial policy deserialization was reviewed for
+  validation bypass and now re-enters `Policy::new`; a failed policy state is
+  intentionally non-executable and cannot be interpreted as allow.
+- Commit: `krosna: implement deterministic fail-closed policy evaluation`.

@@ -600,6 +600,11 @@ impl SecurityContext {
         provenance: Provenance,
         classification: Classification,
     ) -> Result<Self, CoreError> {
+        if lane == Lane::Control && authority != Authority::TrustedControl {
+            return Err(CoreError::InvalidContext {
+                reason: "control lane requires trusted control authority",
+            });
+        }
         if authority == Authority::TrustedControl
             && (trust != Trust::Trusted || lane != Lane::Control)
         {
@@ -693,6 +698,8 @@ pub enum SledReason {
     HardDeny,
     /// No matching authorization exists.
     NoAuthorization,
+    /// A normal policy deny matched.
+    PolicyDeny,
     /// An information-flow rule denied the edge.
     FlowDenied,
     /// A malformed or invariant-violating request was rejected.

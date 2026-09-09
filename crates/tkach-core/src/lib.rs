@@ -20,3 +20,6 @@
 /// The Strong Core's public security domain. Mandates add enforcement behind
 /// these stable conceptual boundaries in small, auditable increments.
 pub mod domain;
+
+/// Deterministic policy representation and Krosna evaluation kernel.
+pub mod krosna;
