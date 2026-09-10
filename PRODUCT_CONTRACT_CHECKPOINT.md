@@ -1,6 +1,6 @@
 # Product Contract Checkpoint
 
-Status: pending final validation on the architecture-pruning head.
+Status: PASS on `eb1aea70906cfdbd580ffa84ca5cbff024ffcad9`.
 
 This is the A20 evidence checklist for the Architecture Pruning & Product
 Contract Review. A check is considered passing only when the implementation,
@@ -31,3 +31,32 @@ tests, and documentation agree.
 
 The status changes to PASS only after the complete final command matrix, the
 pruning-range diff review, and the final clean-worktree check succeed.
+
+## Final evidence
+
+- `cargo fmt --all -- --check` and workspace clippy with warnings denied pass.
+- Debug and release workspace matrices each pass 206 tests: 110 core, 9
+  composition, 9 independent-oracle, 19 Gateway unit, 25 Gateway boundary,
+  33 OpenAI provider, and 1 opt-in live guard.
+- `cargo audit --no-fetch` reports no advisories. `cargo deny check` reports
+  advisories, bans, licenses, and sources OK; duplicate `syn` and
+  `windows-sys` versions remain known warnings documented in
+  `DEPENDENCY_REVIEW.md`.
+- `cargo check --manifest-path fuzz/Cargo.toml --bins --locked --offline`
+  passes. The generated `fuzz/target/` directory was removed afterward and
+  remains ignored; no literal `%TEMP%/` directory or creator reference exists.
+- The pruning source diff was reviewed from
+  `59142d8360ca5487cb15a56b19c75da6213124fa` through the final head. The
+  changed Rust code only removes non-enforcing wrappers and a duplicate
+  dependency declaration; `git diff --check` passes.
+- The repository-wide Standard Security Scan
+  (`fc348997-6e5b-45c1-b2ec-a273c4383778`) completed with zero reportable
+  findings on its frozen snapshot. Coverage is partial: generated artifacts
+  were excluded, delegated workers were unavailable, and TAC enrollment was
+  not granted. This is a limitation, not a claim of exhaustive coverage.
+- The automated pruning-range diff runner refused both an abbreviated and a
+  full resolvable HEAD with the same generic worktree error, including on the
+  clean final worktree. It is therefore not reported as a passing automated
+  diff scan; the parent source-backed review, mutation evidence, tests, and
+  `git diff --check` are the compensating evidence.
+- Worktree is clean and no remote publication was performed.
