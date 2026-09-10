@@ -98,8 +98,15 @@ impl<'de> serde::Deserialize<'de> for Niti {
     where
         D: serde::Deserializer<'de>,
     {
-        let provenance = Provenance::deserialize(deserializer)?;
-        Ok(Self { provenance })
+        #[derive(serde::Deserialize)]
+        struct Wire {
+            provenance: Provenance,
+        }
+
+        let wire = Wire::deserialize(deserializer)?;
+        Ok(Self {
+            provenance: wire.provenance,
+        })
     }
 }
 
@@ -356,6 +363,14 @@ mod tests {
                 .unwrap();
         let encoded = serde_json::to_string(&secret).unwrap();
         assert!(encoded.contains("customer.db"));
+    }
+
+    #[test]
+    fn niti_serialization_round_trip_preserves_lineage() {
+        let original = Niti::from_source(secret_source()).unwrap();
+        let encoded = serde_json::to_string(&original).unwrap();
+        let decoded: Niti = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, original);
     }
 
     #[test]

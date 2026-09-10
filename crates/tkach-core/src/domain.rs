@@ -924,27 +924,281 @@ pub enum SledReason {
     UnknownDenied,
 }
 
+/// Payload-free principal category retained in kernel evidence.
+///
+/// Request-controlled identities are deliberately reduced to a stable category
+/// before they cross into Sled. This keeps the trace explainable without making
+/// it a transport for attacker-selected identifiers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum EvidencePrincipal {
+    /// The model principal.
+    Model,
+    /// A user principal, without its identity.
+    User,
+    /// The system principal.
+    System,
+    /// A service principal, without its identity.
+    Service,
+}
+
+impl From<&Principal> for EvidencePrincipal {
+    fn from(principal: &Principal) -> Self {
+        match principal {
+            Principal::Model => Self::Model,
+            Principal::User(_) => Self::User,
+            Principal::System => Self::System,
+            Principal::Service(_) => Self::Service,
+        }
+    }
+}
+
+/// Payload-free operation category retained in kernel evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum EvidenceOperation {
+    /// Read operation.
+    Read,
+    /// Write operation.
+    Write,
+    /// Execute operation.
+    Execute,
+    /// Network-send operation.
+    NetworkSend,
+    /// Secret-reveal operation.
+    RevealSecret,
+    /// Declassification operation.
+    Declassify,
+    /// Policy-mutation operation.
+    MutatePolicy,
+    /// An unknown operation, without its payload.
+    Unknown,
+}
+
+impl From<&Operation> for EvidenceOperation {
+    fn from(operation: &Operation) -> Self {
+        match operation {
+            Operation::Read => Self::Read,
+            Operation::Write => Self::Write,
+            Operation::Execute => Self::Execute,
+            Operation::NetworkSend => Self::NetworkSend,
+            Operation::RevealSecret => Self::RevealSecret,
+            Operation::Declassify => Self::Declassify,
+            Operation::MutatePolicy => Self::MutatePolicy,
+            Operation::Unknown(_) => Self::Unknown,
+        }
+    }
+}
+
+/// Payload-free capability category retained in kernel evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum EvidenceCapability {
+    /// File read capability.
+    FileRead,
+    /// File write capability.
+    FileWrite,
+    /// Database read capability.
+    DatabaseRead,
+    /// Database write capability.
+    DatabaseWrite,
+    /// Network send capability.
+    NetworkSend,
+    /// Tool execution capability.
+    ToolExecute,
+    /// Secret use capability.
+    SecretUse,
+    /// Secret reveal capability.
+    SecretReveal,
+    /// Diode boundary evaluation capability.
+    DiodeFlow,
+    /// Zaslon content boundary capability.
+    ZaslonContent,
+    /// Zaslon action boundary capability.
+    ZaslonAction,
+    /// Policy mutation capability.
+    PolicyMutate,
+    /// Declassification capability.
+    Declassify,
+    /// An unknown capability, without its payload.
+    Unknown,
+}
+
+impl From<&CapabilityName> for EvidenceCapability {
+    fn from(capability: &CapabilityName) -> Self {
+        match capability.as_str() {
+            "file.read" => Self::FileRead,
+            "file.write" => Self::FileWrite,
+            "database.read" => Self::DatabaseRead,
+            "database.write" => Self::DatabaseWrite,
+            "network.send" => Self::NetworkSend,
+            "tool.execute" => Self::ToolExecute,
+            "secret.use" => Self::SecretUse,
+            "secret.reveal" => Self::SecretReveal,
+            "diode.flow" => Self::DiodeFlow,
+            "zaslon.content" => Self::ZaslonContent,
+            "zaslon.action" => Self::ZaslonAction,
+            "policy.mutate" => Self::PolicyMutate,
+            "data.declassify" => Self::Declassify,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+/// Payload-free provenance category retained in kernel evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum EvidenceProvenance {
+    /// User-originated data.
+    User,
+    /// System-originated data.
+    System,
+    /// File-originated data, without its resource identifier.
+    File,
+    /// Database-originated data, without its resource identifier.
+    Database,
+    /// Web-originated data, without its identity.
+    Web,
+    /// Retrieval-augmented data, without its identity.
+    Rag,
+    /// API-originated data, without its identity.
+    Api,
+    /// MCP-originated data, without its identity.
+    Mcp,
+    /// Tool-originated data, without its identity.
+    Tool,
+    /// Model-originated data.
+    Model,
+    /// Derived data.
+    Derived,
+    /// Unknown provenance.
+    Unknown,
+}
+
+impl From<&ProvenanceSource> for EvidenceProvenance {
+    fn from(source: &ProvenanceSource) -> Self {
+        match source {
+            ProvenanceSource::User => Self::User,
+            ProvenanceSource::System => Self::System,
+            ProvenanceSource::File(_) => Self::File,
+            ProvenanceSource::Database(_) => Self::Database,
+            ProvenanceSource::Web(_) => Self::Web,
+            ProvenanceSource::Rag(_) => Self::Rag,
+            ProvenanceSource::Api(_) => Self::Api,
+            ProvenanceSource::Mcp(_) => Self::Mcp,
+            ProvenanceSource::Tool(_) => Self::Tool,
+            ProvenanceSource::Model => Self::Model,
+            ProvenanceSource::Derived => Self::Derived,
+            ProvenanceSource::Unknown => Self::Unknown,
+        }
+    }
+}
+
+/// Payload-free destination category retained in kernel evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub enum EvidenceDestination {
+    /// Model destination.
+    Model,
+    /// Internal destination, without its identity.
+    Internal,
+    /// Public external destination.
+    PublicExternal,
+    /// Secret broker destination.
+    SecretBroker,
+    /// Unknown destination, without its identity.
+    Unknown,
+}
+
+impl From<&Destination> for EvidenceDestination {
+    fn from(destination: &Destination) -> Self {
+        match destination {
+            Destination::Model => Self::Model,
+            Destination::Internal(_) => Self::Internal,
+            Destination::PublicExternal => Self::PublicExternal,
+            Destination::SecretBroker => Self::SecretBroker,
+            Destination::Unknown(_) => Self::Unknown,
+        }
+    }
+}
+
 /// Structured, payload-free evidence attached to an important decision.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// The fields are crate-visible because only kernel primitives may construct
+/// evidence. External callers receive read-only accessors. In particular, this
+/// type is intentionally not deserializable: serialized traces are diagnostic
+/// output, never an input authority format.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SledEvidence {
     /// The matched rule, if one exists.
-    pub rule_id: Option<RuleId>,
+    pub(crate) rule_id: Option<RuleId>,
     /// Principal involved in the decision.
-    pub principal: Principal,
+    pub(crate) principal: EvidencePrincipal,
     /// Requested operation.
-    pub operation: Operation,
+    pub(crate) operation: EvidenceOperation,
     /// Requested capability name.
-    pub capability: CapabilityName,
+    pub(crate) capability: EvidenceCapability,
     /// Provenance source, without content.
-    pub provenance: ProvenanceSource,
+    pub(crate) provenance: EvidenceProvenance,
     /// Conservative classification.
-    pub classification: Classification,
+    pub(crate) classification: Classification,
     /// Destination involved in the decision.
-    pub destination: Destination,
+    pub(crate) destination: EvidenceDestination,
     /// Direction of the boundary, when the decision concerns one.
-    pub direction: Option<FlowDirection>,
+    pub(crate) direction: Option<FlowDirection>,
     /// Controlled reason code.
-    pub reason: SledReason,
+    pub(crate) reason: SledReason,
+}
+
+impl SledEvidence {
+    /// Return the trusted policy rule label, if one matched.
+    #[must_use]
+    pub fn rule_id(&self) -> Option<&RuleId> {
+        self.rule_id.as_ref()
+    }
+
+    /// Return the payload-free principal category.
+    #[must_use]
+    pub const fn principal(&self) -> EvidencePrincipal {
+        self.principal
+    }
+
+    /// Return the payload-free operation category.
+    #[must_use]
+    pub const fn operation(&self) -> EvidenceOperation {
+        self.operation
+    }
+
+    /// Return the payload-free capability category.
+    #[must_use]
+    pub const fn capability(&self) -> EvidenceCapability {
+        self.capability
+    }
+
+    /// Return the payload-free provenance category.
+    #[must_use]
+    pub const fn provenance(&self) -> EvidenceProvenance {
+        self.provenance
+    }
+
+    /// Return the conservative classification.
+    #[must_use]
+    pub const fn classification(&self) -> Classification {
+        self.classification
+    }
+
+    /// Return the payload-free destination category.
+    #[must_use]
+    pub const fn destination(&self) -> EvidenceDestination {
+        self.destination
+    }
+
+    /// Return the flow direction, when the decision concerns one.
+    #[must_use]
+    pub const fn direction(&self) -> Option<FlowDirection> {
+        self.direction
+    }
+
+    /// Return the controlled decision reason.
+    #[must_use]
+    pub const fn reason(&self) -> SledReason {
+        self.reason
+    }
 }
 
 /// Deterministic result class of a policy decision.
@@ -959,19 +1213,31 @@ pub enum DecisionKind {
 }
 
 /// A decision always carries evidence rather than a bare boolean.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Decision {
     /// The deterministic result class.
-    pub kind: DecisionKind,
+    pub(crate) kind: DecisionKind,
     /// Safe structured explanation for the result.
-    pub evidence: SledEvidence,
+    pub(crate) evidence: SledEvidence,
 }
 
 impl Decision {
     /// Construct a decision with its structured evidence.
     #[must_use]
-    pub const fn new(kind: DecisionKind, evidence: SledEvidence) -> Self {
+    pub(crate) const fn new(kind: DecisionKind, evidence: SledEvidence) -> Self {
         Self { kind, evidence }
+    }
+
+    /// Return the deterministic result class.
+    #[must_use]
+    pub const fn kind(&self) -> DecisionKind {
+        self.kind
+    }
+
+    /// Return the safe structured explanation.
+    #[must_use]
+    pub const fn evidence(&self) -> &SledEvidence {
+        &self.evidence
     }
 
     /// Return true only for an explicit allow result.
@@ -1175,6 +1441,50 @@ mod tests {
             "classification": "Public"
         });
         assert!(serde_json::from_value::<SecurityContext>(spoofed_principal).is_err());
+    }
+
+    #[test]
+    fn sled_evidence_projection_preserves_only_safe_categories() {
+        let capability_cases = [
+            ("file.read", EvidenceCapability::FileRead),
+            ("file.write", EvidenceCapability::FileWrite),
+            ("database.read", EvidenceCapability::DatabaseRead),
+            ("database.write", EvidenceCapability::DatabaseWrite),
+            ("network.send", EvidenceCapability::NetworkSend),
+            ("tool.execute", EvidenceCapability::ToolExecute),
+            ("secret.use", EvidenceCapability::SecretUse),
+            ("secret.reveal", EvidenceCapability::SecretReveal),
+            ("diode.flow", EvidenceCapability::DiodeFlow),
+            ("zaslon.content", EvidenceCapability::ZaslonContent),
+            ("zaslon.action", EvidenceCapability::ZaslonAction),
+            ("policy.mutate", EvidenceCapability::PolicyMutate),
+            ("data.declassify", EvidenceCapability::Declassify),
+            ("attacker.payload", EvidenceCapability::Unknown),
+        ];
+        for (name, expected) in capability_cases {
+            let capability = CapabilityName::new(name).unwrap();
+            assert_eq!(EvidenceCapability::from(&capability), expected);
+            let encoded = serde_json::to_string(&EvidenceCapability::from(&capability)).unwrap();
+            assert!(!encoded.contains(name));
+        }
+        assert_eq!(
+            EvidenceOperation::from(&Operation::Unknown(
+                CapabilityName::new("attacker.operation").unwrap()
+            )),
+            EvidenceOperation::Unknown
+        );
+        assert_eq!(
+            EvidenceDestination::from(&Destination::Unknown(
+                Identity::new("attacker.destination").unwrap()
+            )),
+            EvidenceDestination::Unknown
+        );
+        assert_eq!(
+            EvidenceProvenance::from(&ProvenanceSource::Web(
+                Identity::new("attacker.provenance").unwrap()
+            )),
+            EvidenceProvenance::Web
+        );
     }
 
     proptest! {

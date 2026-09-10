@@ -25,6 +25,7 @@ use thiserror::Error;
 
 const MAX_CONTENT_BYTES: usize = 16 * 1024;
 const MAX_RULES: usize = 1_024;
+const MAX_PATTERN_BYTES: usize = 256 * 1024;
 
 /// Errors from formal Zaslon rule or content handling.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -38,6 +39,9 @@ pub enum ZaslonError {
     /// The hard-deny plane would exceed its deterministic rule budget.
     #[error("Zaslon rule capacity exceeded")]
     TooManyRules,
+    /// The aggregate pattern memory budget would be exceeded.
+    #[error("Zaslon pattern byte budget exceeded")]
+    PatternCapacityExceeded,
 }
 
 /// Strict canonical form used by formal content rules.
@@ -185,6 +189,12 @@ impl Zaslon {
     ) -> Result<Self, ZaslonError> {
         if action_rules.len().saturating_add(content_rules.len()) > MAX_RULES {
             return Err(ZaslonError::TooManyRules);
+        }
+        let pattern_bytes = content_rules.iter().fold(0usize, |total, rule| {
+            total.saturating_add(rule.pattern.as_str().len())
+        });
+        if pattern_bytes > MAX_PATTERN_BYTES {
+            return Err(ZaslonError::PatternCapacityExceeded);
         }
         let mut ids = std::collections::HashSet::new();
         for rule in &action_rules {
@@ -435,7 +445,8 @@ impl ZaslonStream {
 struct ContentMatcher {
     id: RuleId,
     pattern: String,
-    tail: String,
+    prefix: Vec<usize>,
+    matched: usize,
 }
 
 impl Debug for ContentMatcher {
@@ -444,8 +455,8 @@ impl Debug for ContentMatcher {
             .debug_struct("ContentMatcher")
             .field("id", &self.id)
             .field("pattern", &"REDACTED")
-            .field("tail", &"REDACTED")
-            .finish()
+            .field("matched_prefix_length", &self.matched)
+            .finish_non_exhaustive()
     }
 }
 
@@ -454,24 +465,50 @@ impl ContentMatcher {
         Self {
             id: rule.id.clone(),
             pattern: rule.pattern.as_str().to_owned(),
-            tail: String::new(),
+            prefix: prefix_table(rule.pattern.as_str().as_bytes()),
+            matched: 0,
         }
     }
 
     fn push(&mut self, chunk: &str) -> bool {
-        let mut candidate = self.tail.clone();
-        candidate.push_str(chunk);
-        if candidate.contains(&self.pattern) {
-            return true;
+        let pattern = self.pattern.as_bytes();
+        if pattern.is_empty() {
+            return false;
         }
-
-        // CanonicalText is ASCII-only, so byte slicing is on a character
-        // boundary. Keep enough suffix to detect a sequence split next time.
-        let keep = self.pattern.len().saturating_sub(1);
-        let start = candidate.len().saturating_sub(keep);
-        candidate[start..].clone_into(&mut self.tail);
+        for byte in chunk.bytes() {
+            while self.matched > 0 && pattern.get(self.matched).copied() != Some(byte) {
+                self.matched = self
+                    .prefix
+                    .get(self.matched.saturating_sub(1))
+                    .copied()
+                    .unwrap_or(0);
+            }
+            if pattern.get(self.matched).copied() == Some(byte) {
+                self.matched += 1;
+                if self.matched == pattern.len() {
+                    return true;
+                }
+            }
+        }
         false
     }
+}
+
+fn prefix_table(pattern: &[u8]) -> Vec<usize> {
+    let mut prefix = vec![0; pattern.len()];
+    let mut matched = 0;
+    for index in 1..pattern.len() {
+        while matched > 0 && pattern.get(index) != pattern.get(matched) {
+            matched = prefix.get(matched.saturating_sub(1)).copied().unwrap_or(0);
+        }
+        if pattern.get(index) == pattern.get(matched) {
+            matched += 1;
+        }
+        if let Some(slot) = prefix.get_mut(index) {
+            *slot = matched;
+        }
+    }
+    prefix
 }
 
 fn content_evidence(
@@ -487,12 +524,12 @@ fn content_evidence(
     let capability = CapabilityName::new("zaslon.content").expect("static capability is valid");
     SledEvidence {
         rule_id,
-        principal: context.principal().clone(),
-        operation: Operation::Execute,
-        capability,
-        provenance: context.provenance().source().clone(),
+        principal: context.principal().into(),
+        operation: (&Operation::Execute).into(),
+        capability: (&capability).into(),
+        provenance: context.provenance().source().into(),
         classification: context.classification(),
-        destination,
+        destination: (&destination).into(),
         direction: Some(direction),
         reason,
     }
@@ -507,12 +544,12 @@ fn action_evidence(
 ) -> SledEvidence {
     SledEvidence {
         rule_id,
-        principal: request.principal().clone(),
-        operation: request.operation().clone(),
-        capability: request.capability().clone(),
-        provenance: context.provenance().source().clone(),
+        principal: request.principal().into(),
+        operation: request.operation().into(),
+        capability: request.capability().into(),
+        provenance: context.provenance().source().into(),
         classification: context.classification(),
-        destination: request.destination().clone(),
+        destination: request.destination().into(),
         direction,
         reason,
     }
@@ -553,6 +590,8 @@ mod tests {
             CanonicalText::new("  SECRET_  TOKEN ").unwrap().as_str(),
             "secret_ token"
         );
+        let canonical = CanonicalText::new("  SECRET_  TOKEN ").unwrap();
+        assert_eq!(CanonicalText::new(canonical.as_str()).unwrap(), canonical);
         assert!(CanonicalText::new("\tsecret").is_err());
         assert!(CanonicalText::new("zero\u{200b}width").is_err());
         assert!(CanonicalText::new("bidi\u{202e}value").is_err());
@@ -802,5 +841,46 @@ mod tests {
             Zaslon::new(rules, Vec::new()).unwrap_err(),
             ZaslonError::TooManyRules
         );
+    }
+
+    #[test]
+    fn aggregate_pattern_budget_is_enforced() {
+        let pattern = "a".repeat(MAX_CONTENT_BYTES);
+        let make_rules = |count| {
+            (0..count)
+                .map(|index| {
+                    ContentRule::new(
+                        RuleId::new(format!("pattern-{index}")).unwrap(),
+                        FlowDirection::Ingress,
+                        &pattern,
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert!(Zaslon::new(Vec::new(), make_rules(16)).is_ok());
+        let rules = make_rules(17);
+        assert_eq!(
+            Zaslon::new(Vec::new(), rules).unwrap_err(),
+            ZaslonError::PatternCapacityExceeded
+        );
+    }
+
+    #[test]
+    fn incremental_matcher_preserves_prefix_and_chunk_semantics() {
+        assert_eq!(prefix_table(b"abab"), vec![0, 0, 1, 2]);
+        assert_eq!(prefix_table(b"aab"), vec![0, 1, 0]);
+        let rule = ContentRule::new(
+            RuleId::new("overlap").unwrap(),
+            FlowDirection::Ingress,
+            "abab",
+        )
+        .unwrap();
+        let mut matcher = ContentMatcher::from_rule(&rule);
+        assert!(!matcher.push("aba"));
+        assert!(!matcher.push("ab"));
+        let mut matcher = ContentMatcher::from_rule(&rule);
+        assert!(!matcher.push("ab"));
+        assert!(matcher.push("ab"));
     }
 }

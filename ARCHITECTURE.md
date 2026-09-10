@@ -105,17 +105,26 @@ inferred `EXPORT`, and reverse/onward edges require their own rules.
 
 Pechat exposes only validated `SecretHandle` values to model-facing code. The
 fake broker stores raw bytes in a private non-serializable `SecretValue`, bounds
-entry/value capacity, accepts only a Krosna-issued exact `Propusk` for
+entry, per-value, and aggregate-byte capacity, accepts only a Krosna-issued exact `Propusk` for
 `secret.use`, and refuses every reveal request. Receipts, errors, and debug
 output contain no broker secret.
 
 Sled records bounded, trace-local decision IDs alongside the existing typed
-evidence and serializes only those payload-free records. The enforcement
+evidence and serializes only those payload-free records. Decision construction
+and trace recording are crate-internal; execution and broker receipts are
+read-only output artifacts, not deserializable authority inputs. Request-bearing
+principal, capability, provenance, operation, and destination values are
+projected to payload-free evidence categories, while validated policy rule IDs
+remain separate trusted configuration labels for explainability. The enforcement
 testbed models hostile proposals, sends allowed non-secret effects through a
 `ProtectedExecutor`, and routes an authorized secret-use effect through Pechat;
 missing broker or token conversion fails closed. The fake executor also rejects
 any direct `SecretBroker` destination, even if a malformed or non-secret
 authorized action reaches that defense-in-depth boundary.
+
+Zaslon streaming matching uses incremental prefix state rather than cloning a
+rule-sized suffix for every chunk. It also enforces aggregate pattern memory,
+rule count, and cumulative input budgets.
 
 Independent composition tests exercise Gnezdo, Zaslon, Propusk, Diode,
 Niti/Metka, Pechat, and Sled together. They include detection-independent and

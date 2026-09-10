@@ -280,3 +280,30 @@
   `9f1895db-2b61-466c-b1c2-fb898567643e`; its last observed state was still
   preflight with zero findings, so it is not represented as a completed scan.
 - Commit: recorded after the complete validation gate for this round.
+
+## Strong Core Final Hardening Round 3
+
+- Scope: final adversarial hardening from Candidate #2 `bf59b24`; no OpenAI,
+  Anthropic, MCP, SDK, gateway, UI, cloud, or product integration work.
+- Defects reproduced and fixed: request-controlled Sled identifiers could be
+  serialized as diagnostic payloads; public `Decision`/evidence/receipt APIs
+  could create authority-shaped artifacts; Niti serialization did not round-trip;
+  declassification accepted `ResourceKind::Unknown`; FakeBroker lacked an
+  aggregate secret-byte budget; and Zaslon copied matcher suffixes per chunk,
+  creating a quadratic CPU path.
+- Hardening: Sled evidence now uses payload-free categories, Decision creation
+  and Sled recording are kernel-internal, receipts expose accessors only, Niti
+  uses an explicit wrapper wire shape, unknown declassification resources fail
+  closed, Pechat has a 16 MiB aggregate fake-broker budget, and Zaslon uses
+  incremental prefix matching with a 256 KiB aggregate pattern budget.
+- Regression/adversarial coverage: hostile metadata markers are absent from Sled
+  JSON; receipt and Propusk deserialization/forgery paths are unavailable;
+  Niti round-trip, unknown-resource, aggregate-budget, canonicalization
+  idempotence, failed-effect, and stream-boundary tests pass.
+- Current local test counts after Round 3 changes: 112 unit tests, 9 composition
+  tests, and 9 independent integration-oracle tests.
+- Residual assumptions: policy `RuleId` is trusted validated configuration and
+  remains in evidence for explainability; Pechat handle existence can be
+  observable to an already-authorized caller. No constant-time claim is made.
+- The final validation matrix, mutation result, freeze commit, and freeze tag
+  are recorded below when the round is complete. Local history only; no push.

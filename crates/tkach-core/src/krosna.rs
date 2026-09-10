@@ -386,6 +386,16 @@ impl Krosna {
             return Self::deny(context, request, None, SledReason::UnknownDenied);
         }
 
+        // SecretBroker is a dedicated Pechat route, not a general executor
+        // destination. Enforce this at the authority minting boundary so a
+        // custom ProtectedExecutor cannot accidentally process a non-secret
+        // Propusk addressed at the broker.
+        if request.destination() == &Destination::SecretBroker
+            && !is_valid_secret_broker_request(request)
+        {
+            return Self::deny(context, request, None, SledReason::HardDeny);
+        }
+
         if let Some(zaslon) = &self.zaslon {
             if let Some(decision) = zaslon.action_decision(context, request) {
                 return decision;
@@ -484,12 +494,12 @@ impl Krosna {
     ) -> SledEvidence {
         SledEvidence {
             rule_id,
-            principal: request.principal().clone(),
-            operation: request.operation().clone(),
-            capability: request.capability().clone(),
-            provenance: context.provenance().source().clone(),
+            principal: request.principal().into(),
+            operation: request.operation().into(),
+            capability: request.capability().into(),
+            provenance: context.provenance().source().into(),
             classification: context.classification(),
-            destination: request.destination().clone(),
+            destination: request.destination().into(),
             direction: None,
             reason,
         }
@@ -519,6 +529,12 @@ fn is_unknown_request(request: &ActionRequest) -> bool {
         || matches!(request.destination(), Destination::Unknown(_))
 }
 
+fn is_valid_secret_broker_request(request: &ActionRequest) -> bool {
+    request.operation() == &Operation::Execute
+        && request.resource().kind() == ResourceKind::Secret
+        && request.capability().as_str() == "secret.use"
+}
+
 fn is_known_capability(request: &ActionRequest) -> bool {
     let capability = request.capability().as_str();
     match request.operation() {
@@ -543,7 +559,9 @@ fn is_known_capability(request: &ActionRequest) -> bool {
         Operation::RevealSecret => {
             request.resource().kind() == ResourceKind::Secret && capability == "secret.reveal"
         }
-        Operation::Declassify => capability == "data.declassify",
+        Operation::Declassify => {
+            request.resource().kind() != ResourceKind::Unknown && capability == "data.declassify"
+        }
         Operation::MutatePolicy => {
             request.resource().kind() == ResourceKind::Policy && capability == "policy.mutate"
         }
@@ -1034,6 +1052,13 @@ mod tests {
                 false,
             ),
             (
+                Operation::Declassify,
+                ResourceKind::Unknown,
+                "data.declassify",
+                Destination::Model,
+                false,
+            ),
+            (
                 Operation::MutatePolicy,
                 ResourceKind::Policy,
                 "policy.mutate",
@@ -1064,6 +1089,59 @@ mod tests {
                 CapabilityName::new(capability).unwrap(),
             );
             assert_eq!(is_known_capability(&request), expected, "{request:?}");
+        }
+    }
+
+    #[test]
+    fn secret_broker_destination_requires_exact_pechat_route() {
+        let policy = Policy::new(
+            PolicyId::new("broker-route-boundary").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-any").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let request = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            Resource::new(
+                ResourceKind::File,
+                ResourceId::new("ordinary-file").unwrap(),
+            ),
+            Destination::SecretBroker,
+            CapabilityName::new("file.read").unwrap(),
+        );
+        let kernel = Krosna::new(policy);
+        let decision = kernel.evaluate(&SecurityContext::untrusted_data(), &request);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::HardDeny);
+        assert!(
+            kernel
+                .authorize(&SecurityContext::untrusted_data(), &request)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn secret_broker_route_predicate_requires_all_three_dimensions() {
+        let secret = Resource::new(ResourceKind::Secret, ResourceId::new("secret").unwrap());
+        let tool = Resource::new(ResourceKind::Tool, ResourceId::new("tool").unwrap());
+        let cases = [
+            (Operation::Execute, secret.clone(), "secret.use", true),
+            (Operation::Read, secret.clone(), "secret.use", false),
+            (Operation::Execute, tool, "secret.use", false),
+            (Operation::Execute, secret, "other.use", false),
+        ];
+        for (operation, resource, capability, expected) in cases {
+            let request = ActionRequest::new(
+                Principal::Model,
+                operation,
+                resource,
+                Destination::SecretBroker,
+                CapabilityName::new(capability).unwrap(),
+            );
+            assert_eq!(is_valid_secret_broker_request(&request), expected);
         }
     }
 

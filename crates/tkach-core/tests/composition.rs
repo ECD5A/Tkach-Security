@@ -191,9 +191,9 @@ fn scenario_b_zaslon_blocks_formal_content_and_action() {
     )
     .unwrap();
     let action_decision = zaslon.action_decision(&context(), &request).unwrap();
-    assert_eq!(action_decision.kind, DecisionKind::Deny);
+    assert_eq!(action_decision.kind(), DecisionKind::Deny);
     assert_eq!(
-        action_decision.evidence.rule_id.unwrap().as_str(),
+        action_decision.evidence().rule_id().unwrap().as_str(),
         "block-network-egress"
     );
     assert!(matches!(
@@ -213,8 +213,8 @@ fn scenario_c_propusk_is_required_before_any_effect() {
     );
     let kernel = Krosna::new(Policy::new(PolicyId::new("deny-all").unwrap(), Vec::new()).unwrap());
     let decision = kernel.evaluate(&context(), &request);
-    assert_eq!(decision.kind, DecisionKind::Deny);
-    assert_eq!(decision.evidence.reason, SledReason::NoAuthorization);
+    assert_eq!(decision.kind(), DecisionKind::Deny);
+    assert_eq!(decision.evidence().reason(), SledReason::NoAuthorization);
     let executor = tkach_core::sled::FakeProtectedExecutor::new();
     assert_eq!(executor.len(), 0);
     assert_eq!(
@@ -251,8 +251,8 @@ fn scenario_d_diode_allows_read_but_denies_external_export() {
     executor.execute(permit).unwrap();
     assert_eq!(executor.len(), 1);
     let decision = kernel.evaluate(&protected_context, &export);
-    assert_eq!(decision.kind, DecisionKind::Deny);
-    assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+    assert_eq!(decision.kind(), DecisionKind::Deny);
+    assert_eq!(decision.evidence().reason(), SledReason::FlowDenied);
     assert_eq!(executor.len(), 1);
 }
 
@@ -378,8 +378,8 @@ fn composition_unknown_external_flows_are_denied() {
         .unwrap();
         let decision = Krosna::new(policy).evaluate(&context(), &request);
         if destination == Destination::PublicExternal {
-            assert_eq!(decision.kind, DecisionKind::Deny);
-            assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+            assert_eq!(decision.kind(), DecisionKind::Deny);
+            assert_eq!(decision.evidence().reason(), SledReason::FlowDenied);
         }
     }
 }

@@ -25,6 +25,7 @@ use thiserror::Error;
 
 const MAX_REGISTERED_SECRETS: usize = 1_024;
 const MAX_SECRET_BYTES: usize = 1024 * 1024;
+const MAX_TOTAL_SECRET_BYTES: usize = 16 * 1024 * 1024;
 
 /// Errors from the opaque-secret boundary.
 #[derive(Debug, PartialEq, Eq, Error)]
@@ -47,6 +48,9 @@ pub enum PechatError {
     /// A fake broker value exceeds the bounded test setup limit.
     #[error("secret value is too large")]
     SecretTooLarge,
+    /// The aggregate fake-broker memory budget was exceeded.
+    #[error("secret broker byte budget exceeded")]
+    TotalSecretBytesExceeded,
 }
 
 /// An opaque identifier safe to place in model-visible context.
@@ -98,12 +102,32 @@ impl Debug for SecretValue {
 }
 
 /// A payload-free receipt proving that an authorized mock operation ran.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BrokerReceipt {
     /// The handle used, never the corresponding raw value.
-    pub handle: SecretHandle,
+    handle: SecretHandle,
     /// The operation performed inside the broker.
-    pub operation: Operation,
+    operation: Operation,
+}
+
+impl Debug for BrokerReceipt {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("BrokerReceipt(REDACTED)")
+    }
+}
+
+impl BrokerReceipt {
+    /// Return the opaque handle used by the broker.
+    #[must_use]
+    pub const fn handle(&self) -> &SecretHandle {
+        &self.handle
+    }
+
+    /// Return the operation performed inside the broker.
+    #[must_use]
+    pub const fn operation(&self) -> &Operation {
+        &self.operation
+    }
 }
 
 /// Provider-independent secret broker contract.
@@ -131,6 +155,7 @@ pub trait SecretBroker {
 /// In-memory fake broker used only for provider-independent security tests.
 pub struct FakeBroker {
     secrets: HashMap<SecretHandle, SecretValue>,
+    total_secret_bytes: usize,
 }
 
 impl Debug for FakeBroker {
@@ -138,7 +163,7 @@ impl Debug for FakeBroker {
         formatter
             .debug_struct("FakeBroker")
             .field("secret_count", &self.secrets.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -148,6 +173,7 @@ impl FakeBroker {
     pub fn new() -> Self {
         Self {
             secrets: HashMap::new(),
+            total_secret_bytes: 0,
         }
     }
 
@@ -158,7 +184,8 @@ impl FakeBroker {
     ///
     /// # Errors
     ///
-    /// Returns [`PechatError::DuplicateHandle`] if the handle exists.
+    /// Returns an error when the handle exists, the value exceeds its per-value
+    /// limit, or the aggregate broker memory budget would be exceeded.
     pub fn register(&mut self, handle: SecretHandle, value: Vec<u8>) -> Result<(), PechatError> {
         if self.secrets.contains_key(&handle) {
             return Err(PechatError::DuplicateHandle);
@@ -169,6 +196,14 @@ impl FakeBroker {
         if value.len() > MAX_SECRET_BYTES {
             return Err(PechatError::SecretTooLarge);
         }
+        let new_total = self
+            .total_secret_bytes
+            .checked_add(value.len())
+            .ok_or(PechatError::TotalSecretBytesExceeded)?;
+        if new_total > MAX_TOTAL_SECRET_BYTES {
+            return Err(PechatError::TotalSecretBytesExceeded);
+        }
+        self.total_secret_bytes = new_total;
         self.secrets.insert(handle, SecretValue(value));
         Ok(())
     }
@@ -321,10 +356,9 @@ mod tests {
             .register(handle.clone(), b"actual-secret-value".to_vec())
             .unwrap();
         let receipt = broker.use_authorized(&handle, authorized_action()).unwrap();
-        assert_eq!(receipt.handle, handle);
-        assert_eq!(receipt.operation, Operation::Execute);
-        let serialized = serde_json::to_string(&receipt).unwrap();
-        assert!(!serialized.contains("actual-secret-value"));
+        assert_eq!(receipt.handle(), &handle);
+        assert_eq!(receipt.operation(), &Operation::Execute);
+        assert_eq!(format!("{receipt:?}"), "BrokerReceipt(REDACTED)");
     }
 
     #[test]
@@ -342,7 +376,7 @@ mod tests {
         assert_eq!(error, PechatError::InvalidPropusk);
         action = authorized_action();
         let receipt = broker.use_authorized(&handle, action).unwrap();
-        assert_eq!(receipt.operation, Operation::Execute);
+        assert_eq!(receipt.operation(), &Operation::Execute);
     }
 
     #[test]
@@ -375,6 +409,23 @@ mod tests {
         assert_eq!(
             broker.register(SecretHandle::new("overflow").unwrap(), vec![0]),
             Err(PechatError::CapacityExceeded)
+        );
+    }
+
+    #[test]
+    fn broker_aggregate_secret_memory_is_bounded() {
+        let mut broker = FakeBroker::new();
+        for index in 0..(MAX_TOTAL_SECRET_BYTES / MAX_SECRET_BYTES) {
+            broker
+                .register(
+                    SecretHandle::new(format!("aggregate-{index}")).unwrap(),
+                    vec![0; MAX_SECRET_BYTES],
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            broker.register(SecretHandle::new("aggregate-overflow").unwrap(), vec![0],),
+            Err(PechatError::TotalSecretBytesExceeded)
         );
     }
 

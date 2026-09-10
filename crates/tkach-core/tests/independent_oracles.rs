@@ -165,7 +165,8 @@ fn capability_scope_truth_table_does_not_widen_file_prefix_or_kind() {
             &request,
         );
         assert_eq!(
-            decision.kind, expected,
+            decision.kind(),
+            expected,
             "scope/capability row changed: {kind:?} {name}"
         );
     }
@@ -269,7 +270,7 @@ fn capability_operation_truth_table_rejects_cross_kind_and_alias_requests() {
             Destination::Model,
             capability(capability_name),
         );
-        assert_eq!(kernel.evaluate(&context, &request).kind, expected);
+        assert_eq!(kernel.evaluate(&context, &request).kind(), expected);
     }
 }
 
@@ -316,11 +317,11 @@ fn trace_and_executor_nonempty_accessors_return_recorded_entries() {
         Destination::Model,
         capability("file.read"),
     );
-    let decision = kernel.evaluate(&context, &request);
-    let mut trace = tkach_core::sled::SledTrace::new();
-    trace.record(decision).unwrap();
-    assert_eq!(trace.entries().len(), 1);
-    assert_eq!(trace.len(), 1);
+    let model = tkach_core::sled::HostileModel::new(context, vec![request], Vec::new()).unwrap();
+    let mut testbed = tkach_core::sled::EnforcementTestbed::new(kernel);
+    testbed.run(&model).unwrap();
+    assert_eq!(testbed.trace().entries().len(), 1);
+    assert_eq!(testbed.trace().len(), 1);
 }
 
 #[test]
@@ -362,7 +363,7 @@ fn classification_destination_truth_table_keeps_unknown_model_data_out_of_public
         let request = tkach_core::diode::FlowRequest::from_tagged(destination, operation, &data);
         let decision = diode.evaluate(&request);
         assert_eq!(
-            (decision.kind, decision.evidence.reason),
+            (decision.kind(), decision.evidence().reason()),
             (expected_kind, expected_reason)
         );
     }
@@ -447,7 +448,7 @@ fn secret_handle_operation_truth_table_has_one_broker_use_and_no_reveal() {
     );
     let reveal_decision = kernel.evaluate(&context, &reveal_request);
     assert_eq!(
-        (reveal_decision.kind, reveal_decision.evidence.reason),
+        (reveal_decision.kind(), reveal_decision.evidence().reason()),
         (DecisionKind::Deny, SledReason::HardDeny)
     );
 
@@ -515,7 +516,7 @@ fn unknown_state_truth_table_denies_unknown_and_privileged_requests() {
         );
         let decision = kernel.evaluate(&context, &request);
         assert_eq!(
-            (decision.kind, decision.evidence.reason),
+            (decision.kind(), decision.evidence().reason()),
             (expected_kind, expected_reason)
         );
     }

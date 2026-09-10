@@ -40,3 +40,29 @@ with exact error-message assertions.
 Mutation testing is a test-oracle signal, not a coverage percentage. The
 remaining non-security equivalent survivor is documented above; no
 security-semantic survivor remains unexplained.
+
+## Strong Core Final Hardening Round 3
+
+Targeted mutation scope covered the changed Sled evidence projection, Pechat
+aggregate budget and redacted receipts, Niti wire decoder, Krosna broker-route
+and unknown-resource gates, and Zaslon incremental matcher/pattern budget.
+
+Initial Round 3 run:
+
+```text
+467 mutants tested: 299 caught, 139 unviable, 22 missed, 7 timeouts
+```
+
+The 22 initial misses were triaged. Non-equivalent misses were closed with
+exhaustive projection, route, Debug, matcher-prefix, and exact-budget tests.
+The final iterative rerun tested the remaining 9 mutants:
+
+```text
+9 mutants tested: 1 caught, 7 timeouts, 1 missed
+```
+
+The one final missed mutant is the known equivalent `Zaslon::empty()` change to
+`Default::default()`; `Zaslon` derives `Default` and behavior is identical. The
+seven timeouts weaken KMP loop guards and are killed by the bounded test timeout
+rather than surviving to a passing result. No non-equivalent security-semantic
+survivor remains unexplained.

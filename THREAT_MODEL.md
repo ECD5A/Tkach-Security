@@ -18,11 +18,11 @@ the deterministic authority boundary, not the model's reasoning process.
 | Intermediate stream release | Egress content | Zaslon stream lifecycle | `NeedMoreData` is not releasable; only explicit finish can clear | Partial scan treated as allow |
 | Post-finish stream extension | Finalized content decision | Zaslon stream lifecycle | Finished streams reject later input | Content appended after `Clear` |
 | Policy conflict/evaluation failure | Authorization | Krosna | Deterministic deny/restricted result | Failure becomes allow |
-| Logging leakage | Secret material | Sled/logging | Identifiers only | Payload in evidence |
+| Logging leakage | Secret material | Sled/logging | Payload-free categories plus trusted policy labels | Request payload in evidence |
 | Principal/provenance spoofing | Authority and flow decisions | Public context/wire boundary | Untrusted identity is model/data only; trusted provenance is not forgeable | Metadata changes policy or Diode route |
 | Originless derivation laundering | Classification and export controls | Gnezdo/Niti/Metka transforms | Unknown parent state remains Unknown | Empty parents become Public |
 | Secret-destination executor bypass | Broker-held secret | Propusk/ProtectedExecutor/Pechat | Any direct SecretBroker execution is rejected | Non-secret action reaches broker destination |
-| Resource exhaustion | Core availability and bounded state | Wire and collection boundaries | Oversized rules, lineage, content, model input, trace, and broker state reject | Allocation or indexing grows without bound |
+| Resource exhaustion | Core availability and bounded state | Wire and collection boundaries | Oversized rules, aggregate patterns, lineage, content, model input, trace, and broker state reject | Allocation or matching work grows without bound |
 
 The table is a living summary; each completed mandate adds executable coverage
 and records discovered weaknesses in `DEVELOPMENT.md`. Red-team coverage also
@@ -30,8 +30,10 @@ asserts that diagnostic formatting does not echo untrusted or broker-held
 payloads and that streaming normalization cannot be bypassed at chunk seams or
 released before finalization. Public metadata constructors are also exercised
 to ensure a caller cannot relabel model data as trusted or protected source
-material. Sled identifiers remain bounded metadata rather than raw payload, but
-their exposure to a hostile model is a documented residual side-channel risk.
+material. Request-controlled Sled fields are category-projected; trusted policy
+rule labels remain separately identified for explainability. Pechat handle
+existence remains an authorized-operation metadata distinction, not a secret
+value channel.
 
 The enforcement testbed exercises this table without a real model, network, or
 provider: hostile typed proposals are evaluated by Krosna, every decision is

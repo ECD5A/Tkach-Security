@@ -426,12 +426,12 @@ fn evidence(request: &FlowRequest, rule_id: Option<RuleId>, reason: SledReason) 
     };
     SledEvidence {
         rule_id,
-        principal: request.principal.clone(),
-        operation,
-        capability,
-        provenance: request.provenance.source().clone(),
+        principal: (&request.principal).into(),
+        operation: (&operation).into(),
+        capability: (&capability).into(),
+        provenance: request.provenance.source().into(),
         classification: request.classification,
-        destination: request.destination.clone(),
+        destination: (&request.destination).into(),
         direction: Some(match request.operation {
             FlowOperation::Read => FlowDirection::Ingress,
             FlowOperation::Export | FlowOperation::Transfer | FlowOperation::Unknown => {
@@ -701,7 +701,7 @@ mod tests {
             Classification::Secret,
         ));
         let encoded = serde_json::to_string(&decision).unwrap();
-        assert!(encoded.contains("customer.db"));
+        assert!(!encoded.contains("customer.db"));
         assert!(!encoded.contains("actual-secret-value"));
         assert!(encoded.contains("Database"));
     }

@@ -47,12 +47,26 @@ impl DecisionId {
 }
 
 /// One Sled entry containing a decision and no protected payload.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SledEntry {
     /// Trace-local decision identity.
-    pub id: DecisionId,
+    pub(crate) id: DecisionId,
     /// Structured policy evidence.
-    pub decision: Decision,
+    pub(crate) decision: Decision,
+}
+
+impl SledEntry {
+    /// Return the trace-local decision identity.
+    #[must_use]
+    pub const fn id(&self) -> DecisionId {
+        self.id
+    }
+
+    /// Return the kernel-produced decision.
+    #[must_use]
+    pub const fn decision(&self) -> &Decision {
+        &self.decision
+    }
 }
 
 /// Errors from bounded evidence recording.
@@ -111,12 +125,12 @@ impl SledTrace {
         }
     }
 
-    /// Record one decision and return its trace-local identity.
+    /// Record one kernel-produced decision and return its trace-local identity.
     ///
     /// # Errors
     ///
     /// Returns an error instead of growing memory without bound.
-    pub fn record(&mut self, decision: Decision) -> Result<DecisionId, SledError> {
+    pub(crate) fn record(&mut self, decision: Decision) -> Result<DecisionId, SledError> {
         if self.entries.len() >= MAX_TRACE_ENTRIES {
             return Err(SledError::CapacityExceeded);
         }
@@ -161,14 +175,40 @@ impl SledTrace {
 }
 
 /// A payload-free receipt from a fake protected executor.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ExecutionReceipt {
     /// The operation authorized by the kernel.
-    pub operation: Operation,
+    operation: Operation,
     /// The exact resource authorized by the kernel-issued token.
-    pub resource: Resource,
+    resource: Resource,
     /// The destination bound into the request.
-    pub destination: Destination,
+    destination: Destination,
+}
+
+impl Debug for ExecutionReceipt {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ExecutionReceipt(REDACTED)")
+    }
+}
+
+impl ExecutionReceipt {
+    /// Return the operation that crossed the protected executor boundary.
+    #[must_use]
+    pub const fn operation(&self) -> &Operation {
+        &self.operation
+    }
+
+    /// Return the exact authorized resource.
+    #[must_use]
+    pub const fn resource(&self) -> &Resource {
+        &self.resource
+    }
+
+    /// Return the authorized destination.
+    #[must_use]
+    pub const fn destination(&self) -> &Destination {
+        &self.destination
+    }
 }
 
 /// A fake effect boundary used by adversarial tests.
@@ -375,7 +415,7 @@ impl HostileModel {
 }
 
 /// One outcome of processing a hostile model proposal.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EnforcementOutcome {
     /// Krosna or one of its deterministic gates denied the proposal.
     Denied(Decision),
@@ -560,12 +600,12 @@ mod tests {
             crate::domain::DecisionKind::Deny,
             crate::domain::SledEvidence {
                 rule_id: Some(RuleId::new("sled-rule").unwrap()),
-                principal: Principal::Model,
-                operation: Operation::NetworkSend,
-                capability: CapabilityName::new("network.send").unwrap(),
-                provenance: ProvenanceSource::Database(ResourceId::new("customer.db").unwrap()),
+                principal: crate::domain::EvidencePrincipal::Model,
+                operation: crate::domain::EvidenceOperation::NetworkSend,
+                capability: crate::domain::EvidenceCapability::NetworkSend,
+                provenance: crate::domain::EvidenceProvenance::Database,
                 classification: Classification::Secret,
-                destination: Destination::PublicExternal,
+                destination: crate::domain::EvidenceDestination::PublicExternal,
                 direction: Some(FlowDirection::Egress),
                 reason: SledReason::FlowDenied,
             },
@@ -634,10 +674,40 @@ mod tests {
         trace.record(evidence()).unwrap();
         let json = trace.to_json().unwrap();
         assert!(json.contains("sled-rule"));
-        assert!(json.contains("customer.db"));
+        assert!(!json.contains("customer.db"));
         assert!(json.contains("FlowDenied"));
         assert!(!json.contains("actual-secret-value"));
         assert!(!format!("{trace:?}").contains("actual-secret-value"));
+        assert_eq!(
+            evidence().evidence().direction(),
+            Some(crate::domain::FlowDirection::Egress)
+        );
+    }
+
+    #[test]
+    fn hostile_request_metadata_cannot_become_sled_payload() {
+        let marker = "attacker.marker";
+        let request = ActionRequest::new(
+            Principal::Model,
+            Operation::Unknown(CapabilityName::new("attacker.capability").unwrap()),
+            resource(ResourceKind::File, "attacker.resource"),
+            Destination::Unknown(Identity::new(marker).unwrap()),
+            CapabilityName::new("attacker.capability").unwrap(),
+        );
+        let model = HostileModel::new(SecurityContext::untrusted_data(), vec![request], Vec::new())
+            .unwrap();
+        let policy = Policy::new(PolicyId::new("empty-policy").unwrap(), Vec::new()).unwrap();
+        let mut testbed = EnforcementTestbed::new(Krosna::new(policy));
+        let outcomes = testbed.run(&model).unwrap();
+        assert!(matches!(
+            outcomes.as_slice(),
+            [EnforcementOutcome::Denied(_)]
+        ));
+        let json = testbed.trace().to_json().unwrap();
+        assert!(!json.contains(marker));
+        assert!(!json.contains("attacker.capability"));
+        assert!(!json.contains("attacker.resource"));
+        assert!(json.contains("Unknown"));
     }
 
     #[test]
@@ -688,6 +758,10 @@ mod tests {
         assert_eq!(testbed.executor().len(), 1);
         assert_eq!(testbed.trace().len(), model.requests().len());
         assert!(matches!(outcomes[0], EnforcementOutcome::Executed(_)));
+        assert_eq!(
+            format!("{:?}", testbed.executor().executions()[0]),
+            "ExecutionReceipt(REDACTED)"
+        );
         assert!(
             outcomes[1..]
                 .iter()
@@ -712,14 +786,18 @@ mod tests {
             })
             .collect();
         assert_eq!(decisions.len(), 6);
-        assert!(decisions.iter().all(|decision| {
-            decision.evidence.principal == Principal::Model
-                && !decision.evidence.capability.as_str().is_empty()
+        assert!(decisions[..5].iter().all(|decision| {
+            decision.evidence().principal() == crate::domain::EvidencePrincipal::Model
+                && decision.evidence().capability() != crate::domain::EvidenceCapability::Unknown
         }));
+        assert_eq!(
+            decisions[5].evidence().capability(),
+            crate::domain::EvidenceCapability::Unknown
+        );
         assert_eq!(
             decisions
                 .iter()
-                .map(|decision| decision.evidence.reason)
+                .map(|decision| decision.evidence().reason())
                 .collect::<Vec<_>>(),
             vec![
                 SledReason::HardDeny,

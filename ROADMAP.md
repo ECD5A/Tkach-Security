@@ -19,6 +19,7 @@ repository, not future product marketing.
 - DONE — Strong Core Hardening Round 2 (2026-09-10; mutation, oracle, and
   cross-primitive review completed).
 - DONE — Strong Core Checkpoint re-run (2026-09-10; 60 conditions reviewed).
-- CURRENT — Owner review of the completed Strong Core.
+- DONE — Strong Core Final Hardening Round 3 and freeze validation; gateway work
+  remains intentionally out of scope.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

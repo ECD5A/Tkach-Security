@@ -22,7 +22,7 @@ use crate::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use crate::niti_metka::{Metka, Niti, TaggedData};
 use crate::pechat::{FakeBroker, PechatError, SecretBroker, SecretHandle};
 use crate::propusk::{AuthorizedAction, CapabilityGrant, ProtectedExecutor};
-use crate::sled::{EnforcementTestbed, FakeProtectedExecutor, HostileModel, TestbedError};
+use crate::sled::{EnforcementTestbed, FakeProtectedExecutor, HostileModel};
 use crate::zaslon::{ActionRule, CanonicalText, ContentRule, ContentVerdict, Zaslon};
 
 fn context(classification: Classification) -> SecurityContext {
@@ -684,10 +684,13 @@ fn testbed_route_table_rejects_non_secret_actions_at_secret_broker() {
     .unwrap();
     let mut testbed = EnforcementTestbed::new(Krosna::new(policy));
     let broker = FakeBroker::new();
-    assert_eq!(
-        testbed.run_with_broker(&model, &broker),
-        Err(TestbedError::InvalidBrokerRoute)
-    );
+    let outcomes = testbed.run_with_broker(&model, &broker).unwrap();
+    assert!(matches!(
+        outcomes.as_slice(),
+        [crate::sled::EnforcementOutcome::Denied(decision)]
+            if decision.kind() == DecisionKind::Deny
+                && decision.evidence().reason() == SledReason::HardDeny
+    ));
 }
 
 #[test]
