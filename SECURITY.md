@@ -2,13 +2,16 @@
 
 ## Scope
 
-This repository is currently the provider-independent Tkach Security Strong
-Core. Reports should focus on bypasses of its documented deterministic
-authorization, information-flow, data/control, provenance/classification,
-secret-isolation, and evidence invariants.
+This repository contains the Tkach Security Strong Core, bounded in-process
+Gateway, and non-streaming OpenAI Responses adapter. Reports should focus on
+bypasses of the documented deterministic authorization, information-flow,
+data/control, provenance/classification, secret-isolation, evidence, lifecycle,
+credential, parser, and egress invariants.
 
-Provider integrations, hosted services, UI, and deployment configuration are
-not part of the current scope.
+MCP, Anthropic, streaming, SDKs, hosted services, UI, cloud integrations,
+production transport, and real executors are outside the current implementation
+scope. Deployment assumptions in `PRODUCT_CONTRACT.md` remain in scope when a
+bug would cross a documented Tkach boundary.
 
 ## Reporting
 
@@ -22,4 +25,3 @@ when one is established.
 Security-critical crates forbid `unsafe_code`. Changes must include regression
 tests for real security defects, pass the documented validation commands, and
 avoid introducing direct privileged bypasses.
-
