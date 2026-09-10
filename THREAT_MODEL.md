@@ -3,6 +3,14 @@
 The Strong Core assumes the model can be fully attacker-controlled. It protects
 the deterministic authority boundary, not the model's reasoning process.
 
+The first real-provider boundary preserves that assumption across the remote
+OpenAI hop. The adapter treats the API and returned model data as hostile,
+keeps the API credential outside model data and diagnostics, and maps only
+fixed known function names to raw proposals. Provider IDs, metadata, status,
+tool arguments, and model claims are never security authority; Gateway-owned
+Krosna/Propusk, Niti/Metka, Diode, Zaslon, and Pechat remain the enforcement
+planes.
+
 | Attack | Asset | Trust boundary | Expected behavior | Failure mode to test |
 |---|---|---|---|---|
 | Direct/indirect prompt injection | Policy and capabilities | Gnezdo data/control lanes | Content remains data; no authority transition | Natural language creates privilege |

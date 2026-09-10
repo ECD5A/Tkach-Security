@@ -1,9 +1,9 @@
 # Tkach Gateway Phase 1 Threat Model
 
-Status: G0-G10 implementation baseline. The gateway is an in-process,
-synchronous, provider-independent boundary. Implemented controls below are
-backed by Gateway Phase 1 tests; real transports and providers remain out of
-scope.
+Status: G0-G10 implementation baseline plus the v0.1 OpenAI adapter boundary.
+The gateway remains an in-process, synchronous enforcement boundary. The
+OpenAI adapter is an additional untrusted provider hop; it does not change
+Gateway authority ownership.
 
 ## Overview
 
@@ -47,6 +47,7 @@ semantics remain in `tkach-core`.
 | Pechat | `crates/tkach-core/src/pechat.rs:134-251` keeps fake broker values private and reveal-denied. |
 | Sled/testbed | `crates/tkach-core/src/sled.rs:456-516` records safe decisions and models protected execution. |
 | Gateway | `crates/tkach-gateway`: bounded protocol boundary, lifecycle, provider invocation, staging, ordering, and Propusk-only tool dispatch. |
+| OpenAI adapter | `crates/tkach-provider-openai`: trusted credential/endpoint boundary, bounded HTTPS transport, strict Responses parser, fixed proposal mapping, replay markers, and stateless tool-result pairing. |
 
 ### Implemented resource budgets
 
@@ -72,6 +73,24 @@ applicable, before a protected effect:
 The budgets are defensive availability controls, not policy authority. An
 over-limit or malformed input fails closed and cannot invoke a provider,
 executor, broker, or egress sink.
+
+## Real OpenAI adapter boundary
+
+The adapter is tested with a fake transport and with the actual Gateway
+orchestrator. A completed `harmless_read` response becomes a raw proposal,
+passes Krosna and Diode, reaches the fake executor only as a Propusk, and
+returns a bounded tool result for the next stateless Responses turn. An
+`external_send` response is denied by Gateway policy and reaches no executor
+effect. Unknown provider item types, malicious arguments, duplicate/replayed
+IDs, transport timeouts, and oversized tool results fail before release or
+effect.
+
+The adapter sends `store:false`, does not use provider conversations,
+`previous_response_id`, background mode, built-in tools, MCP, or automatic
+retry. Its HTTPS transport rejects redirects and bounds both successful and
+error response reads. Streaming is intentionally not implemented in this
+milestone; the synchronous Gateway continues to require complete buffered
+output before final egress checks.
 
 ## Threat Model, Trust Boundaries, and Assumptions
 
@@ -145,9 +164,9 @@ in the control column; residual assumptions remain explicit below.
   same Pechat limit documented by Strong Core.
 - The provider may be completely controlled by an attacker. No provider
   behavior is used as an authority signal.
-- A future real transport must preserve the same bounded-reader and
-  no-premature-release contract; Phase 1 does not implement HTTP, streaming
-  sockets, authentication, or provider SDKs.
+- Any future transport must preserve the same bounded-reader and
+  no-premature-release contract. The current OpenAI adapter implements only
+  the bounded provider HTTPS call; it is not a production gateway transport.
 - The gateway's trusted configuration supplies the Krosna and tool catalog. A
   client request cannot replace policy or add a privileged tool.
 - Independent architecture delegation was unavailable in this environment;

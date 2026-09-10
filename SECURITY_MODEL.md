@@ -70,6 +70,17 @@
 - malformed, timeout, failure, cancellation, over-limit, denied, and invalid
   release-destination provider paths fail closed without returning staged
   output or executing staged actions.
+- the OpenAI adapter keeps credentials in trusted configuration, rejects
+  ambiguous endpoints, disables redirects, bounds HTTP bodies, and maps
+  transport failures to payload-free provider errors;
+- the OpenAI wire boundary rejects unknown response item kinds, duplicate
+  fields, incomplete responses, malformed function calls, oversized values,
+  and non-empty tool arguments;
+- OpenAI response/call IDs are bounded replay markers and read-only tool
+  results are paired into explicit `function_call_output` DATA items; neither
+  ID metadata nor provider claims are authority;
+- the OpenAI adapter explicitly disables provider persistence/background mode
+  and does not expose built-in provider tools or MCP capabilities.
 
 These guarantees apply only to validated inputs reaching the core and to
 executors that do not provide an out-of-band bypass.
@@ -105,7 +116,10 @@ and this review does not claim constant-time behavior.
 
 The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Diode, Pechat,
 Sled, the enforcement testbed, and the provider-independent Gateway Phase 1
-boundary are implemented and tested. Strong Core
+boundary are implemented and tested. The first real-provider milestone adds a
+non-streaming OpenAI Responses adapter with an offline fake transport, strict
+wire fixtures, an actual Gateway integration test, and an opt-in live smoke
+test that is skipped unless explicitly enabled. Strong Core
 Hardening Round 3 additionally closes diagnostic metadata injection and
 forgeable evidence construction, fixes Niti wire round-trips, rejects unknown
 declassification resources, bounds aggregate Pechat memory, and replaces the
@@ -117,9 +131,10 @@ host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
 and the final adversarial hardening checkpoint is complete only after the
-validation matrix and freeze commit recorded in `DEVELOPMENT.md`; no gateway
-Real provider integration, HTTP, MCP, SDK, cloud, UI, and production gateway
-transport are not part of this status.
+validation matrix and freeze commit recorded in `DEVELOPMENT.md`; provider
+streaming, MCP, SDK, cloud, UI, and production gateway orchestration are not
+part of this status. The OpenAI adapter's HTTPS transport is a bounded
+provider boundary, not a production gateway or deployment integration.
 
 Public `UntrustedContent` and `TaggedData<T>` serialization remains
 intentionally model-context serialization: it does not mint authority or
@@ -131,9 +146,10 @@ identity-spoofing, provenance-spoofing, and originless-labeling weaknesses.
 Hardening Round 2 also closed model-write source confusion, generic
 SecretBroker executor execution, post-finish stream extension, and oracle gaps
 at exact bounded-string and capability-operation boundaries.
-Fuzz targets cover the canonical text and domain-wire parsers; their binaries
-compile on this host, while libFuzzer execution is currently unavailable under
-the installed MSVC linker. Linux CI provides the bounded execution smoke test.
+Fuzz targets cover the canonical text, domain-wire, gateway-wire, and OpenAI
+Responses parsers; their binaries compile on this host, while libFuzzer
+execution is currently unavailable under the installed MSVC linker. Linux CI
+provides the bounded execution smoke test.
 The Round 2 scan remains historical and incomplete. Round 3's Standard Security
 Scan is tracked separately in the workbench; if it is not sealed before the
 freeze, the final report records that limitation rather than calling it PASS.

@@ -435,3 +435,39 @@
 - Review limitation: the threat model was reviewed sequentially because
   delegated architecture workers were unavailable.
 - Commit: recorded with the P0 threat-model milestone.
+
+## Real Provider Phase v0.1 — P1-P8 non-streaming OpenAI adapter
+
+- Scope: implement the first real provider boundary without changing Strong
+  Core policy semantics or adding SDK/MCP/UI/cloud/production gateway code.
+- Configuration: `OpenAiConfig` validates trusted HTTPS endpoint/model/timeout
+  values and keeps `OPENAI_API_KEY` private, redacted, and absent from public
+  errors. `ReqwestTransport` uses rustls, finite timeout, no redirects, and a
+  128 KiB bounded reader for both success and error bodies.
+- Wire contract: `ResponsesRequest` emits only the fixed five Tkach custom
+  functions, strict empty-object schemas, `store:false`, `background:false`,
+  and `parallel_tool_calls:false`. It does not use provider conversations,
+  previous response IDs, built-in tools, or MCP.
+- Response contract: strict bounded parsing accepts completed assistant text
+  and known completed function calls only. Unknown item types, duplicate
+  fields, incomplete/failed statuses, oversized values, malformed JSON, and
+  non-empty function arguments fail closed. Provider/call IDs are bounded
+  replay markers and tool outputs are explicitly paired as DATA.
+- Gateway composition: the actual `OpenAiProvider` path was run through a
+  real Gateway test. `harmless_read` executed only after Krosna/Diode
+  authorization and returned a bounded follow-up result; `external_send` was
+  denied before the executor. A malformed oversized follow-up regression test
+  confirmed pending call state is preserved after rejection.
+- Fixtures/fuzzing: tracked normal, function-call, unknown-item, duplicate,
+  incomplete, malicious-argument, and provider-error fixtures were added.
+  `fuzz/openai_response` compiles with the existing libFuzzer targets.
+- Live testing: `tests/live.rs` is explicit opt-in via
+  `TKACH_LIVE_OPENAI_TESTS=1`; default test runs make no network call.
+- Deliberate boundary: Responses streaming is not implemented because the
+  current Gateway contract is synchronous and buffered. Adding a network
+  streaming path without a corresponding secure Gateway event contract would
+  expand the attack surface without increasing verified capability.
+- Adversarial review: strict parser, credential, redirect, replay, transport,
+  tool-result lineage, and real-Gateway authorization tests pass. The initial
+  pending-call drain weakness found during self-review was fixed before commit.
+- Commit: `a8d67dd Add bounded OpenAI Responses provider adapter`.

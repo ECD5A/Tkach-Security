@@ -1,8 +1,8 @@
 # OpenAI Provider Boundary Threat Model
 
-Status: P0 design baseline for the Real Provider Phase v0.1. This document
-describes the boundary before the provider-specific implementation is added.
-It does not grant OpenAI, a model, or an adapter any Tkach authority.
+Status: P0 threat model reconciled with the v0.1 non-streaming OpenAI adapter
+implementation. It does not grant OpenAI, a model, or an adapter any Tkach
+authority.
 
 ## Security invariant
 
@@ -84,7 +84,7 @@ claims that a vulnerability already exists.
 | Critical | Malicious arguments widen a scope, select a secret, change a destination, or smuggle a second operation. | Function schemas and the adapter parser accept only the minimal known argument shape; all resulting ActionRequests are reconstructed from trusted tool mapping and still require Krosna authorization. |
 | Critical | The adapter returns a raw secret, API key, or provider error body to the model/client/log. | API keys are opaque infrastructure configuration; response/error bodies are bounded and payload-free at the public error boundary; secret-backed tool results are receipts or protected data governed by Gateway. |
 | High | A response contains a protected tool result request followed by public-looking text, or provider metadata claims the result is public/declassified. | Provider metadata is ignored as authority. Gateway derives output from all model inputs and applies Niti/Metka, Diode, and egress Zaslon before release. |
-| High | A partial stream, chunk seam, duplicate event, missing terminal event, or malformed SSE event is released or executes an action. | Streaming is a separate buffered mode with event/byte/time limits, a required terminal event, duplicate/sequence checks, and no fragment release before final Gateway gates. |
+| High | A partial stream, chunk seam, duplicate event, missing terminal event, or malformed SSE event is released or executes an action. | Streaming is intentionally disabled in v0.1; the synchronous Gateway accepts only complete buffered provider steps. A future streaming mode must preserve event/byte/time limits, terminal-event checks, and no fragment release before final Gateway gates. |
 | High | A timeout/cancellation after an action proposal leaves an irreversible effect or stale Propusk. | Adapter performs no automatic retry; provider failure is returned before Gateway authorization/execution, and Gateway owns per-lifecycle staging and effect ordering. |
 | High | A retry or replay of a response ID or function call ID repeats a protected effect. | IDs are opaque replay markers only. The adapter tracks bounded seen IDs, rejects duplicates, and never uses IDs as authority or as an executor key. |
 | High | The provider follows a prompt injection embedded in a client message, tool result, or model-generated text. | Detection is not a security proof. Gnezdo, Krosna, Propusk, Niti/Metka, Diode, Pechat, and Zaslon remain deterministic boundaries. |
@@ -110,7 +110,8 @@ base URL, timeout, and credential. It sends `store: false`, disables
 background/conversation state, disables provider built-ins and MCP, and sets
 the exact custom function definitions. Client/model text cannot modify these
 fields. Arbitrary metadata is not forwarded as OpenAI authority or persistence
-state.
+state. The implementation bounds the serialized request and uses a finite
+timeout with redirect-disabled HTTPS transport.
 
 ### OpenAI response
 
@@ -135,10 +136,10 @@ actual lineage/classification and derives subsequent output conservatively.
 
 ### HTTP/TLS
 
-Use a mature HTTP client and TLS implementation. The adapter must bound
-success and error bodies, set a finite timeout, reject redirects, construct
-the endpoint from trusted configuration, and expose only static payload-free
-transport errors. It must not log request headers or credential-bearing URLs.
+The adapter uses a mature blocking HTTP client with rustls. It bounds success
+and error bodies, sets a finite timeout, rejects redirects, constructs the
+endpoint from trusted configuration, and exposes only static payload-free
+transport errors. It does not log request headers or credential-bearing URLs.
 
 ## Assumptions and non-guarantees
 
@@ -152,19 +153,21 @@ transport errors. It must not log request headers or credential-bearing URLs.
   model boundary.
 - This phase does not solve semantic prompt injection, model compromise,
   perfect taint analysis, or all possible data leakage.
-- This phase does not implement provider-side tools, remote MCP, conversations,
-  background mode, automatic retry, or irreversible provider effects.
-- Streaming must remain buffered and fail closed; token-by-token public release
-  is not a goal of this phase.
+- This phase does not implement provider-side built-ins, remote MCP,
+  conversations, background mode, automatic retry, or irreversible provider
+  effects. The five fixed Tkach custom functions are proposal vocabulary only.
+- Responses streaming is intentionally disabled in this phase; token-by-token
+  public release is not a goal, and no streaming transport/parser is exposed.
 - Live OpenAI tests, if enabled, prove protocol correctness only. Synthetic
   hostile providers remain the security oracle.
 
 ## Review record
 
 This model was produced from a sequential source review because delegated
-architecture workers were unavailable in the current environment. It must be
-reconciled with the adapter implementation and its adversarial tests before
-the provider checkpoint.
+architecture workers were unavailable in the current environment. It is
+reconciled with the adapter implementation, offline fixtures, Gateway
+integration test, and adversarial tests before the provider checkpoint.
 
 Repository: Tkach-Security
-Version: 7c80701243cadfdbb7f37d15830cb46021b993d0
+Version: implementation commit `a8d67dd` plus the documentation reconciliation
+commit that follows.

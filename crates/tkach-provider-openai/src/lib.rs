@@ -27,6 +27,17 @@ mod wire;
 pub use config::{ConfigError, OpenAiConfig};
 pub use provider::OpenAiProvider;
 
+/// Parse one untrusted Responses payload for the dedicated fuzz harness.
+///
+/// This is available only with the non-default `fuzzing` feature and returns
+/// no provider data. It exists to exercise the same bounded parser used by the
+/// adapter without creating a network-capable fuzz target.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub fn fuzz_response(input: &[u8]) {
+    let _ = wire::parse_response(input);
+}
+
 /// Maximum bytes read from one successful or error HTTP response body.
 pub const MAX_RESPONSE_BODY_BYTES: usize = 128 * 1024;
 /// Maximum output items accepted from one non-streaming response.

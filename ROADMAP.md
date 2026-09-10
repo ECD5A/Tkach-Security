@@ -2,8 +2,9 @@
 
 - DONE — Gateway Hardening 1.5 (2026-09-10; lifecycle/effect ordering,
   aggregate budget hardening, and 313-mutant triage complete).
-- CURRENT — Real Provider Phase v0.1: OpenAI Responses API boundary, starting
-  with P0 provider threat model.
+- CURRENT — Real Provider Phase v0.1: OpenAI Responses API boundary; P0 threat
+  model and P1-P8 non-streaming adapter are implemented, with final validation
+  and provider checkpoint still in progress.
 
 The permanent mandate is the source of truth. States below describe this
 repository, not future product marketing.
@@ -30,5 +31,10 @@ repository, not future product marketing.
 - DONE — Gateway Phase 1 G1-G10 bounded in-process gateway, hostile fake
   providers, protected tool boundary, canonical scenario, and red-team tests.
 - DONE — Gateway Phase 1 checkpoint (2026-09-10; HEAD `c77e6e1`).
+- DONE — Real Provider P0 threat model (commit `32ab2ac`).
+- DONE — Real Provider P1-P8 non-streaming OpenAI adapter (commit `a8d67dd`):
+  bounded config/HTTPS transport, strict wire parser, fixed proposal mapping,
+  replay markers, Gateway integration, fixtures, fuzz target, and opt-in live
+  smoke test.
 - DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway
   transport.

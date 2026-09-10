@@ -159,9 +159,43 @@ secret use. Raw fake secret material stays in the broker; provider-visible
 results preserve Niti/Metka or are payload-free receipts. No real provider,
 transport, SDK, MCP, cloud, or production executor is implemented.
 
+## Real OpenAI Responses adapter — v0.1 non-streaming boundary
+
+`crates/tkach-provider-openai` is a thin provider adapter, not a second policy
+kernel. `OpenAiConfig` is trusted host configuration: the API key is private
+and redacted, the endpoint is HTTPS-only with no embedded credentials, query,
+or fragment, and the model label is a bounded token. `ReqwestTransport` uses
+rustls, a finite timeout, bounded response reads, and no redirects. Transport
+errors are static and do not expose provider error bodies.
+
+The adapter sends a strict Responses request with the fixed Tkach custom
+function vocabulary, `store:false`, `background:false`,
+`parallel_tool_calls:false`, and no conversation or `previous_response_id`
+state. Built-in web/file/computer/MCP tools are not advertised. The response
+parser accepts only bounded completed assistant text and known completed
+function calls; unknown item types, duplicate fields, malformed statuses,
+oversized values, and invalid JSON arguments fail closed. Function arguments
+are intentionally the empty object, and the adapter reconstructs fixed raw
+`ActionRequest` proposals rather than interpreting model-selected scopes.
+
+Read-only tool results return as bounded `function_call_output` DATA items
+paired with tracked call IDs. Response/call IDs are replay markers only and
+are retained in a bounded provider lifecycle set. No ID creates authority.
+The provider can stage text and proposals through the existing Gateway sink,
+but cannot construct Decision/Propusk, call an executor, access Pechat, or
+release output. The real provider path is therefore still subject to the same
+Krosna, Diode, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
+
+Responses streaming, provider-side tools, MCP, automatic retry, SDKs, and
+production transport orchestration remain intentionally disabled. The current
+Gateway contract is synchronous and buffers security-relevant output before
+release; no token-by-token release API exists to accidentally bypass that
+contract.
+
 ## Future, not implemented
 
-OpenAI, Anthropic, MCP, cloud services, SDKs, dashboards, human approval
-services, production transports, and real executors are explicitly deferred
-until after owner review of the Gateway Phase 1 checkpoint. The local
-provider-independent gateway and hostile fakes described above are implemented.
+Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,
+production gateway orchestration, and real executors are explicitly deferred
+until owner review of the provider phase. The provider-independent core and
+the bounded OpenAI adapter boundary are implemented, but this is not a claim
+of production readiness.
