@@ -34,8 +34,10 @@ pub use provider::{
     ProviderStep, ScriptedStep, TimeoutProvider, ToolDescription,
 };
 pub use tools::{
-    EffectReceipt, FakeToolBroker, ToolResult, external_send_request, harmless_read_request,
-    protected_read_request, protected_write_request, secret_reveal_request, secret_use_request,
+    EffectOutcome, EffectReceipt, FakeToolBroker, REAL_FILE_WRITE_CONTENT, REAL_NETWORK_PATH,
+    REAL_NETWORK_PAYLOAD, RealEffectExecutor, RealExecutorConfigError, ToolResult,
+    external_send_request, harmless_read_request, protected_read_request, protected_write_request,
+    secret_reveal_request, secret_use_request,
 };
 
 /// Maximum raw external request body accepted before JSON deserialization.

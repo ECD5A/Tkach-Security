@@ -474,6 +474,56 @@ impl Krosna {
         crate::propusk::AuthorizedAction::issue(request.clone(), grant)
     }
 
+    /// Authorize the narrow trusted-data-to-public-send boundary.
+    ///
+    /// This is the only public flow helper that can carry a trusted `Public`
+    /// classification into action authorization. The caller must provide data
+    /// created at an authenticated [`crate::niti_metka::TaggedData::from_trusted_ingress`]
+    /// adapter boundary; untrusted, protected, and unknown data are rejected.
+    /// The resulting Propusk remains bound to the exact action and still must
+    /// be accepted by a protected executor. The data value itself is not copied
+    /// into the token or exposed by it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::propusk::AuthorizationError::Denied`] unless the
+    /// request is exactly a model `NetworkSend` to `PublicExternal`, the
+    /// configured Ruslo explicitly allows the corresponding `Export`, and the
+    /// ordinary Krosna policy allows the request under `Public` classification.
+    pub fn authorize_tagged_public_send<T>(
+        &self,
+        data: &crate::niti_metka::TaggedData<T>,
+        request: &ActionRequest,
+    ) -> Result<crate::propusk::AuthorizedAction, crate::propusk::AuthorizationError> {
+        let context = SecurityContext::untrusted_with_metadata(
+            Principal::Model,
+            data.niti().provenance().clone(),
+            data.metka().classification(),
+        );
+        if data.metka().classification() != Classification::Public
+            || request.principal() != &Principal::Model
+            || request.operation() != &Operation::NetworkSend
+            || request.destination() != &Destination::PublicExternal
+        {
+            return Err(crate::propusk::AuthorizationError::Denied(Box::new(
+                Self::deny(&context, request, None, SledReason::FlowDenied),
+            )));
+        }
+
+        let flow = crate::ruslo::FlowRequest::from_tagged(
+            Destination::PublicExternal,
+            crate::ruslo::FlowOperation::Export,
+            data,
+        );
+        let decision = self.evaluate_flow(&flow);
+        if !decision.is_allowed() {
+            return Err(crate::propusk::AuthorizationError::Denied(Box::new(
+                decision,
+            )));
+        }
+        self.authorize(&context, request)
+    }
+
     /// Evaluate a directional flow through the kernel's configured Ruslo.
     ///
     /// Gateway/orchestration boundaries use this method instead of copying
@@ -1203,6 +1253,56 @@ mod tests {
             decision.evidence.rule_id.unwrap().as_str(),
             "deny-model-egress"
         );
+    }
+
+    #[test]
+    fn tagged_public_send_requires_explicit_ruslo_and_public_metadata() {
+        let request = fixture_request(Operation::NetworkSend, Destination::PublicExternal);
+        let policy = Policy::new(
+            PolicyId::new("tagged-public-send").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-public-send").unwrap(),
+                RuleMatcher::any()
+                    .principal(Principal::Model)
+                    .operation(Operation::NetworkSend)
+                    .capability(CapabilityName::new("network.send").unwrap())
+                    .resource(ResourceScope::exact(request.resource()))
+                    .destination(Destination::PublicExternal)
+                    .classification(Classification::Public),
+            )],
+        )
+        .unwrap();
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
+            RuleId::new("allow-public-export").unwrap(),
+            FlowMatcher::any()
+                .source(FlowSource::Model)
+                .destination(Destination::PublicExternal)
+                .operation(FlowOperation::Export)
+                .classification(Classification::Public),
+        )])
+        .unwrap();
+        let kernel = Krosna::with_ruslo(policy, ruslo);
+        let public_data = crate::niti_metka::TaggedData::from_trusted_ingress(
+            "explicit-public-payload",
+            ProvenanceSource::Tool(Identity::new("trusted-local-source").unwrap()),
+            Classification::Public,
+        )
+        .unwrap();
+        assert!(
+            kernel
+                .authorize_tagged_public_send(&public_data, &request)
+                .is_ok()
+        );
+
+        let unknown_data = crate::niti_metka::TaggedData::from_untrusted("look-alike");
+        let error = kernel
+            .authorize_tagged_public_send(&unknown_data, &request)
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            crate::propusk::AuthorizationError::Denied(decision)
+                if decision.evidence.reason == SledReason::FlowDenied
+        ));
     }
 
     #[test]
