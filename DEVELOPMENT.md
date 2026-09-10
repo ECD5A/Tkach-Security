@@ -357,6 +357,12 @@
   invalid release, and duplicate metadata. `fuzz/gateway_wire.rs` exercises
   arbitrary bounded JSON parser input. Workspace tests, clippy with warnings
   denied, and fuzz target compile-check pass.
+- Mutation testing: `cargo mutants --package tkach-gateway --jobs 1
+  --no-times` tested 296 mutants on the final Gateway source; 162 were caught,
+  71 missed, and 63 were unviable. Manual review classified the remaining
+  misses as diagnostic/accessor coverage gaps or fake-executor guards already
+  constrained by the Propusk/Krosna boundary; no reportable security bypass
+  survived the attack-path review.
 - Defect found and fixed during self-attack: the first action lifecycle could
   execute a write before a later final egress gate failed. Final output flow
   and content validation now precede action execution, with a regression test.
