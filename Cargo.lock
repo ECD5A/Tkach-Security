@@ -1088,6 +1088,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tkach-http"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tkach-core",
+ "tkach-gateway",
+]
+
+[[package]]
 name = "tkach-provider-openai"
 version = "0.1.0"
 dependencies = [

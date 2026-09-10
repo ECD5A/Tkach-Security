@@ -54,8 +54,8 @@ bounded authenticated frame
   -> bounded receipt and release
 ```
 
-The workspace contains three provider-independent Rust boundary crates and one
-thin local CLI adapter:
+The workspace contains three provider-independent Rust boundary crates and two
+thin local adapters:
 
 - `tkach-core` — Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka,
   Klyuchnik, and Sled;
@@ -66,6 +66,9 @@ thin local CLI adapter:
 
 - `tkach-cli` - the bounded `tkach init`, `check`, and deterministic `run
   --demo` onboarding surface; it adds no authority or security logic.
+- `tkach-http` - the loopback-only HTTP/1.1 carrier for an existing
+  `RuntimeService`; it adds transport validation, not policy or execution
+  authority.
 
 There is no SDK, MCP adapter, streaming release API, public internet gateway,
 UI, cloud control plane, or generic executor in the current source surface.

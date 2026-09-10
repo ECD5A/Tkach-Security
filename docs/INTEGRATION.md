@@ -39,6 +39,43 @@ uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
 existing deterministic Gateway proof with a fake broker and no network or real
 side effect. The CLI is not a generic executor and does not create authority.
 
+## HTTP adapter contract — v0.1
+
+`tkach-http` is a thin language-neutral carrier around an existing
+`tkach_gateway::RuntimeService<P>`. It is a library adapter, not a configured
+server binary. A trusted host embeds it and supplies the existing Gateway,
+provider, executor, and runtime authenticator; HTTP never gets direct access
+to those internals.
+
+The v0.1 listener is intentionally local and sequential:
+
+- `HttpListener::bind` accepts only an IP loopback address, including an
+  ephemeral port for tests; `0.0.0.0`, LAN addresses, DNS binding, and public
+  internet serving are rejected;
+- `GET /healthz` returns the static `{"status":"ok"}` liveness document and
+  does not authorize or execute anything;
+- `POST /v1/run` requires HTTP/1.1, one non-empty `Host`, exact
+  `Content-Type: application/json`, decimal `Content-Length` within
+  `MAX_HTTP_BODY_BYTES`, and `Authorization: Bearer <token>`;
+- `Transfer-Encoding`, chunked framing, redirects, compression, keep-alive,
+  and query/path normalization are unsupported and fail closed;
+- the JSON body is exactly `{request_id, lifecycle_id, request}`. Unknown or
+  duplicate fields are rejected; `request` remains raw until the existing
+  runtime service applies its strict Gateway parser. The adapter translates the
+  header token into the runtime frame and never returns it;
+- each connection receives one bounded JSON response and then closes. Runtime
+  `Success`, `Denied`, `Replay`, provider, effect, and invalid-request outcomes
+  retain explicit HTTP status classes and the payload-free `RuntimeResponse`
+  body. No model/provider payload is turned into an HTTP error message.
+- header and body reads share a fixed 500 ms exchange deadline in addition to
+  byte ceilings, so a slow client cannot hold the sequential listener forever.
+
+This contract is suitable for a local trusted host and language clients that
+can issue ordinary HTTP/1.1 requests. It is not TLS, process/OS isolation,
+durable replay, cancellation-on-disconnect, a public gateway, or a replacement
+for the Core/Gateway authority model. SDKs, MCP, and a distributable server
+binary must build on this contract only after separate review.
+
 ## Public API contract — v0.1
 
 The supported Rust integration points are deliberately split by trust boundary:

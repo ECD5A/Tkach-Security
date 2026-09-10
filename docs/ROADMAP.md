@@ -9,7 +9,8 @@ and security evidence is in `EVIDENCE.md`.
 Compact documentation tree after the local `production-runtime-v0.1` baseline,
 trusted credential-ownership hardening, Strong Core checkpoint, v0.1 public API
 contract, and the bounded CLI onboarding adapter. Productization is now active
-by owner direction; the Core remains frozen.
+by owner direction; the public API, CLI, and local HTTP adapter are complete;
+the Core remains frozen.
 
 ## DONE
 
@@ -30,13 +31,15 @@ by owner direction; the Core remains frozen.
 - Minimal `tkach` CLI with bounded `init`, strict `check`, and deterministic
   `run --demo` onboarding path, including no-overwrite and symlink/reparse
   boundary tests.
+- Loopback-only bounded HTTP/1.1 adapter over `RuntimeService`, with strict
+  `/v1/run` and static `/healthz` contracts plus transport regression tests.
 
 ## NEXT
 
-The next productization cycle is the language-neutral HTTP/API adapter over the
-existing Gateway/runtime boundary. It must define bounded request/response
-schemas, authentication and lifecycle semantics before implementation. SDK,
-MCP, and distribution work stays behind that contract.
+The next productization cycle is a thin SDK or MCP adapter over the reviewed
+HTTP/runtime contract, one adapter at a time. It must not duplicate policy,
+authority, or execution logic. Distribution and external publication remain
+behind that contract and an owner decision.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -60,7 +63,7 @@ this order:
 
 - stable API contract (done) and minimal `tkach` CLI (done);
 - language-neutral HTTP/API adapter with bounded schemas and health/diagnostic
-  behavior;
+  behavior (done for the local library boundary);
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
   reviewed;
 - SemVer crate/package metadata, crates.io publication, changelog, release

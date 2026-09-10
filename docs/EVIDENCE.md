@@ -1,9 +1,9 @@
 # Security and Validation Evidence
 
 This is the single evidence record for the current repository. It covers the
-frozen Strong Core/Gateway boundary and the thin productization CLI. The
+frozen Strong Core/Gateway boundary and the thin productization adapters. The
 provider hardening evidence was rerun after source commit `823d0f0`; the public
-API smoke test and CLI are recorded separately below. Source code and
+API smoke test, CLI, and HTTP adapter are recorded separately below. Source code and
 executable tests remain authoritative; this document records what was run,
 what it establishes, and what it does not establish. Older phase reports were
 consolidated here and removed from the active tree.
@@ -50,9 +50,10 @@ cargo run -p tkach-gateway --example quickstart --locked
 cargo run -p tkach-cli --offline -- --help
 cargo run -p tkach-cli --offline -- --version
 cargo run -p tkach-cli --offline -- run --demo
+cargo test -p tkach-http --all-targets --all-features --locked --offline
 ```
 
-The current Windows MSVC debug/release workspace matrix contains 272 passing
+The current Windows MSVC debug/release workspace matrix contains 282 passing
 tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 
 | Suite | Tests |
@@ -64,14 +65,15 @@ tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 | Gateway boundary | 25 |
 | Public API smoke | 1 |
 | CLI unit | 4 |
+| HTTP adapter | 10 |
 | Product proof | 14 |
 | Real effects | 13 |
 | OpenAI provider | 34 |
 | Opt-in live guard | 1 |
 
 The same suites pass in both debug and release profiles. The docs, packaging,
-Quickstart, CLI command smoke, audit, deny, metadata, formatting, and clippy
-gates pass locally.
+Quickstart, CLI command smoke, HTTP adapter exchange tests, audit, deny,
+metadata, formatting, and clippy gates pass locally.
 The checked-in CI workflow now invokes the same metadata, debug/release test,
 documentation, package, and Quickstart gates; dependency audit and deny remain
 separate pinned CI steps.
@@ -115,9 +117,24 @@ starter and rejects a pre-existing `.tkach` symlink/junction/non-directory;
 deterministic Gateway with no network or real effect. Focused tests, full
 debug/release workspace tests, Clippy, packaging, and command smoke passed.
 
-This checkpoint does not claim a published crate, signed binary, HTTP API,
+This checkpoint does not claim a published crate, signed binary, HTTP service,
 SDK, MCP server, or production agent runner. It also does not upgrade the
 documented portable concurrent path-substitution residual.
+
+## Productization HTTP checkpoint
+
+Status: PASS for the local adapter contract. The `tkach-http` listener accepts
+only loopback addresses, bounds headers/body, rejects ambiguous transfer
+framing, requires a strict JSON envelope and Bearer header for `/v1/run`, keeps
+health liveness separate from authorization, and delegates all authority to
+the existing `RuntimeService`. Focused HTTP tests and workspace debug/release
+tests passed; malformed, oversized, unauthorized, unsupported-media, and
+non-loopback cases return safe static responses or fail closed.
+
+This checkpoint does not claim TLS, public binding, process/OS isolation,
+durable replay, cancellation-on-disconnect, a published HTTP service binary,
+or any SDK/MCP/distribution release. The documented host and concurrent path
+substitution residuals remain unchanged.
 
 ## Adversarial and mutation evidence
 

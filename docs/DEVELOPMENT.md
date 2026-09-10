@@ -33,6 +33,9 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - current Productization cycle: added the bounded `tkach` onboarding CLI with
   strict `init`/`check`/`run --demo` commands, no-overwrite behavior, and
   symlink/reparse-point rejection.
+- current Productization cycle: added the loopback-only `tkach-http` adapter
+  with strict HTTP framing, Bearer translation into `RuntimeService`, bounded
+  responses, health liveness, and transport regression coverage.
 - current checkpoint cycle: reran the local Strong Core matrix and recorded
   the bounded release decision and residual claims in `EVIDENCE.md`.
 

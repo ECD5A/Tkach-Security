@@ -27,7 +27,7 @@ and historical acceptance records do not become permanent bans.
 
 ## Implemented product boundary
 
-The workspace contains four Rust packages:
+The workspace contains five Rust packages:
 
 - `tkach-core`: provider-independent typed security domain, Krosna policy
   evaluation, Zaslon hard-deny rules, Gnezdo data/control containment,
@@ -41,6 +41,9 @@ The workspace contains four Rust packages:
   output remains hostile provider DATA and must pass the Gateway/core gates.
 - `tkach-cli`: a thin local `tkach init`, `check`, and deterministic `run
   --demo` onboarding adapter; it adds no authority or security logic.
+- `tkach-http`: a loopback-only bounded HTTP/1.1 adapter over
+  `RuntimeService`; it is a library carrier, not a public gateway or server
+  binary.
 
 The canonical product vocabulary is:
 
@@ -129,8 +132,8 @@ The final production-runtime local evidence passed:
 - locked metadata, offline `cargo audit --no-fetch`, `cargo deny check`,
   offline fuzz-binary compilation, offline packaging, and Quickstart execution;
 - 113 core, 9 composition, 9 independent-oracle, 49 Gateway unit, 25 Gateway
-  boundary, 1 public-api smoke, 4 CLI unit, 14 product-proof, 13 real-effect,
-  34 provider, and 1 opt-in live
+  boundary, 1 public-api smoke, 4 CLI unit, 10 HTTP adapter, 14 product-proof,
+  13 real-effect, 34 provider, and 1 opt-in live
   guard tests in the debug/release matrix;
 - targeted runtime mutation: 110 mutants, 85 caught, 24 unviable, and one
   diagnostic-only `Visitor::expecting` survivor; no security-path survivor;
@@ -150,11 +153,11 @@ is started and no existing scan is canceled.
 
 ## Current phase
 
-The current phase is Productization / Distribution / DX, beginning with the
-stable API contract and bounded CLI onboarding. The Core and Gateway authority
-model remain frozen; the next boundary is the language-neutral HTTP API. No
-speculative provider, SDK, UI, cloud, or MCP implementation is implied by the
-CLI cycle.
+The current phase is Productization / Distribution / DX, with the stable API
+contract, bounded CLI onboarding, and local HTTP adapter complete. The Core and
+Gateway authority model remain frozen; the next boundary is a thin SDK/MCP
+adapter over the reviewed HTTP contract. No speculative provider, UI, cloud,
+or public gateway implementation is implied by these adapters.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering
