@@ -1,8 +1,8 @@
 # Strong Core Integration Proof Checkpoint
 
-Status: PENDING FINAL MATRIX — the evidence below is the Phase C acceptance
-contract; it becomes PASS only after the complete validation, security review,
-clean worktree check, and local tag are recorded.
+Status: PASS — Phase C acceptance completed locally on 2026-09-10 after the
+complete validation matrix, security self-review, clean worktree check, and
+local tag.
 
 Baseline: `product-proof-v0.1` at `7ec26d5`.
 
@@ -42,3 +42,30 @@ The checkpoint cannot pass if any defined false allow occurs, a raw broker
 secret appears in a result/error/trace/debug surface, a legitimate representative
 workflow is silently denied without an architectural explanation, or an
 unexplained security-relevant mutation survives.
+
+## Final evidence
+
+- Debug and release workspace matrices passed: 111 core unit tests, 9
+  composition tests, 9 independent oracle tests, 19 Gateway unit tests, 25
+  Gateway boundary tests, 14 Product Proof tests, 33 provider tests, and one
+  guarded live-test case.
+- `cargo fmt --all -- --check`, workspace clippy with `-D warnings`,
+  `cargo audit --no-fetch`, `cargo deny check`, fuzz-bin offline compilation,
+  and the Quickstart run passed. Audit/deny reported only the known duplicate
+  `syn` and `windows-sys` warnings; no advisories were reported.
+- The old terminology search is empty across the tracked and worktree source
+  surface. `fuzz/target/` and literal `%TEMP%/` are absent; both generated
+  paths remain ignored.
+- Manual review of exact range `7ec26d5..HEAD` found mechanical canonical
+  renames plus proof/documentation additions. No Krosna precedence, default
+  deny, flow, Propusk, Gnezdo, Niti/Metka, Klyuchnik, lifecycle, or effect
+  ordering change was found. Existing property/oracle and mutation evidence
+  remains applicable because production security logic was not redesigned.
+- Completed prior Standard scan `b8d05e0d-45ea-4d7d-8d86-74b3162f506d`
+  reported zero reportable findings with partial coverage. The current
+  headless scan was started for this phase but remained in `threat_model` with
+  zero closed surfaces; its non-completion is not presented as a scan PASS.
+  The automated diff runner has the documented non-bare-HEAD limitation, so
+  the current range is covered by the source-backed manual review above.
+- No live OpenAI run was made because both opt-in environment variables were
+  absent. No remote publication was performed.
