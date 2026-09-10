@@ -16,8 +16,11 @@
 - Diode treats read/export/reverse/onward edges as separate decisions and denies
   protected public export deterministically;
 - untrusted data cannot mint authority, capabilities, or policy changes;
+- untrusted contexts cannot spoof a trusted principal, and public wire values
+  cannot inject trusted `System` provenance;
 - provenance and conservative protected classification are retained through
   controlled transformations;
+- originless derivations are labeled `Unknown`, never laundered to `Public`;
 - information-flow decisions are directional and separate read from export;
 - broker-held secrets remain outside normal model-visible structures;
 - authorized broker use requires an exact `Propusk`, while raw reveal is
@@ -56,3 +59,10 @@ host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
 and final checkpoint remain pending.
+
+The red-team pass also closed streaming-boundary, debug-redaction,
+identity-spoofing, provenance-spoofing, and originless-labeling weaknesses.
+Fuzz targets cover the canonical text and domain-wire parsers; their binaries
+compile on this host, while libFuzzer execution is currently unavailable under
+the installed MSVC linker. The final checkpoint remains pending until
+production-oriented hardening and all configured checks complete.

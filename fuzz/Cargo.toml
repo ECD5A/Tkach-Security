@@ -1,0 +1,27 @@
+[package]
+name = "tkach-core-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+tkach-core = { path = "../crates/tkach-core" }
+
+[[bin]]
+name = "canonical_text"
+path = "fuzz_targets/canonical_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "domain_wire"
+path = "fuzz_targets/domain_wire.rs"
+test = false
+doc = false
+bench = false

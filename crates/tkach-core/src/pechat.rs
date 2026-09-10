@@ -223,7 +223,9 @@ impl Pechat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{Classification, Principal, Provenance, ProvenanceSource, ResourceScope};
+    use crate::domain::{
+        Classification, Identity, Principal, Provenance, ProvenanceSource, ResourceScope,
+    };
     use crate::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 
     fn handle() -> SecretHandle {
@@ -249,7 +251,10 @@ mod tests {
         .unwrap();
         let context = crate::domain::SecurityContext::untrusted_data(
             Principal::Model,
-            Provenance::from_source(ProvenanceSource::System).unwrap(),
+            Provenance::from_source(ProvenanceSource::Web(
+                Identity::new("broker-caller").unwrap(),
+            ))
+            .unwrap(),
             Classification::Public,
         );
         let request = crate::domain::ActionRequest::new(

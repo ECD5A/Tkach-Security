@@ -21,6 +21,7 @@ use crate::domain::{
     SecurityContext, Trust,
 };
 use serde::Serialize;
+use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 const MAX_UNTRUSTED_CONTENT_BYTES: usize = 1024 * 1024;
@@ -37,10 +38,20 @@ pub enum GnezdoError {
 }
 
 /// Content explicitly contained in Gnezdo's untrusted DATA lane.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 pub struct UntrustedContent {
     context: SecurityContext,
     content: String,
+}
+
+impl Debug for UntrustedContent {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UntrustedContent")
+            .field("context", &self.context)
+            .field("content", &"REDACTED")
+            .finish()
+    }
 }
 
 impl UntrustedContent {
@@ -90,11 +101,15 @@ impl UntrustedContent {
             .iter()
             .map(|parent| parent.context.provenance().clone())
             .collect();
-        let parent_classification = parents
-            .iter()
-            .fold(Classification::Public, |current, parent| {
-                current.join(parent.context.classification())
-            });
+        let parent_classification = if parents.is_empty() {
+            Classification::Unknown
+        } else {
+            parents
+                .iter()
+                .fold(Classification::Public, |current, parent| {
+                    current.join(parent.context.classification())
+                })
+        };
         let provenance = Provenance::derived_from(&parent_contexts);
         Ok(Self {
             context: SecurityContext::untrusted_data(
@@ -285,5 +300,29 @@ mod tests {
         let error = result.unwrap_err();
         assert_eq!(error, GnezdoError::ContentTooLarge);
         assert!(!error.to_string().contains('x'));
+    }
+
+    #[test]
+    fn debug_does_not_echo_untrusted_content() {
+        let marker = "protected-content-marker";
+        let content = Gnezdo::new()
+            .contain(web_source(), marker.to_owned(), Classification::Secret)
+            .unwrap();
+        assert!(!format!("{content:?}").contains(marker));
+    }
+
+    #[test]
+    fn originless_derived_content_is_unknown_not_public() {
+        let derived =
+            UntrustedContent::derive(&[], "originless output".to_owned(), Classification::Public)
+                .unwrap();
+        assert_eq!(derived.context().classification(), Classification::Unknown);
+        assert!(
+            derived
+                .context()
+                .provenance()
+                .lineage()
+                .contains(&ProvenanceSource::Unknown)
+        );
     }
 }

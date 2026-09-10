@@ -16,9 +16,13 @@ the deterministic authority boundary, not the model's reasoning process.
 | Unicode/chunk/encoding bypass | Formal Zaslon rules | Canonicalization/matcher | Equivalent forms behave consistently | Representation bypass |
 | Policy conflict/evaluation failure | Authorization | Krosna | Deterministic deny/restricted result | Failure becomes allow |
 | Logging leakage | Secret material | Sled/logging | Identifiers only | Payload in evidence |
+| Principal/provenance spoofing | Authority and flow decisions | Public context/wire boundary | Untrusted identity is model/data only; trusted provenance is not forgeable | Metadata changes policy or Diode route |
+| Originless derivation laundering | Classification and export controls | Gnezdo/Niti/Metka transforms | Unknown parent state remains Unknown | Empty parents become Public |
 
 The table is a living summary; each completed mandate adds executable coverage
-and records discovered weaknesses in `DEVELOPMENT.md`.
+and records discovered weaknesses in `DEVELOPMENT.md`. Red-team coverage also
+asserts that diagnostic formatting does not echo untrusted or broker-held
+payloads and that streaming normalization cannot be bypassed at chunk seams.
 
 The enforcement testbed exercises this table without a real model, network, or
 provider: hostile typed proposals are evaluated by Krosna, every decision is

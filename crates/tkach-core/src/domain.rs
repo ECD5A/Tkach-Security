@@ -211,11 +211,17 @@ impl Provenance {
     /// # Errors
     ///
     /// Returns [`CoreError::InvalidContext`] when called with the derived
-    /// marker, which is valid only when parent lineage is supplied.
+    /// marker, which is valid only when parent lineage is supplied, or with
+    /// `System`, which requires a future trusted constructor.
     pub fn from_source(source: ProvenanceSource) -> Result<Self, CoreError> {
         if source == ProvenanceSource::Derived {
             return Err(CoreError::InvalidContext {
                 reason: "derived provenance requires parent lineage",
+            });
+        }
+        if source == ProvenanceSource::System {
+            return Err(CoreError::InvalidContext {
+                reason: "system provenance requires trusted construction",
             });
         }
         Ok(Self {
@@ -273,6 +279,15 @@ impl<'de> Deserialize<'de> for Provenance {
         if wire.lineage.is_empty() {
             return Err(serde::de::Error::custom(CoreError::InvalidSerialization {
                 kind: "provenance",
+            }));
+        }
+        if wire
+            .lineage
+            .iter()
+            .any(|source| source == &ProvenanceSource::System)
+        {
+            return Err(serde::de::Error::custom(CoreError::InvalidSerialization {
+                kind: "trusted provenance in untrusted wire value",
             }));
         }
         let valid = match wire.source {
@@ -669,7 +684,8 @@ impl<'de> Deserialize<'de> for SecurityContext {
         D: serde::Deserializer<'de>,
     {
         let wire = SecurityContextWire::deserialize(deserializer)?;
-        if wire.authority != Authority::None
+        if wire.principal != Principal::Model
+            || wire.authority != Authority::None
             || wire.trust != Trust::Untrusted
             || wire.lane != Lane::Data
         {
@@ -687,6 +703,10 @@ impl<'de> Deserialize<'de> for SecurityContext {
 
 impl SecurityContext {
     /// Construct the canonical untrusted data context used by Gnezdo.
+    ///
+    /// Krosna rejects this context when a caller tries to use a non-model
+    /// principal as an untrusted identity. A trusted principal must come from a
+    /// future authenticated adapter, not this public constructor.
     #[must_use]
     pub fn untrusted_data(
         principal: Principal,
@@ -954,6 +974,16 @@ mod tests {
             "classification": "Public"
         });
         assert!(serde_json::from_value::<SecurityContext>(stripped).is_err());
+
+        let spoofed_principal = serde_json::json!({
+            "principal": "System",
+            "authority": "None",
+            "trust": "Untrusted",
+            "lane": "Data",
+            "provenance": {"source": "User", "lineage": ["User"]},
+            "classification": "Public"
+        });
+        assert!(serde_json::from_value::<SecurityContext>(spoofed_principal).is_err());
     }
 
     proptest! {

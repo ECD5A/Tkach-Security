@@ -664,7 +664,10 @@ mod tests {
         );
         let context = SecurityContext::untrusted_data(
             Principal::Model,
-            Provenance::from_source(ProvenanceSource::System).unwrap(),
+            Provenance::from_source(ProvenanceSource::Web(
+                Identity::new("testbed-caller").unwrap(),
+            ))
+            .unwrap(),
             Classification::Public,
         );
         let error = HostileModel::new(context, vec![request; MAX_MODEL_REQUESTS + 1], Vec::new())
@@ -745,7 +748,10 @@ mod tests {
         .unwrap();
         let context = SecurityContext::untrusted_data(
             Principal::Model,
-            Provenance::from_source(ProvenanceSource::System).unwrap(),
+            Provenance::from_source(ProvenanceSource::Web(
+                Identity::new("testbed-caller").unwrap(),
+            ))
+            .unwrap(),
             Classification::Public,
         );
         let request = ActionRequest::new(

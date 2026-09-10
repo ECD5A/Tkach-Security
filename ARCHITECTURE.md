@@ -21,6 +21,13 @@ public-export denial, then policy rules ordered by `HardDeny`, `Deny`,
 class, the lexicographically smallest rule ID supplies stable evidence. Policy
 rule order therefore does not alter authorization.
 
+The red-team boundary is explicit: the public untrusted-context constructor
+normalizes the authority/trust/lane tuple, rejects trusted `System` provenance,
+and Krosna rejects attempts to pair an untrusted context with a non-model
+principal. The context-to-Diode mapper is crate-private; public tagged-data
+flow mapping fixes the source to the model. These restrictions prevent caller
+controlled identity or provenance metadata from becoming authority.
+
 ## Target Strong Core shape
 
 ```text
@@ -55,7 +62,9 @@ always `Lane::Data`, `Authority::None`, and `Trust::Untrusted`. Derived values
 join parent classifications and preserve parent provenance. There is no public
 DATA-to-CONTROL constructor; the opaque `TrustedControl` type has a private
 field and is not deserializable. Natural-language content is not interpreted as
-policy, capability, declassification, or authority.
+policy, capability, declassification, or authority. Its debug surface redacts
+the content, as do generic `TaggedData<T>`, Zaslon matcher state, and the
+streaming matcher tail.
 
 Propusk is issued only by `Krosna::authorize` after an explicit allow. The
 resulting `AuthorizedAction` contains a private request/grant pair and validates

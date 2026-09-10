@@ -20,6 +20,7 @@ use crate::domain::{
     RuleId, SecurityContext, SledEvidence, SledReason,
 };
 use crate::krosna::RuleMatcher;
+use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 const MAX_CONTENT_BYTES: usize = 16 * 1024;
@@ -36,8 +37,14 @@ pub enum ZaslonError {
 }
 
 /// Strict canonical form used by formal content rules.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct CanonicalText(String);
+
+impl Debug for CanonicalText {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("CanonicalText(REDACTED)")
+    }
+}
 
 impl CanonicalText {
     /// Canonicalize formal text using ASCII lowercase and ASCII-space folding.
@@ -86,11 +93,22 @@ impl CanonicalText {
 }
 
 /// One formal content sequence that Zaslon must block.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ContentRule {
     id: RuleId,
     direction: FlowDirection,
     pattern: CanonicalText,
+}
+
+impl Debug for ContentRule {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContentRule")
+            .field("id", &self.id)
+            .field("direction", &self.direction)
+            .field("pattern", &"REDACTED")
+            .finish()
+    }
 }
 
 impl ContentRule {
@@ -131,10 +149,20 @@ impl ActionRule {
 }
 
 /// A deterministic hard-deny plane for action and formal content boundaries.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct Zaslon {
     action_rules: Vec<ActionRule>,
     content_rules: Vec<ContentRule>,
+}
+
+impl Debug for Zaslon {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Zaslon")
+            .field("action_rule_count", &self.action_rules.len())
+            .field("content_rule_count", &self.content_rules.len())
+            .finish()
+    }
 }
 
 impl Zaslon {
@@ -217,6 +245,8 @@ impl Zaslon {
             direction,
             matchers,
             blocked: None,
+            has_content: false,
+            pending_space: false,
         }
     }
 
@@ -268,11 +298,24 @@ pub enum ContentVerdict {
 }
 
 /// Stateful streaming matcher that preserves cross-chunk boundaries.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ZaslonStream {
     direction: FlowDirection,
     matchers: Vec<ContentMatcher>,
     blocked: Option<ContentVerdict>,
+    has_content: bool,
+    pending_space: bool,
+}
+
+impl Debug for ZaslonStream {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ZaslonStream")
+            .field("direction", &self.direction)
+            .field("matcher_count", &self.matchers.len())
+            .field("blocked", &self.blocked)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ZaslonStream {
@@ -285,14 +328,29 @@ impl ZaslonStream {
         if chunk.is_empty() {
             return ContentVerdict::Clear;
         }
-        let Ok(canonical) = CanonicalText::new(chunk) else {
-            let verdict = ContentVerdict::Blocked {
-                rule_id: None,
-                reason: SledReason::InvalidRequest,
-            };
-            self.blocked = Some(verdict.clone());
-            return verdict;
-        };
+        let mut canonical = String::with_capacity(chunk.len());
+        for character in chunk.chars() {
+            if !character.is_ascii() || character.is_control() || character == '\\' {
+                let verdict = ContentVerdict::Blocked {
+                    rule_id: None,
+                    reason: SledReason::InvalidRequest,
+                };
+                self.blocked = Some(verdict.clone());
+                return verdict;
+            }
+            if character == ' ' {
+                if self.has_content {
+                    self.pending_space = true;
+                }
+                continue;
+            }
+            if self.pending_space && self.has_content {
+                canonical.push(' ');
+            }
+            canonical.push(character.to_ascii_lowercase());
+            self.has_content = true;
+            self.pending_space = false;
+        }
         for matcher in &mut self.matchers {
             if matcher.push(&canonical) {
                 let verdict = ContentVerdict::Blocked {
@@ -313,11 +371,22 @@ impl ZaslonStream {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 struct ContentMatcher {
     id: RuleId,
     pattern: String,
     tail: String,
+}
+
+impl Debug for ContentMatcher {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContentMatcher")
+            .field("id", &self.id)
+            .field("pattern", &"REDACTED")
+            .field("tail", &"REDACTED")
+            .finish()
+    }
 }
 
 impl ContentMatcher {
@@ -329,9 +398,9 @@ impl ContentMatcher {
         }
     }
 
-    fn push(&mut self, chunk: &CanonicalText) -> bool {
+    fn push(&mut self, chunk: &str) -> bool {
         let mut candidate = self.tail.clone();
-        candidate.push_str(chunk.as_str());
+        candidate.push_str(chunk);
         if candidate.contains(&self.pattern) {
             return true;
         }
@@ -433,6 +502,29 @@ mod tests {
     }
 
     #[test]
+    fn debug_surfaces_do_not_echo_patterns_or_stream_tails() {
+        let sensitive_marker = "top-secret-token";
+        let rule = ContentRule::new(
+            RuleId::new("debug-redaction").unwrap(),
+            FlowDirection::Egress,
+            &format!("forbidden {sensitive_marker}"),
+        )
+        .unwrap();
+        let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
+        let mut stream = zaslon.stream(FlowDirection::Egress);
+        assert_eq!(
+            stream.push_chunk(&format!("prefix {sensitive_marker}")),
+            ContentVerdict::Clear
+        );
+        assert!(!format!("{zaslon:?}").contains(sensitive_marker));
+        assert!(!format!("{stream:?}").contains(sensitive_marker));
+        assert!(
+            !format!("{:?}", CanonicalText::new(sensitive_marker).unwrap())
+                .contains(sensitive_marker)
+        );
+    }
+
+    #[test]
     fn direction_is_explicit() {
         let rule = ContentRule::new(
             RuleId::new("egress-secret").unwrap(),
@@ -471,6 +563,46 @@ mod tests {
             }
         );
         assert_eq!(stream.push_chunk("anything"), verdict);
+    }
+
+    #[test]
+    fn canonical_space_cannot_be_removed_at_chunk_boundary() {
+        let rule = ContentRule::new(
+            RuleId::new("space-sequence").unwrap(),
+            FlowDirection::Ingress,
+            "DROP SECRET",
+        )
+        .unwrap();
+        let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
+        let mut stream = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(stream.push_chunk("DROP "), ContentVerdict::Clear);
+        assert_eq!(
+            stream.push_chunk("SECRET"),
+            ContentVerdict::Blocked {
+                rule_id: Some(RuleId::new("space-sequence").unwrap()),
+                reason: SledReason::HardDeny,
+            }
+        );
+    }
+
+    #[test]
+    fn leading_space_at_chunk_boundary_has_whole_input_semantics() {
+        let rule = ContentRule::new(
+            RuleId::new("leading-space-sequence").unwrap(),
+            FlowDirection::Ingress,
+            "DROP SECRET",
+        )
+        .unwrap();
+        let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
+        let mut stream = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(stream.push_chunk("DROP"), ContentVerdict::Clear);
+        assert_eq!(
+            stream.push_chunk(" SECRET"),
+            ContentVerdict::Blocked {
+                rule_id: Some(RuleId::new("leading-space-sequence").unwrap()),
+                reason: SledReason::HardDeny,
+            }
+        );
     }
 
     #[test]

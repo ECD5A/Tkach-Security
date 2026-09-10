@@ -439,7 +439,7 @@ fn evidence(request: &FlowRequest, rule_id: Option<RuleId>, reason: SledReason) 
 
 /// Convert an action request and its context into a directional flow request.
 #[must_use]
-pub fn flow_from_action(
+pub(crate) fn flow_from_action(
     context: &crate::domain::SecurityContext,
     request: &crate::domain::ActionRequest,
 ) -> FlowRequest {

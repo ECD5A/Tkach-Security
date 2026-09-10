@@ -18,6 +18,7 @@
 
 use crate::domain::{Classification, Provenance, ProvenanceSource};
 use serde::Serialize;
+use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 /// Errors from provenance/classification transformations.
@@ -114,11 +115,22 @@ impl Metka {
 }
 
 /// A value carrying immutable lineage and conservative classification.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize)]
 pub struct TaggedData<T> {
     value: T,
     niti: Niti,
     metka: Metka,
+}
+
+impl<T> Debug for TaggedData<T> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TaggedData")
+            .field("value", &"REDACTED")
+            .field("niti", &self.niti)
+            .field("metka", &self.metka)
+            .finish()
+    }
 }
 
 impl<T> TaggedData<T> {
@@ -142,11 +154,15 @@ impl<T> TaggedData<T> {
     /// Derive a value from parents, retaining lineage and maximum classification.
     #[must_use]
     pub fn derived_from(parents: &[&Self], value: T) -> Self {
-        let metka = parents
-            .iter()
-            .fold(Metka::new(Classification::Public), |current, parent| {
-                current.join(parent.metka)
-            });
+        let metka = if parents.is_empty() {
+            Metka::new(Classification::Unknown)
+        } else {
+            parents
+                .iter()
+                .fold(Metka::new(Classification::Public), |current, parent| {
+                    current.join(parent.metka)
+                })
+        };
         let niti = Niti::derived_from(
             &parents
                 .iter()
@@ -305,6 +321,28 @@ mod tests {
                 .unwrap();
         let encoded = serde_json::to_string(&secret).unwrap();
         assert!(encoded.contains("customer.db"));
+    }
+
+    #[test]
+    fn debug_does_not_echo_tagged_payload() {
+        let marker = "protected-tagged-marker";
+        let value =
+            TaggedData::from_source(marker.to_owned(), secret_source(), Classification::Secret)
+                .unwrap();
+        assert!(!format!("{value:?}").contains(marker));
+    }
+
+    #[test]
+    fn originless_derived_tag_is_unknown_not_public() {
+        let value = TaggedData::derived_from(&[], "originless output".to_owned());
+        assert_eq!(value.metka(), Metka::new(Classification::Unknown));
+        assert!(
+            value
+                .niti()
+                .provenance()
+                .lineage()
+                .contains(&ProvenanceSource::Unknown)
+        );
     }
 
     proptest! {

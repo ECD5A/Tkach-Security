@@ -18,7 +18,7 @@
 use crate::domain::{
     ActionRequest, Authority, Classification, Decision, DecisionKind, Destination, Operation,
     PolicyId, Principal, ResourceKind, ResourceScope, RuleId, SecurityContext, SledEvidence,
-    SledReason,
+    SledReason, Trust,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -356,6 +356,13 @@ impl Krosna {
     #[must_use]
     pub fn evaluate(&self, context: &SecurityContext, request: &ActionRequest) -> Decision {
         if context.principal() != request.principal() {
+            return Self::deny(context, request, None, SledReason::InvalidRequest);
+        }
+
+        // The public context constructor is intentionally untrusted. It must
+        // not be usable to relabel a model proposal as System/User/Service and
+        // match a policy intended for that trusted principal.
+        if context.trust() == Trust::Untrusted && context.principal() != &Principal::Model {
             return Self::deny(context, request, None, SledReason::InvalidRequest);
         }
 
@@ -946,6 +953,48 @@ mod tests {
         let decision = Krosna::new(policy).evaluate(&context, &request);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::InvalidRequest);
+    }
+
+    #[test]
+    fn untrusted_context_cannot_spoof_trusted_principal() {
+        let policy = Policy::new(
+            PolicyId::new("principal-spoofing").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-system-read").unwrap(),
+                RuleMatcher::any()
+                    .principal(Principal::System)
+                    .operation(Operation::Read),
+            )],
+        )
+        .unwrap();
+        let context = SecurityContext::untrusted_data(
+            Principal::System,
+            Provenance::from_source(ProvenanceSource::Web(
+                Identity::new("attacker.example").unwrap(),
+            ))
+            .unwrap(),
+            Classification::Public,
+        );
+        let request = ActionRequest::new(
+            Principal::System,
+            Operation::Read,
+            fixture_resource(),
+            Destination::Model,
+            crate::domain::CapabilityName::new("file.read").unwrap(),
+        );
+        let decision = Krosna::new(policy).evaluate(&context, &request);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::InvalidRequest);
+    }
+
+    #[test]
+    fn public_untrusted_boundary_cannot_mint_system_provenance() {
+        assert!(Provenance::from_source(ProvenanceSource::System).is_err());
+        let forged = serde_json::json!({
+            "source": "System",
+            "lineage": ["System"]
+        });
+        assert!(serde_json::from_value::<Provenance>(forged).is_err());
     }
 
     #[test]

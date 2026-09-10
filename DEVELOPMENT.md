@@ -185,3 +185,23 @@
   resources and confirms protected external flows cannot be re-enabled by a
   wildcard allow policy.
 - Commit: `composition: add adversarial Strong Core scenarios`.
+
+## Mandate 11 — Core red team
+
+- Attack surface reviewed: Krosna precedence and state conversion, Zaslon
+  canonicalization/stream seams, Gnezdo authority isolation, Propusk scope,
+  Niti/Metka propagation, Diode direction and provenance, Pechat isolation,
+  Sled/error/debug redaction, malformed wire values, UNKNOWN states, resource
+  matching, canonical paths, and race/TOCTOU assumptions.
+- Reproduced and fixed weaknesses: Zaslon whitespace split across chunks;
+  debug output exposing content, patterns, matcher tails, or generic payloads;
+  untrusted principal spoofing; forged trusted `System` provenance; and empty
+  derivations labeled `Public`. Each has an independent regression test.
+- Fuzzing: `fuzz/` contains libFuzzer targets for `CanonicalText` and domain
+  deserialization (`Provenance`, `ResourceScope`, `SecurityContext`). Both
+  targets compile. A 100-run binary smoke attempt reached the Windows MSVC
+  linker but could not execute because the linker reported a missing entry
+  point; the existing proptest/property suite remains green.
+- Tests and review: 74 unit tests and 9 composition tests pass after the
+  hardening pass; rustfmt, clippy with warnings denied, and cargo audit pass.
+- Commit: pending red-team hardening commit.
