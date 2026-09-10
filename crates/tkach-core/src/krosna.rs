@@ -474,6 +474,33 @@ impl Krosna {
         crate::propusk::AuthorizedAction::issue(request.clone(), grant)
     }
 
+    /// Evaluate a directional flow through the kernel's configured Diode.
+    ///
+    /// Gateway/orchestration boundaries use this method instead of copying
+    /// Diode semantics. A kernel without a configured Diode fails closed.
+    #[must_use]
+    pub fn evaluate_flow(&self, flow: &crate::diode::FlowRequest) -> Decision {
+        self.diode.as_ref().map_or_else(
+            || {
+                Decision::new(
+                    DecisionKind::Deny,
+                    SledEvidence {
+                        rule_id: None,
+                        principal: flow.principal().into(),
+                        operation: crate::domain::EvidenceOperation::Unknown,
+                        capability: crate::domain::EvidenceCapability::DiodeFlow,
+                        provenance: flow.provenance().source().into(),
+                        classification: flow.classification(),
+                        destination: flow.destination().into(),
+                        direction: Some(crate::domain::FlowDirection::Egress),
+                        reason: SledReason::UnknownDenied,
+                    },
+                )
+            },
+            |diode| diode.evaluate(flow),
+        )
+    }
+
     fn deny(
         context: &SecurityContext,
         request: &ActionRequest,

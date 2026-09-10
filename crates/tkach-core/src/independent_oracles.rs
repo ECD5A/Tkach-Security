@@ -462,7 +462,7 @@ fn exact_boundary_tables_preserve_bounded_derivations_and_content() {
         Err(GnezdoError::TooManyParents)
     );
 
-    let secret = TaggedData::from_source(
+    let secret = TaggedData::from_trusted_ingress(
         "secret".to_owned(),
         ProvenanceSource::Database(ResourceId::new("oracle-db").unwrap()),
         Classification::Secret,

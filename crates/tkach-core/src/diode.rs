@@ -590,7 +590,7 @@ mod tests {
 
     #[test]
     fn tagged_secret_metadata_cannot_be_replaced_by_public_model_claim() {
-        let secret = crate::niti_metka::TaggedData::from_source(
+        let secret = crate::niti_metka::TaggedData::from_trusted_ingress(
             "raw secret".to_owned(),
             secret_provenance().source().clone(),
             Classification::Secret,

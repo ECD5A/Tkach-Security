@@ -130,7 +130,7 @@ impl SledTrace {
     /// # Errors
     ///
     /// Returns an error instead of growing memory without bound.
-    pub(crate) fn record(&mut self, decision: Decision) -> Result<DecisionId, SledError> {
+    fn record(&mut self, decision: Decision) -> Result<DecisionId, SledError> {
         if self.entries.len() >= MAX_TRACE_ENTRIES {
             return Err(SledError::CapacityExceeded);
         }
@@ -141,6 +141,22 @@ impl SledTrace {
             .ok_or(SledError::DecisionIdExhausted)?;
         self.entries.push(SledEntry { id, decision });
         Ok(id)
+    }
+
+    /// Record a decision returned by a Strong Core boundary.
+    ///
+    /// The decision type has no public constructor, contains payload-free
+    /// evidence, and is never an authority input. This narrow output-side API
+    /// lets a separate gateway preserve the kernel's Sled trace without
+    /// allowing callers to manufacture evidence or permissions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SledError::CapacityExceeded`] or
+    /// [`SledError::DecisionIdExhausted`] when the bounded trace cannot accept
+    /// another decision.
+    pub fn record_kernel_decision(&mut self, decision: Decision) -> Result<DecisionId, SledError> {
+        self.record(decision)
     }
 
     /// Return recorded entries in decision order.

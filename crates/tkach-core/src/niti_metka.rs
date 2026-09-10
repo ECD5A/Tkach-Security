@@ -55,8 +55,7 @@ impl Niti {
     ///
     /// Returns [`NitiMetkaError::InvalidProvenance`] if the source marker is an
     /// unrooted derived value.
-    #[cfg(test)]
-    pub(crate) fn from_source(source: ProvenanceSource) -> Result<Self, NitiMetkaError> {
+    fn from_source(source: ProvenanceSource) -> Result<Self, NitiMetkaError> {
         Ok(Self {
             provenance: Provenance::from_source(source)
                 .map_err(|_| NitiMetkaError::InvalidProvenance)?,
@@ -154,13 +153,19 @@ impl<T> Debug for TaggedData<T> {
 }
 
 impl<T> TaggedData<T> {
-    /// Create a tagged root value from an explicit source and classification.
+    /// Create a tagged root value from an explicit trusted-ingress source and
+    /// classification.
+    ///
+    /// This is an adapter boundary, not a declassification or authority
+    /// constructor. Callers must use it only after authenticating a trusted
+    /// source inside their own protected tool/ingress boundary. Provider
+    /// output must instead use [`TaggedData::from_untrusted`] or
+    /// [`TaggedData::derived_from`] so it cannot choose its own metadata.
     ///
     /// # Errors
     ///
     /// Returns [`NitiMetkaError::InvalidProvenance`] for an invalid root source.
-    #[cfg(test)]
-    pub(crate) fn from_source(
+    pub fn from_trusted_ingress(
         value: T,
         source: ProvenanceSource,
         classification: Classification,
@@ -293,15 +298,18 @@ mod tests {
 
     #[test]
     fn mixed_model_output_inherits_secret_metka_and_lineage() {
-        let public = TaggedData::from_source(
+        let public = TaggedData::from_trusted_ingress(
             "hello".to_owned(),
             ProvenanceSource::User,
             Classification::Public,
         )
         .unwrap();
-        let secret =
-            TaggedData::from_source("record".to_owned(), secret_source(), Classification::Secret)
-                .unwrap();
+        let secret = TaggedData::from_trusted_ingress(
+            "record".to_owned(),
+            secret_source(),
+            Classification::Secret,
+        )
+        .unwrap();
         let output = TaggedData::derived_from(&[&public, &secret], "summary".to_owned());
         assert_eq!(output.metka().classification(), Classification::Secret);
         assert!(
@@ -322,9 +330,12 @@ mod tests {
 
     #[test]
     fn model_cannot_self_declassify_and_permit_is_required() {
-        let secret =
-            TaggedData::from_source("secret".to_owned(), secret_source(), Classification::Secret)
-                .unwrap();
+        let secret = TaggedData::from_trusted_ingress(
+            "secret".to_owned(),
+            secret_source(),
+            Classification::Secret,
+        )
+        .unwrap();
         assert_eq!(
             secret.try_self_declassify(Classification::Public),
             Err(NitiMetkaError::MissingDeclassificationAuthority)
@@ -358,9 +369,12 @@ mod tests {
             "provenance": {"source": "System", "lineage": []}
         });
         assert!(serde_json::from_value::<Niti>(stripped).is_err());
-        let secret =
-            TaggedData::from_source("secret".to_owned(), secret_source(), Classification::Secret)
-                .unwrap();
+        let secret = TaggedData::from_trusted_ingress(
+            "secret".to_owned(),
+            secret_source(),
+            Classification::Secret,
+        )
+        .unwrap();
         let encoded = serde_json::to_string(&secret).unwrap();
         assert!(encoded.contains("customer.db"));
     }
@@ -376,9 +390,12 @@ mod tests {
     #[test]
     fn debug_does_not_echo_tagged_payload() {
         let marker = "protected-tagged-marker";
-        let value =
-            TaggedData::from_source(marker.to_owned(), secret_source(), Classification::Secret)
-                .unwrap();
+        let value = TaggedData::from_trusted_ingress(
+            marker.to_owned(),
+            secret_source(),
+            Classification::Secret,
+        )
+        .unwrap();
         assert!(!format!("{value:?}").contains(marker));
     }
 
@@ -397,7 +414,7 @@ mod tests {
 
     #[test]
     fn oversized_parent_set_becomes_unknown_instead_of_laundering_classification() {
-        let parent = TaggedData::from_source(
+        let parent = TaggedData::from_trusted_ingress(
             "parent".to_owned(),
             ProvenanceSource::User,
             Classification::Secret,
