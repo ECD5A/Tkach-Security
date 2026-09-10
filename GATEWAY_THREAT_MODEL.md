@@ -269,11 +269,14 @@ final Gateway output and payload-free runtime receipts. Duplicate IDs,
 malformed or oversized frames, shutdown, cancellation, authorization failure,
 and `OutcomeUnknown` are terminal; no automatic retry is provided. The
 synchronous provider/effect call cannot be forcefully interrupted by this API,
-and durable replay, TLS, OS/process isolation, and host compromise remain
-explicit deployment limitations. See `PRODUCTION_RUNTIME_THREAT_MODEL.md` and
-`RUNTIME_ISOLATION_MODEL.md` for the complete R0/R1 boundary contract.
+  and durable replay, TLS, OS/process isolation, and host compromise remain
+  explicit deployment limitations. Response encoding overflow preserves the
+  bounded receipt in a terminal `ResponseTooLarge` fallback. See
+  `PRODUCTION_RUNTIME_THREAT_MODEL.md` and `RUNTIME_ISOLATION_MODEL.md` for the complete
+  R0/R1 boundary contract.
 
 Repository: Tkach-Security
-Version: strong-core-v0.1 / 585bde22f7b39ee227c1b6e7876cb7999643ca6f
-Gateway implementation: `1e1d16c`, hardening: `36ce4f7`, packaging:
-`9026605`; Gateway Hardening 1.5 is tagged locally as `gateway-v0.1`.
+Version: production-runtime-v0.1 local candidate
+Runtime hardening commits: `75ebde2`, `84da829`, `3ab1cfb`,
+`a7417aa`, `e3d1e50`, `2eeff91`, `5a4a7b7`,
+`dc8ef8a`, `0b8752d`, and `00ae831`.

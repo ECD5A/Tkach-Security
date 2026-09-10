@@ -158,9 +158,10 @@ does not defend against a fully compromised
 host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
-and the final adversarial hardening checkpoint is complete only after the
-validation matrix and freeze commit recorded in `DEVELOPMENT.md`; provider
-streaming, MCP, SDK, cloud, UI, and production gateway orchestration are not
+The production runtime red-team pass and final adversarial hardening checkpoint
+are recorded in `PRODUCTION_RUNTIME_REPORT.md` after the local validation matrix
+and freeze commit. Provider streaming, MCP, SDK, cloud, UI, and production
+gateway orchestration are not
 part of this status. The OpenAI adapter's HTTPS transport is a bounded
 provider boundary, not a production gateway or deployment integration. The
 local effect boundary is not a generic OS/network executor: it is exact,

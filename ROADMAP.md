@@ -9,10 +9,11 @@
 The permanent mandate is the source of truth. States below describe this
 repository, not future product marketing.
 
-- IN PROGRESS - Production Runtime Hardening v0.1: runtime threat/ownership
-  model, platform-aware no-follow opens, zeroized Klyuchnik storage, bounded
+- DONE - Production Runtime Hardening v0.1: runtime threat/ownership model,
+  platform-aware no-follow opens, zeroized Klyuchnik storage, bounded
   authenticated loopback framing, lifecycle replay, cancellation, shutdown,
-  safe receipts, and hostile runtime/fault/property/mutation validation.
+  safe receipts, hostile runtime/fault/property/mutation validation, full local
+  matrix, checkpoint, and local tag.
 
 - DONE — Mandate 0: foundation and security baseline.
 - DONE — Mandate 1: strong typed security domain model.

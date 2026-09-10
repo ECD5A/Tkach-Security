@@ -86,6 +86,8 @@ cargo run -p tkach-gateway --example quickstart --locked
 cargo audit --no-fetch
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked --offline
+cargo doc --workspace --all-features --no-deps --locked
+cargo package --workspace --allow-dirty --no-verify --offline
 ```
 
 The core and Gateway are synchronous, deterministic, and forbid `unsafe` Rust.

@@ -1,6 +1,6 @@
 # Tkach Security Runtime Isolation Model
 
-Status: R1 ownership contract for Production Runtime Hardening v0.1.
+Status: R1 ownership contract implemented and locally verified for Production Runtime Hardening v0.1.
 
 This document names ownership that can be implemented and audited. A box in a
 diagram is not a process boundary by itself. BASIC, CONTROLLED, and SEALED are

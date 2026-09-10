@@ -604,7 +604,7 @@
   Gateway/Krosna/Ruslo/Zaslon/Niti-Metka/Klyuchnik/parse observations.
   `INTEGRATION_PROOF_CHECKPOINT.md` is the Phase C acceptance record.
 
-## Production Runtime Hardening v0.1 - R0-R18 implementation in progress
+## Production Runtime Hardening v0.1 - R0-R37 complete
 
 - R0/R1 committed `PRODUCTION_RUNTIME_THREAT_MODEL.md` and
   `RUNTIME_ISOLATION_MODEL.md`. They separate MODEL SIDE, SECURITY RUNTIME,
@@ -632,9 +632,15 @@
   regression). Follow-up hardening commits `2eeff91` (raw nested request
   parsing and replay capacity), `5a4a7b7` (authenticated runtime real-effect
   E2E), and `dc8ef8a` (oversized response receipt fallback).
-- Remaining R19-R37 work includes fault/concurrency/property/mutation and
-  hostile-runtime validation, full documentation reconciliation, final local
-  matrix, checkpoint, annotated tag, and no push. This phase is not complete.
+- Final coverage and reproducibility stages are 0b8752d (runtime boundary
+  coverage), b1295e2 (documentation reconciliation), and 00ae831 (tracked
+  fuzz lock refresh).
+- R19-R37 are complete: out-of-band bypass, safe receipts/observability,
+  authentication/authorization separation, hostile runtime/fault/panic checks,
+  property/oracle and mutation review, packaging, full documentation
+  reconciliation, local matrix, and checkpoint/report are recorded in
+  PRODUCTION_RUNTIME_CHECKPOINT.md and PRODUCTION_RUNTIME_REPORT.md. The
+  annotated production-runtime-v0.1 tag is local only; no push is performed.
 
 ## Autonomous Production Hardening - Part A
 

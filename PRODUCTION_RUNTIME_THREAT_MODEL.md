@@ -1,6 +1,6 @@
 # Tkach Security Production Runtime Threat Model
 
-Status: R0 design baseline for `production-runtime-v0.1`.
+Status: R0 implemented and locally verified for `production-runtime-v0.1`.
 
 This document extends the earlier Strong Core, Gateway, provider, and local
 effect threat models to the runtime boundary. It is a design and review
@@ -132,13 +132,13 @@ raw secret values.
 | Threat | Required control | Coverage status |
 | --- | --- | --- |
 | Hostile model proposes arbitrary effect | Fixed provider API, Krosna, Propusk-only executor | Existing; runtime integration must preserve |
-| Malformed/oversized transport | Pre-parse frame bound, strict schema, bounded errors | R9/R35 implementation |
-| Unauthenticated caller | Authenticator before Gateway/provider/effect | R9/R10 implementation |
-| Authentication mistaken for authority | Separate transport principal and model principal | R10 implementation |
-| Duplicate/replay/concurrent request | Request/lifecycle identity and bounded replay state | R11 implementation; durable replay out of scope |
-| Replay after timeout or unknown outcome | Terminal unknown state, no auto retry, fresh explicit lifecycle | R5/R6/R12/R13 implementation |
-| Cancellation during any stage | Cancellation checkpoints and terminal state | R13 implementation |
-| Shutdown race | Stop acceptance, barrier, bounded drain, no post-barrier effect | R14 implementation |
+| Malformed/oversized transport | Pre-parse frame bound, strict schema, bounded errors | Local implementation and matrix verified |
+| Unauthenticated caller | Authenticator before Gateway/provider/effect | Local implementation and matrix verified |
+| Authentication mistaken for authority | Separate transport principal and model principal | Local implementation and matrix verified |
+| Duplicate/replay/concurrent request | Request/lifecycle identity and bounded replay state | Local implementation and matrix verified; durable replay out of scope |
+| Replay after timeout or unknown outcome | Terminal unknown state, no auto retry, fresh explicit lifecycle | Local implementation and matrix verified |
+| Cancellation during any stage | Cancellation checkpoints and terminal state | Local implementation and matrix verified |
+| Shutdown race | Stop acceptance, barrier, bounded drain, no post-barrier effect | Local implementation and matrix verified |
 | Symlink/reparse/junction/path swap | `symlink_metadata`, OS-aware adapter or explicit denial | Existing partial; R2/R3 hardening |
 | Hard-link alias or wrong file identity | Handle/file identity validation where OS supports it; no portable claim | R2/R3 evidence boundary |
 | DNS rebinding/redirect/proxy | Fixed loopback `SocketAddr`; no DNS/redirect; future hostname separate model | Existing fixed effect; R7/R8 |
