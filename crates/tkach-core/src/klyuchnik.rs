@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use thiserror::Error;
+use zeroize::Zeroize;
 
 const MAX_REGISTERED_SECRETS: usize = 1_024;
 const MAX_SECRET_BYTES: usize = 1024 * 1024;
@@ -94,6 +95,12 @@ impl Debug for SecretHandle {
 /// Raw broker-held material. It intentionally has no public value accessor,
 /// serialization, display implementation, or revealing debug output.
 struct SecretValue(Vec<u8>);
+
+impl Drop for SecretValue {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
 
 impl Debug for SecretValue {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
@@ -321,6 +328,13 @@ mod tests {
         assert!(!serialized.contains("actual-secret-value"));
         assert!(!format!("{broker:?}").contains("actual-secret-value"));
         assert_eq!(broker.len(), 1);
+    }
+
+    #[test]
+    fn secret_value_has_no_public_operational_surface() {
+        let value = SecretValue(b"operational-secret".to_vec());
+        assert_eq!(format!("{value:?}"), "SecretValue(REDACTED)");
+        assert!(!format!("{value:?}").contains("operational-secret"));
     }
 
     #[test]
