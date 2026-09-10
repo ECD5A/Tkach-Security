@@ -534,7 +534,7 @@
   this limitation is explicit in the final report. The pruning range also
   receives a source-backed diff review and `git diff --check`.
 - Final checkpoint: `PRODUCT_CONTRACT_CHECKPOINT.md` is the A20 checklist.
-  It passes at `eb1aea7` after the final debug/release test matrix, clippy,
+  It passes at `a64dad0` after the final debug/release test matrix, clippy,
   audit, deny, fuzz compile check, source-backed diff review, and clean
   worktree check. The automated pruning-range diff runner remained unavailable
   despite a valid clean non-bare HEAD and is recorded as a limitation rather
