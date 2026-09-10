@@ -63,6 +63,9 @@ The current debug/release workspace matrix contains 267 passing tests:
 
 The same suites pass in both debug and release profiles. The docs, packaging,
 Quickstart, audit, deny, metadata, formatting, and clippy gates pass locally.
+The checked-in CI workflow now invokes the same metadata, debug/release test,
+documentation, package, and Quickstart gates; dependency audit and deny remain
+separate pinned CI steps.
 Fuzz binaries compile with locked offline dependencies; libFuzzer execution is
 not claimed on this Windows MSVC host. The ignored `target/` and
 `fuzz/target/` directories are generated artifacts, not repository inputs.

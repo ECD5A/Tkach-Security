@@ -26,6 +26,8 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - `823d0f0`: stored the OpenAI adapter's trusted configuration credential in
   `zeroize::Zeroizing<String>`; HTTP-client/header and caller buffers remain
   explicitly outside the ownership claim.
+- current release-engineering cycle: CI now mirrors the local release matrix
+  for metadata, release tests, docs/rustdoc, packaging, and Quickstart.
 
 ## Security review rules applied
 
