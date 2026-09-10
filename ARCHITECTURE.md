@@ -55,12 +55,12 @@ Zaslon  Propusk  Diode
 Gnezdo contains untrusted content in a data lane. Niti and Metka preserve
 provenance and conservative classification. No model output is trusted as
 policy or authority. The protected executor boundary accepts only kernel-issued
-authorization once that mandate is implemented.
+authorization.
 
 ## Trusted Computing Base
 
-At the checkpoint, the TCB is intended to be the typed domain and synchronous
-policy kernel in `tkach-core`, plus Rust's type/visibility rules. Policy and
+The TCB is the typed domain and synchronous policy kernel in `tkach-core`, plus
+Rust's type/visibility rules. Policy and
 provenance deserialization re-run validation before entering the domain.
 Adapters, logging, serialization boundaries, and provider integrations must not
 define security semantics. Zaslon does not claim semantic prompt-injection

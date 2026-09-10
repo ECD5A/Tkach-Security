@@ -228,4 +228,21 @@
   a linker entry-point failure, while Linux CI runs the smoke target.
 - Supply chain and CI: `cargo audit` and `cargo deny check` pass with pinned
   tool versions and an immutable checkout action reference in CI.
-- Commit: pending M12 hardening commit.
+- Commit: `a59f693` (`hardening: bound inputs and close public metadata routes`).
+
+## Strong Core Checkpoint
+
+- Result: passed on 2026-09-10 after the M12 hardening cycle. All 60 checkpoint
+  conditions are substantially satisfied for the implemented provider-
+  independent core; owner review is now required before product expansion.
+- Validation: `cargo fmt --all -- --check`, clippy with warnings denied,
+  `cargo test --all --locked`, `cargo test --all --release --locked`, fuzz
+  binary compile-check, `cargo audit`, and `cargo deny check` all pass.
+- Security scan: the official Standard scan completed with 10 reviewed
+  surfaces and no reportable findings. Its snapshot predates M12, so the
+  report records post-scan source re-review and regression validation rather
+  than claiming the scanner analyzed the later commit.
+- Environment limitation: Windows MSVC cannot run the libFuzzer binary due to
+  `LNK1561` missing entry point; the binaries compile and Linux CI runs the
+  100-run smoke target.
+- Final state: local commits only; no remote push was performed.

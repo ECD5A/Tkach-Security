@@ -64,8 +64,8 @@ every semantic paraphrase. Pechat does not defend against a fully compromised
 host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
-is complete, and the final checkpoint is pending only the final validation and
-owner-review handoff.
+and Strong Core Checkpoint are complete; the repository is ready for owner
+review.
 
 The red-team pass also closed streaming-boundary, debug-redaction,
 identity-spoofing, provenance-spoofing, and originless-labeling weaknesses.
@@ -74,3 +74,6 @@ NetworkSend provenance, generic secret-use execution, and bounded-input gaps.
 Fuzz targets cover the canonical text and domain-wire parsers; their binaries
 compile on this host, while libFuzzer execution is currently unavailable under
 the installed MSVC linker. Linux CI provides the bounded execution smoke test.
+The official Standard Security Scan completed with 10 reviewed surfaces and no
+reportable findings; its source snapshot predates M12 and that limitation is
+recorded in the sealed scan scope.
