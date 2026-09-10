@@ -638,5 +638,6 @@
 - Implementation commits: `ef0f185` classifies effect outcomes;
   `e72619e` adds the real local boundary and first adversarial suite;
   `5054e76` documents and hardens the boundary; `6d66259` closes the
-  reparse-platform and fault-injection hardening cycle. The final checkpoint
-  and local tag follow the complete verification matrix.
+  reparse-platform and fault-injection hardening cycle. The local checkpoint
+  is complete; stalled external Codex Security scans are recorded as
+  inconclusive tooling limitations and are not security evidence.

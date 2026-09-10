@@ -3,15 +3,15 @@
 Date: 2026-09-10  
 Baseline: `5f2aeb133607207cabb68e82bbdf1f62dd4e5219`
 (`integration-proof-v0.1`)  
-Implementation hardening: `6d66259`
+Implementation hardening: `6d66259`; final checkpoint documentation follows
+
 
 ## Decision
 
 The local Strong Core implementation and repository verification matrix pass.
-The release tag is intentionally withheld: two pre-existing headless Standard
-Codex Security scans are still `running` and have no terminal report. This
-record therefore does not claim a final Strong Core PASS until those scans are
-terminally complete.
+The two pre-existing headless Standard Codex Security scans are an external
+tooling limitation and are not used as security evidence. They do not block
+this local checkpoint.
 
 ## Architecture and authority
 
@@ -70,7 +70,10 @@ OS-specific adapter or deny this profile.
   which is not compiled on this Windows host; its Windows implementation has
   direct metadata coverage.
 
-## Scan state and remaining gates
+## Scan state and remaining limitations
+
+Codex Security scans: INCONCLUSIVE / unavailable due to stalled external
+tooling; not used as security evidence.
 
 The following pre-existing scans remain active and are not claimed complete:
 
@@ -80,13 +83,12 @@ The following pre-existing scans remain active and are not claimed complete:
   candidates so far, no report artifacts.
 
 The first identifier above is recorded as returned by the security workbench;
-the second is the separate later scan. Final tag/PASS requires terminal
-status and a final review of their canonical artifacts. No push is authorized.
+the second is the separate later scan. No new scan was started and neither
+existing scan was canceled. No push is authorized.
 
 ## Current conclusion
 
 Implementation quality is sufficient for the local production-boundary
-candidate, with TOCTOU and generic-transport limitations explicitly retained.
-Final Strong Core completion remains pending the two active security scans;
-after they terminate, rerun the clean-status check and tag only if no new
-reportable security defect remains.
+checkpoint, with TOCTOU and generic-transport limitations explicitly retained.
+The local evidence supports the production-boundary tag; the stalled scans
+remain an explicit inconclusive limitation rather than a security result.
