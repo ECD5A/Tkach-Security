@@ -48,7 +48,7 @@ cargo package --workspace --allow-dirty --no-verify --offline
 cargo run -p tkach-gateway --example quickstart --locked
 ```
 
-The current debug/release workspace matrix contains 267 passing tests:
+The current debug/release workspace matrix contains 268 passing tests:
 
 | Suite | Tests |
 | --- | ---: |
@@ -57,6 +57,7 @@ The current debug/release workspace matrix contains 267 passing tests:
 | Core independent oracle | 9 |
 | Gateway unit | 49 |
 | Gateway boundary | 25 |
+| Public API smoke | 1 |
 | Product proof | 14 |
 | Real effects | 13 |
 | OpenAI provider | 34 |

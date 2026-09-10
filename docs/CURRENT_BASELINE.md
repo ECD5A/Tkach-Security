@@ -125,7 +125,8 @@ The final production-runtime local evidence passed:
 - locked metadata, offline `cargo audit --no-fetch`, `cargo deny check`,
   offline fuzz-binary compilation, offline packaging, and Quickstart execution;
 - 113 core, 9 composition, 9 independent-oracle, 49 Gateway unit, 25 Gateway
-  boundary, 14 product-proof, 13 real-effect, 34 provider, and 1 opt-in live
+  boundary, 1 public-api smoke, 14 product-proof, 13 real-effect, 34 provider,
+  and 1 opt-in live
   guard tests in the debug/release matrix;
 - targeted runtime mutation: 110 mutants, 85 caught, 24 unviable, and one
   diagnostic-only `Visitor::expecting` survivor; no security-path survivor;

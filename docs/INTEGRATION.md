@@ -19,6 +19,39 @@ bounded `Zaslon` values; wires a `Gateway` to a protected executor; submits a
 bounded `ExternalRequest`; runs a deterministic provider; and releases output
 only from a successful `GatewayResult`.
 
+## Public API contract — v0.1
+
+The supported Rust integration points are deliberately split by trust boundary:
+
+- `tkach-core` is the provider- and protocol-independent security kernel. Use
+  its typed domain, Krosna/Ruslo/Zaslon decisions, Niti/Metka state, Propusk,
+  Klyuchnik, and Sled APIs; do not treat serialized values as authority.
+- `tkach-gateway` is the bounded orchestration boundary. Its supported entry
+  points are `ExternalRequest`, `Gateway`, `Provider`, `ProtectedExecutor`,
+  `RuntimeService`, and the narrow `RealEffectExecutor` profile.
+- `tkach-provider-openai` is an optional thin provider adapter. Its output is
+  hostile provider DATA and raw proposals only; it is never a policy or
+  execution API.
+
+The security contract is stable across these packages: model/provider output
+cannot mint authority; protected effects require exact `Propusk`; final
+Ruslo/Zaslon checks remain mandatory; bounds and fail-closed errors are part of
+the behavior. Private fields, module layout, test doubles, and diagnostic text
+are not compatibility contracts.
+
+The accepted external request schema is strict bounded JSON. The optional local
+runtime schema is a four-byte big-endian length followed by one strict JSON
+frame containing `request_id`, `lifecycle_id`, `auth`, and `request`; it has no
+version negotiation and must be used by a client pinned to a compatible v0.1
+release. A future public API version must add explicit negotiation before
+cross-release runtime interoperability is promised.
+
+Project compatibility policy for v0.1 is additive changes where possible;
+breaking Rust API or wire changes require a deliberate minor-version change,
+release notes, updated examples, and a fresh security/regression review. There
+is intentionally no umbrella `tkach` facade yet: introducing one is a later DX
+decision, not permission to duplicate Core or Gateway logic.
+
 ## What an existing AI agent changes
 
 Replace the direct path
