@@ -980,10 +980,16 @@ mod tests {
     use super::*;
     use crate::Gateway;
     use crate::provider::{DeterministicProvider, ProviderStep, ScriptedStep};
-    use crate::tools::{FakeToolBroker, protected_write_request};
+    use crate::tools::{
+        FakeToolBroker, REAL_FILE_WRITE_CONTENT, RealEffectExecutor, protected_write_request,
+    };
     use serde_json::json;
-    use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
-    use tkach_core::krosna::{Krosna, Policy};
+    use std::fs;
+    use std::net::SocketAddr;
+    use std::path::Path;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tkach_core::domain::{ActionRequest, Destination, Identity, PolicyId, Principal, RuleId};
+    use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
     use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
     use tkach_core::zaslon::Zaslon;
 
@@ -1012,6 +1018,90 @@ mod tests {
             RuntimeAuthenticator::new(b"runtime-secret".to_vec()).unwrap(),
             RuntimeLimits::default(),
         )
+    }
+
+    fn release_only_kernel() -> Krosna {
+        Krosna::with_ruslo(
+            Policy::new(PolicyId::new("runtime-release-only").unwrap(), vec![]).unwrap(),
+            Ruslo::new(vec![FlowRule::allow(
+                RuleId::new("allow-runtime-release").unwrap(),
+                FlowMatcher::any()
+                    .principal(Principal::Model)
+                    .source(FlowSource::Model)
+                    .destination(Destination::Internal(Identity::new("client").unwrap()))
+                    .operation(FlowOperation::Export),
+            )])
+            .unwrap(),
+        )
+    }
+
+    fn exact_write_kernel(action: &ActionRequest) -> Krosna {
+        let policy = Policy::new(
+            PolicyId::new("runtime-real-write").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-exact-runtime-write").unwrap(),
+                RuleMatcher::any()
+                    .principal(Principal::Model)
+                    .operation(action.operation().clone())
+                    .capability(action.capability().clone())
+                    .resource(tkach_core::domain::ResourceScope::exact(action.resource()))
+                    .destination(action.destination().clone())
+                    .classification(tkach_core::domain::Classification::Unknown),
+            )],
+        )
+        .unwrap();
+        let storage = Destination::Internal(Identity::new("storage").unwrap());
+        let client = Destination::Internal(Identity::new("client").unwrap());
+        let ruslo = Ruslo::new(vec![
+            FlowRule::allow(
+                RuleId::new("allow-runtime-storage-transfer").unwrap(),
+                FlowMatcher::any()
+                    .principal(Principal::Model)
+                    .source(FlowSource::Model)
+                    .destination(storage)
+                    .operation(FlowOperation::Transfer),
+            ),
+            FlowRule::allow(
+                RuleId::new("allow-runtime-client-export").unwrap(),
+                FlowMatcher::any()
+                    .principal(Principal::Model)
+                    .source(FlowSource::Model)
+                    .destination(client)
+                    .operation(FlowOperation::Export),
+            ),
+        ])
+        .unwrap();
+        Krosna::with_ruslo(policy, ruslo)
+    }
+
+    fn real_service(
+        root: &Path,
+        kernel: Krosna,
+        provider: DeterministicProvider,
+    ) -> RuntimeService<DeterministicProvider> {
+        let gateway = Gateway::new(
+            kernel,
+            Zaslon::empty(),
+            Zaslon::empty(),
+            Destination::Internal(Identity::new("client").unwrap()),
+            RealEffectExecutor::new(root, SocketAddr::from(([127, 0, 0, 1], 1))).unwrap(),
+        );
+        RuntimeService::new(
+            gateway,
+            provider,
+            RuntimeAuthenticator::new(b"runtime-secret".to_vec()).unwrap(),
+            RuntimeLimits::default(),
+        )
+    }
+
+    fn unique_runtime_root(label: &str) -> std::path::PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("tkach-runtime-{label}-{suffix}"));
+        fs::create_dir_all(root.join("workspace")).unwrap();
+        root
     }
 
     fn frame(request_id: &str, lifecycle_id: &str, auth: &str) -> Vec<u8> {
@@ -1273,6 +1363,85 @@ mod tests {
                 panic!("unknown outcome must be represented explicitly")
             }
         }
+    }
+
+    #[test]
+    fn authenticated_runtime_commits_exact_real_write_once_and_replay_is_terminal() {
+        let root = unique_runtime_root("write");
+        let action = protected_write_request();
+        let provider = DeterministicProvider::new(vec![ScriptedStep {
+            chunks: vec!["runtime write".to_owned()],
+            actions: vec![action.clone()],
+            continuation: ProviderStep::Complete,
+        }]);
+        let mut service = real_service(&root, exact_write_kernel(&action), provider);
+        let token = CancellationToken::new();
+        let request = frame(
+            "request-real-write",
+            "lifecycle-real-write",
+            "runtime-secret",
+        );
+
+        let response = service.handle_frame(&request, &token);
+        match response {
+            RuntimeResponse::Success { receipt, output } => {
+                assert_eq!(output.as_deref(), Some("runtime write"));
+                assert_eq!(receipt.outcome(), RuntimeOutcome::Success);
+                assert_eq!(receipt.effects().len(), 1);
+                assert_eq!(
+                    receipt.effects()[0].outcome(),
+                    RuntimeEffectOutcome::Committed
+                );
+            }
+            RuntimeResponse::Failure { .. } => panic!("authorized runtime write must succeed"),
+        }
+        assert_eq!(
+            fs::read(root.join("workspace/output.txt")).unwrap(),
+            REAL_FILE_WRITE_CONTENT
+        );
+        assert!(matches!(
+            service.handle_frame(&request, &token),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::Replay,
+                ..
+            }
+        ));
+        assert_eq!(
+            fs::read(root.join("workspace/output.txt")).unwrap(),
+            REAL_FILE_WRITE_CONTENT
+        );
+        drop(service);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn authenticated_runtime_cannot_turn_a_valid_identity_into_real_authority() {
+        let root = unique_runtime_root("denied-write");
+        let mut service =
+            real_service(&root, release_only_kernel(), unauthorized_action_provider());
+        let response = service.handle_frame(
+            &frame(
+                "request-denied-write",
+                "lifecycle-denied-write",
+                "runtime-secret",
+            ),
+            &CancellationToken::new(),
+        );
+        assert!(matches!(
+            response,
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::AuthorizationDenied,
+                receipt: Some(RuntimeReceipt {
+                    outcome: RuntimeOutcome::Denied,
+                    uncertain: false,
+                    ..
+                }),
+                ..
+            }
+        ));
+        assert!(!root.join("workspace/output.txt").exists());
+        drop(service);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
