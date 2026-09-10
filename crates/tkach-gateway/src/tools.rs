@@ -251,6 +251,7 @@ impl ProtectedExecutor for FakeToolBroker {
         if request.operation() == &Operation::Write
             && request.capability().as_str() == "file.write"
             && request.resource().kind() == ResourceKind::File
+            && is_storage_destination(request.destination())
         {
             let receipt = Self::receipt(&action);
             self.record_effect(receipt.clone())?;
@@ -290,6 +291,10 @@ impl ProtectedExecutor for FakeToolBroker {
         }
         Err(ExecutionError::Rejected)
     }
+}
+
+fn is_storage_destination(destination: &Destination) -> bool {
+    matches!(destination, Destination::Internal(identity) if identity.as_str() == "storage")
 }
 
 /// Build a protected database-read proposal.
@@ -385,4 +390,146 @@ pub fn harmless_read_request() -> ActionRequest {
         Destination::Model,
         CapabilityName::new("database.read").expect("static capability is valid"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tkach_core::domain::ResourceScope;
+    use tkach_core::domain::{Classification, PolicyId, Principal, RuleId, SecurityContext};
+    use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
+
+    fn permit(action: &ActionRequest) -> Propusk {
+        let policy = Policy::new(
+            PolicyId::new("tool-boundary-test").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-exact-test-action").unwrap(),
+                RuleMatcher::any()
+                    .principal(Principal::Model)
+                    .operation(action.operation().clone())
+                    .capability(action.capability().clone())
+                    .resource(ResourceScope::exact(action.resource()))
+                    .destination(action.destination().clone())
+                    .classification(Classification::Unknown),
+            )],
+        )
+        .unwrap();
+        Krosna::new(policy)
+            .authorize(&SecurityContext::untrusted_data(), action)
+            .unwrap()
+    }
+
+    #[test]
+    fn read_helpers_reject_wrong_identifier_and_destination() {
+        let mut broker = FakeToolBroker::new();
+
+        let mut wrong_customer_destination = protected_read_request();
+        wrong_customer_destination = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            wrong_customer_destination.resource().clone(),
+            Destination::Internal(Identity::new("storage").unwrap()),
+            wrong_customer_destination.capability().clone(),
+        );
+        assert!(
+            broker
+                .protected_read(&permit(&wrong_customer_destination))
+                .is_err()
+        );
+
+        let wrong_customer_id = harmless_read_request();
+        assert!(broker.protected_read(&permit(&wrong_customer_id)).is_err());
+
+        let mut wrong_status_destination = harmless_read_request();
+        wrong_status_destination = ActionRequest::new(
+            Principal::Model,
+            Operation::Read,
+            wrong_status_destination.resource().clone(),
+            Destination::Internal(Identity::new("storage").unwrap()),
+            wrong_status_destination.capability().clone(),
+        );
+        assert!(
+            broker
+                .harmless_read(&permit(&wrong_status_destination))
+                .is_err()
+        );
+
+        let wrong_status_id = protected_read_request();
+        assert!(broker.harmless_read(&permit(&wrong_status_id)).is_err());
+    }
+
+    #[test]
+    fn executor_routes_only_the_exact_write_destination() {
+        let mut broker = FakeToolBroker::new();
+        let wrong_destination = ActionRequest::new(
+            Principal::Model,
+            Operation::Write,
+            protected_write_request().resource().clone(),
+            Destination::Internal(Identity::new("other").unwrap()),
+            protected_write_request().capability().clone(),
+        );
+        assert!(broker.execute(permit(&wrong_destination)).is_err());
+        assert_eq!(broker.effect_count(), 0);
+
+        let result = broker.execute(permit(&protected_write_request())).unwrap();
+        assert!(matches!(result, ToolResult::Effect(_)));
+        assert_eq!(broker.effect_count(), 1);
+    }
+
+    #[test]
+    fn executor_rejects_network_send_to_a_non_public_destination() {
+        let mut broker = FakeToolBroker::new();
+        let wrong_destination = ActionRequest::new(
+            Principal::Model,
+            Operation::NetworkSend,
+            Resource::new(
+                ResourceKind::Network,
+                ResourceId::new("public-api").unwrap(),
+            ),
+            Destination::Internal(Identity::new("storage").unwrap()),
+            CapabilityName::new("network.send").unwrap(),
+        );
+        assert!(broker.execute(permit(&wrong_destination)).is_err());
+        assert_eq!(broker.external_send_count(), 0);
+    }
+
+    #[test]
+    fn kernel_cannot_mint_permits_for_coupled_unknown_read_shapes() {
+        for action in [
+            ActionRequest::new(
+                Principal::Model,
+                Operation::Write,
+                protected_read_request().resource().clone(),
+                Destination::Model,
+                CapabilityName::new("database.read").unwrap(),
+            ),
+            ActionRequest::new(
+                Principal::Model,
+                Operation::Read,
+                Resource::new(ResourceKind::File, ResourceId::new("customer-db").unwrap()),
+                Destination::Model,
+                CapabilityName::new("database.read").unwrap(),
+            ),
+        ] {
+            let policy = Policy::new(
+                PolicyId::new("coupled-shape-test").unwrap(),
+                vec![PolicyRule::allow(
+                    RuleId::new("allow-coupled-shape").unwrap(),
+                    RuleMatcher::any()
+                        .principal(Principal::Model)
+                        .operation(action.operation().clone())
+                        .capability(action.capability().clone())
+                        .resource(ResourceScope::exact(action.resource()))
+                        .destination(action.destination().clone())
+                        .classification(Classification::Unknown),
+                )],
+            )
+            .unwrap();
+            assert!(
+                Krosna::new(policy)
+                    .authorize(&SecurityContext::untrusted_data(), &action)
+                    .is_err()
+            );
+        }
+    }
 }

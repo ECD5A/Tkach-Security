@@ -33,6 +33,43 @@ use tkach_core::zaslon::{ContentDecision, Zaslon};
 
 const MAX_NON_READ_ACTIONS_PER_TURN: usize = 1;
 
+/// Internal lifecycle states.  The state is deliberately not exposed to a
+/// provider or release adapter: it is a gateway-owned ordering proof, not an
+/// authority object that untrusted code can construct.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LifecycleState {
+    Received,
+    Validated,
+    Contained,
+    ProviderRunning,
+    OutputStaged,
+    EgressApproved,
+    ActionsEvaluated,
+    EffectsCommitted,
+    Released,
+}
+
+impl LifecycleState {
+    fn transition(self, next: Self) -> Option<Self> {
+        let allowed = match self {
+            Self::Received => next == Self::Validated,
+            Self::Validated => next == Self::Contained,
+            Self::Contained => next == Self::ProviderRunning,
+            Self::ProviderRunning => next == Self::OutputStaged,
+            Self::OutputStaged => {
+                matches!(next, Self::EgressApproved | Self::ActionsEvaluated)
+            }
+            Self::EgressApproved => next == Self::ActionsEvaluated,
+            Self::ActionsEvaluated => next == Self::EffectsCommitted,
+            Self::EffectsCommitted => {
+                matches!(next, Self::ProviderRunning | Self::Released)
+            }
+            Self::Released => false,
+        };
+        allowed.then_some(next)
+    }
+}
+
 /// A payload-free gateway failure classification with its core decision when
 /// applicable.
 #[derive(Debug, PartialEq, Eq, Error)]
@@ -233,22 +270,27 @@ impl Gateway {
         request: &ExternalRequest,
     ) -> Result<GatewayResult, GatewayError> {
         let mut trace = SledTrace::new();
+        let mut state = LifecycleState::Received;
         if !is_valid_release_destination(&self.release_destination) {
             return Err(Self::failure(GatewayErrorKind::InvalidLifecycle, trace));
         }
+        Self::transition(&mut state, LifecycleState::Validated, &trace)?;
         let envelope = self.prepare_ingress(request, &mut trace)?;
+        Self::transition(&mut state, LifecycleState::Contained, &trace)?;
         let mut provider_request = ProviderRequest::new(envelope.inputs, envelope.metadata, 0);
         let mut cumulative_stream_bytes = 0usize;
         let mut effects = Vec::new();
         let mut seen_actions = Vec::new();
 
         for _turn in 0..MAX_PROVIDER_TURNS {
+            Self::transition(&mut state, LifecycleState::ProviderRunning, &trace)?;
             let mut sink = StagingSink::new(cumulative_stream_bytes);
             let step = provider
                 .invoke(&provider_request, &mut sink)
                 .map_err(|error| Self::failure(GatewayErrorKind::Provider(error), trace.clone()))?;
             let staged = sink.finish();
             cumulative_stream_bytes = staged.total_stream_bytes;
+            Self::transition(&mut state, LifecycleState::OutputStaged, &trace)?;
 
             if step == ProviderStep::Complete && staged.text.is_empty() && staged.actions.is_empty()
             {
@@ -261,18 +303,19 @@ impl Gateway {
             // response can execute. This prevents a later egress denial or
             // output budget failure from leaving a partial protected effect.
             let final_output = if step == ProviderStep::Complete {
-                self.validate_final_output(&provider_request, &staged.text, &mut trace)?
+                let output =
+                    self.validate_final_output(&provider_request, &staged.text, &mut trace)?;
+                Self::transition(&mut state, LifecycleState::EgressApproved, &trace)?;
+                output
             } else {
                 None
             };
 
-            let tool_inputs = self.authorize_and_execute_actions(
-                &staged.actions,
-                step,
-                &mut effects,
-                &mut trace,
-                &mut seen_actions,
-            )?;
+            let permits =
+                self.authorize_actions(&staged.actions, step, &mut trace, &mut seen_actions)?;
+            Self::transition(&mut state, LifecycleState::ActionsEvaluated, &trace)?;
+            let tool_inputs = self.execute_actions(permits, &mut effects, &mut trace)?;
+            Self::transition(&mut state, LifecycleState::EffectsCommitted, &trace)?;
 
             match step {
                 ProviderStep::AwaitToolResults => {
@@ -288,6 +331,7 @@ impl Gateway {
                     provider_request = provider_request.with_tool_inputs(next_inputs);
                 }
                 ProviderStep::Complete => {
+                    Self::transition(&mut state, LifecycleState::Released, &trace)?;
                     return Ok(GatewayResult {
                         output: final_output,
                         effects,
@@ -332,14 +376,13 @@ impl Gateway {
         })
     }
 
-    fn authorize_and_execute_actions(
+    fn authorize_actions(
         &mut self,
         actions: &[tkach_core::domain::ActionRequest],
         step: ProviderStep,
-        effects: &mut Vec<EffectReceipt>,
         trace: &mut SledTrace,
         seen_actions: &mut Vec<tkach_core::domain::ActionRequest>,
-    ) -> Result<Vec<ModelInput>, GatewayError> {
+    ) -> Result<Vec<tkach_core::propusk::Propusk>, GatewayError> {
         if actions.is_empty() {
             if step == ProviderStep::AwaitToolResults {
                 return Err(Self::failure(
@@ -389,6 +432,15 @@ impl Gateway {
             permits.push(permit);
         }
 
+        Ok(permits)
+    }
+
+    fn execute_actions(
+        &mut self,
+        permits: Vec<tkach_core::propusk::Propusk>,
+        effects: &mut Vec<EffectReceipt>,
+        trace: &mut SledTrace,
+    ) -> Result<Vec<ModelInput>, GatewayError> {
         let mut tool_inputs = Vec::new();
         for permit in permits {
             let result = self.executor.execute(permit).map_err(|_: ExecutionError| {
@@ -416,12 +468,7 @@ impl Gateway {
         if text.is_empty() {
             return Ok(None);
         }
-        if text.len() > MAX_MODEL_OUTPUT_BYTES {
-            return Err(Self::failure(
-                GatewayErrorKind::Provider(ProviderError::OutputLimitExceeded),
-                trace.clone(),
-            ));
-        }
+        validate_output_size(text).map_err(|kind| Self::failure(kind, trace.clone()))?;
         let tagged_output = derive_provider_output(provider_request, text.to_owned());
         let flow = FlowRequest::from_tagged(
             self.release_destination.clone(),
@@ -460,6 +507,17 @@ impl Gateway {
             .map_err(|error| map_sled_error(&error, trace))
     }
 
+    fn transition(
+        state: &mut LifecycleState,
+        next: LifecycleState,
+        trace: &SledTrace,
+    ) -> Result<(), GatewayError> {
+        *state = state
+            .transition(next)
+            .ok_or_else(|| Self::failure(GatewayErrorKind::InvalidLifecycle, trace.clone()))?;
+        Ok(())
+    }
+
     fn failure(kind: GatewayErrorKind, trace: SledTrace) -> GatewayError {
         GatewayError::with_trace(kind, trace)
     }
@@ -494,6 +552,15 @@ fn context_within_budget(inputs: &[ModelInput]) -> bool {
         .is_some_and(|total| total <= MAX_MODEL_CONTEXT_BYTES)
 }
 
+fn validate_output_size(text: &str) -> Result<(), GatewayErrorKind> {
+    if text.len() > MAX_MODEL_OUTPUT_BYTES {
+        return Err(GatewayErrorKind::Provider(
+            ProviderError::OutputLimitExceeded,
+        ));
+    }
+    Ok(())
+}
+
 fn is_valid_release_destination(destination: &Destination) -> bool {
     matches!(
         destination,
@@ -519,5 +586,102 @@ fn authorization_failure(error: AuthorizationError, trace: SledTrace) -> Gateway
         AuthorizationError::InvalidGrant => {
             GatewayError::with_trace(GatewayErrorKind::InvalidLifecycle, trace)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lifecycle_state_oracle_accepts_only_ordered_transitions() {
+        let ordered = [
+            LifecycleState::Received,
+            LifecycleState::Validated,
+            LifecycleState::Contained,
+            LifecycleState::ProviderRunning,
+            LifecycleState::OutputStaged,
+            LifecycleState::EgressApproved,
+            LifecycleState::ActionsEvaluated,
+            LifecycleState::EffectsCommitted,
+            LifecycleState::Released,
+        ];
+        for pair in ordered.windows(2) {
+            assert_eq!(pair[0].transition(pair[1]), Some(pair[1]));
+        }
+        assert_eq!(
+            LifecycleState::EffectsCommitted.transition(LifecycleState::ProviderRunning),
+            Some(LifecycleState::ProviderRunning)
+        );
+    }
+
+    #[test]
+    fn lifecycle_state_oracle_rejects_replay_and_phase_skips() {
+        for (current, next) in [
+            (LifecycleState::Received, LifecycleState::Released),
+            (LifecycleState::Released, LifecycleState::ProviderRunning),
+            (LifecycleState::OutputStaged, LifecycleState::Released),
+            (
+                LifecycleState::ActionsEvaluated,
+                LifecycleState::EgressApproved,
+            ),
+            (
+                LifecycleState::EffectsCommitted,
+                LifecycleState::ActionsEvaluated,
+            ),
+        ] {
+            assert_eq!(current.transition(next), None);
+        }
+    }
+
+    #[test]
+    fn context_budget_accepts_exact_bytes_and_rejects_items_or_bytes_over_budget() {
+        let exact = (0..16)
+            .map(|_| {
+                ModelInput::External(
+                    Gnezdo::new()
+                        .contain("x".repeat(MAX_MODEL_CONTEXT_BYTES / 16))
+                        .unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(context_within_budget(&exact));
+
+        let exact_item_count = (0..MAX_MODEL_INPUT_ITEMS)
+            .map(|_| ModelInput::External(Gnezdo::new().contain("x".to_owned()).unwrap()))
+            .collect::<Vec<_>>();
+        assert!(context_within_budget(&exact_item_count));
+
+        let mut over_bytes = exact.clone();
+        over_bytes.push(ModelInput::External(
+            Gnezdo::new().contain("x".to_owned()).unwrap(),
+        ));
+        assert!(!context_within_budget(&over_bytes));
+
+        let too_many = (0..=MAX_MODEL_INPUT_ITEMS)
+            .map(|_| ModelInput::External(Gnezdo::new().contain("x".to_owned()).unwrap()))
+            .collect::<Vec<_>>();
+        assert!(!context_within_budget(&too_many));
+    }
+
+    #[test]
+    fn final_output_size_boundary_is_exact() {
+        assert!(validate_output_size(&"x".repeat(MAX_MODEL_OUTPUT_BYTES)).is_ok());
+        assert!(matches!(
+            validate_output_size(&"x".repeat(MAX_MODEL_OUTPUT_BYTES + 1)),
+            Err(GatewayErrorKind::Provider(
+                ProviderError::OutputLimitExceeded
+            ))
+        ));
+    }
+
+    #[test]
+    fn gateway_transition_wrapper_rejects_invalid_transition() {
+        let mut state = LifecycleState::Released;
+        let trace = SledTrace::new();
+        let error =
+            Gateway::transition(&mut state, LifecycleState::ProviderRunning, &trace).unwrap_err();
+        assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
+        assert_eq!(state, LifecycleState::Released);
     }
 }

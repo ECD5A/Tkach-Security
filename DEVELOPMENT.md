@@ -377,3 +377,43 @@
   limitation in the Gateway threat model.
 - Commits: `1e1d16c` (Gateway boundary), `36ce4f7` (provenance/lifecycle
   hardening), and `9026605` (dependency-version packaging hardening).
+
+## Gateway Hardening 1.5
+
+- Scope: harden the frozen provider-independent Gateway boundary before any
+  real provider adapter. No provider SDK, MCP, cloud, network transport, or
+  UI was added.
+- Lifecycle: `tkach-gateway/src/gateway.rs` now owns an internal fail-closed
+  state machine: Received -> Validated -> Contained -> ProviderRunning ->
+  OutputStaged -> EgressApproved -> ActionsEvaluated -> EffectsCommitted ->
+  Released. Awaited read-only turns return to ProviderRunning; invalid skips,
+  replay, cancellation, timeout, and provider errors never release output.
+- Effect ordering: authorization is now separate from execution. All action
+  proposals are preflighted before any executor call; final output flow and
+  content gates run before a complete turn can execute. Phase 1 explicitly
+  uses staged-effects semantics with no rollback claim and at most one
+  irreversible non-read action per turn. Multiple writes and read-plus-denied-
+  write batches fail before execution.
+- Budget hardening: `ExternalRequest::new` now enforces the same aggregate
+  request envelope as JSON input, with explicit message, metadata, and tool
+  component sums. Exact/next-byte tests cover model context, tool results,
+  owned-string deserialization, staging, final-output size, and collection
+  boundaries.
+- Tool boundary hardening: the fake executor checks the exact storage route;
+  focused negative permit tests cover wrong identifiers and destinations.
+  Coupled malformed read/network/secret shapes are separately proven unable
+  to obtain a public Propusk through Krosna.
+- Cancellation: timeout/cancelled provider responses discard staged actions;
+  a second-turn failure after a read leaves only a non-irreversible read in
+  evidence and creates no write, send, secret use, or release.
+- Independent oracle: `gateway_boundary.rs` contains a separate lifecycle and
+  terminal-effect oracle that does not call production transition code.
+- Mutation testing: final `cargo mutants --package tkach-gateway --jobs 1
+  --no-times` tested 319 mutants: 221 caught, 67 unviable, and 31 missed.
+  All 31 survivors were classified individually in
+  `GATEWAY_HARDENING_1_5.md`: 17 `DIAGNOSTIC_ONLY`, 13
+  `UNREACHABLE_BY_PUBLIC_API` or equivalent defense-in-depth route guards,
+  and one `EQUIVALENT` dispatch guard. There are no unexplained
+  security-relevant survivors.
+- Commit/tag: `203d7e9` (`gateway: harden lifecycle and staged effects`),
+  local tag `gateway-v0.1`.

@@ -1,5 +1,8 @@
 # Roadmap
 
+- DONE — Gateway Hardening 1.5 (2026-09-10; lifecycle/effect ordering,
+  aggregate budget hardening, and 313-mutant triage complete).
+
 The permanent mandate is the source of truth. States below describe this
 repository, not future product marketing.
 

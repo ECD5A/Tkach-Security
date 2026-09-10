@@ -50,8 +50,13 @@ pub const MAX_METADATA_ENTRIES: usize = 32;
 pub const MAX_METADATA_KEY_BYTES: usize = 128;
 /// Maximum bytes in a metadata value.
 pub const MAX_METADATA_VALUE_BYTES: usize = 1024;
+/// Maximum aggregate bytes in all metadata keys and values.
+pub const MAX_METADATA_TOTAL_BYTES: usize =
+    MAX_METADATA_ENTRIES * (MAX_METADATA_KEY_BYTES + MAX_METADATA_VALUE_BYTES);
 /// Maximum untrusted tool declarations in one request.
 pub const MAX_TOOL_DECLARATIONS: usize = 16;
+/// Maximum aggregate bytes in all client-supplied tool labels.
+pub const MAX_TOOL_DECLARATION_TOTAL_BYTES: usize = MAX_TOOL_DECLARATIONS * MAX_METADATA_KEY_BYTES;
 /// Maximum bytes in a provider text chunk.
 pub const MAX_PROVIDER_CHUNK_BYTES: usize = 16 * 1024;
 /// Maximum provider chunks in one turn.
@@ -70,3 +75,17 @@ pub const MAX_MODEL_OUTPUT_BYTES: usize = 64 * 1024;
 pub const MAX_ACTIONS_PER_TURN: usize = 32;
 /// Maximum provider/tool turns in one request lifecycle.
 pub const MAX_PROVIDER_TURNS: usize = 8;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn published_budget_constants_keep_their_protocol_values() {
+        assert_eq!(
+            MAX_METADATA_TOTAL_BYTES,
+            MAX_METADATA_ENTRIES * (MAX_METADATA_KEY_BYTES + MAX_METADATA_VALUE_BYTES)
+        );
+        assert_eq!(MAX_TOOL_RESULT_BYTES, 16 * 1024);
+    }
+}

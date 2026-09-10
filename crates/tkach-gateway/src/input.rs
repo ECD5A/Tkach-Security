@@ -254,7 +254,6 @@ impl ExternalRequest {
         let total_message_bytes = self.messages.iter().try_fold(0usize, |total, message| {
             total
                 .checked_add(message.content.len())
-                .filter(|value| *value <= crate::MAX_STREAMING_OUTPUT_BYTES)
                 .ok_or(RequestParseError::Invalid)
         })?;
         if total_message_bytes == 0 {
@@ -277,6 +276,33 @@ impl ExternalRequest {
         {
             return Err(RequestParseError::Invalid);
         }
+
+        // The raw JSON budget is not enough for callers using `ExternalRequest::new`:
+        // every public construction path must enforce the same aggregate
+        // envelope budget as the wire path.  Keep separate component sums so
+        // a future increase in one collection cannot silently consume another
+        // collection's budget.
+        let metadata_bytes = self.metadata.iter().try_fold(0usize, |total, entry| {
+            total
+                .checked_add(entry.name.len())
+                .and_then(|value| value.checked_add(entry.value.len()))
+                .filter(|value| *value <= crate::MAX_METADATA_TOTAL_BYTES)
+                .ok_or(RequestParseError::Invalid)
+        })?;
+        let tool_declaration_bytes =
+            self.tool_declarations
+                .iter()
+                .try_fold(0usize, |total, tool| {
+                    total
+                        .checked_add(tool.name.len())
+                        .filter(|value| *value <= crate::MAX_TOOL_DECLARATION_TOTAL_BYTES)
+                        .ok_or(RequestParseError::Invalid)
+                })?;
+        total_message_bytes
+            .checked_add(metadata_bytes)
+            .and_then(|total| total.checked_add(tool_declaration_bytes))
+            .filter(|value| *value <= crate::MAX_REQUEST_BODY_BYTES)
+            .ok_or(RequestParseError::Invalid)?;
         Ok(())
     }
 }
@@ -407,4 +433,138 @@ where
     D: Deserializer<'de>,
 {
     deserialize_bounded_vec::<D, ToolDeclaration, MAX_TOOL_DECLARATIONS>(deserializer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn message(content: &str) -> ExternalMessage {
+        ExternalMessage::new(ExternalRole::User, content.to_owned()).unwrap()
+    }
+
+    #[test]
+    fn public_constructor_enforces_empty_count_and_aggregate_request_limits() {
+        assert!(ExternalRequest::new(Vec::new(), Vec::new(), Vec::new()).is_err());
+
+        let exact_messages = (0..MAX_MESSAGES).map(|_| message("x")).collect();
+        assert!(ExternalRequest::new(exact_messages, Vec::new(), Vec::new()).is_ok());
+
+        let too_many_messages = (0..=MAX_MESSAGES).map(|_| message("x")).collect();
+        assert!(ExternalRequest::new(too_many_messages, Vec::new(), Vec::new()).is_err());
+
+        let exact_payload = (0..4)
+            .map(|_| message(&"x".repeat(MAX_MESSAGE_BYTES)))
+            .collect();
+        assert!(ExternalRequest::new(exact_payload, Vec::new(), Vec::new()).is_ok());
+
+        let over_payload = vec![message(&"x".repeat(MAX_MESSAGE_BYTES)); 4];
+        let extra = ExternalRequest::from_json(
+            br#"{"messages":[{"role":"user","content":"x"}],"metadata":[{"name":"n","value":"v"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(extra.messages().len(), 1);
+        assert!(ExternalRequest::new(over_payload, extra.metadata().to_vec(), Vec::new()).is_err());
+    }
+
+    #[test]
+    fn wire_accessors_and_strict_fields_preserve_untrusted_data_only() {
+        let request = ExternalRequest::from_json(
+            br#"{"messages":[{"role":"data","content":"document"}],"metadata":[{"name":"trace","value":"one"}],"tool_declarations":[{"name":"shell"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(request.messages()[0].role(), ExternalRole::Data);
+        assert_eq!(request.messages()[0].content(), "document");
+        assert_eq!(request.metadata()[0].name(), "trace");
+        assert_eq!(request.metadata()[0].value(), "one");
+        assert_eq!(request.tool_declarations()[0].name(), "shell");
+
+        for invalid in [
+            br#"{"messages":[{"role":"user","content":"x","extra":1}]}"#
+                .as_slice(),
+            br#"{"messages":[{"role":"user","content":"x"}],"metadata":null}"#
+                .as_slice(),
+            br#"{"messages":[{"role":"user","content":"x"}],"metadata":[{"name":"","value":"v"}]}"#
+                .as_slice(),
+            br#"{"messages":[{"role":"user","content":"x"}],"tool_declarations":[{"name":"bad name"}]}"#
+                .as_slice(),
+        ] {
+            assert!(ExternalRequest::from_json(invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn exact_wire_collection_boundaries_and_aggregate_metadata_are_bounded() {
+        let messages = (0..MAX_MESSAGES)
+            .map(|_| r#"{"role":"user","content":"x"}"#)
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(
+            ExternalRequest::from_json(format!(r#"{{"messages":[{messages}]}}"#).as_bytes())
+                .is_ok()
+        );
+
+        let metadata = (0..MAX_METADATA_ENTRIES)
+            .map(|index| {
+                format!(
+                    r#"{{"name":"n{index}{}","value":"{}"}}"#,
+                    "k".repeat(MAX_METADATA_KEY_BYTES - index.to_string().len() - 1),
+                    "v".repeat(MAX_METADATA_VALUE_BYTES)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(
+            ExternalRequest::from_json(
+                format!(
+                    r#"{{"messages":[{{"role":"user","content":"x"}}],"metadata":[{metadata}]}}"#
+                )
+                .as_bytes()
+            )
+            .is_ok()
+        );
+
+        let tools = (0..MAX_TOOL_DECLARATIONS)
+            .map(|index| format!(r#"{{"name":"tool-{index}"}}"#))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(ExternalRequest::from_json(
+            format!(r#"{{"messages":[{{"role":"user","content":"x"}}],"tool_declarations":[{tools}]}}"#)
+                .as_bytes()
+        )
+        .is_ok());
+
+        let exact_sized_tools = (0..MAX_TOOL_DECLARATIONS)
+            .map(|index| {
+                format!(
+                    r#"{{"name":"t{index}{}"}}"#,
+                    "k".repeat(MAX_METADATA_KEY_BYTES - index.to_string().len() - 1)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(ExternalRequest::from_json(
+            format!(
+                r#"{{"messages":[{{"role":"user","content":"x"}}],"tool_declarations":[{exact_sized_tools}]}}"#
+            )
+            .as_bytes()
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn owned_string_deserialization_path_enforces_the_same_bound() {
+        let exact = serde::de::value::StringDeserializer::<serde_json::Error>::new(
+            "x".repeat(MAX_MESSAGE_BYTES),
+        );
+        assert_eq!(
+            deserialize_message_content(exact).unwrap().len(),
+            MAX_MESSAGE_BYTES
+        );
+
+        let oversized = serde::de::value::StringDeserializer::<serde_json::Error>::new(
+            "x".repeat(MAX_MESSAGE_BYTES + 1),
+        );
+        assert!(deserialize_message_content(oversized).is_err());
+    }
 }

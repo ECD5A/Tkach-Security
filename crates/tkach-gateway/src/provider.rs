@@ -511,3 +511,117 @@ impl Provider for CancelledProvider {
         Err(ProviderError::Cancelled)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tools::protected_read_request;
+    use tkach_core::gnezdo::Gnezdo;
+
+    #[test]
+    fn model_input_protection_reflects_immutable_metadata() {
+        let external = Gnezdo::new().contain("external".to_owned()).unwrap();
+        assert!(ModelInput::External(external).is_protected());
+
+        let public_tool = TaggedData::from_trusted_ingress(
+            "public".to_owned(),
+            tkach_core::domain::ProvenanceSource::Tool(
+                tkach_core::domain::Identity::new("tool").unwrap(),
+            ),
+            Classification::Public,
+        )
+        .unwrap();
+        assert!(!ModelInput::Tool(public_tool).is_protected());
+
+        let tool = TaggedData::from_trusted_ingress(
+            "secret".to_owned(),
+            tkach_core::domain::ProvenanceSource::Database(
+                tkach_core::domain::ResourceId::new("db").unwrap(),
+            ),
+            Classification::Secret,
+        )
+        .unwrap();
+        assert!(ModelInput::Tool(tool).is_protected());
+    }
+
+    #[test]
+    fn provider_turn_and_tool_context_progress_are_monotonic() {
+        let request = ProviderRequest::new(Vec::new(), Vec::new(), 0);
+        assert_eq!(request.turn(), 0);
+        let next = request.with_tool_inputs(vec![]);
+        assert_eq!(next.turn(), 1);
+    }
+
+    #[test]
+    fn staging_sink_enforces_chunk_and_cumulative_boundaries() {
+        let mut exact = StagingSink::new(MAX_STREAMING_OUTPUT_BYTES - 1);
+        exact.text_chunk("x").unwrap();
+        assert_eq!(
+            exact.finish().total_stream_bytes,
+            MAX_STREAMING_OUTPUT_BYTES
+        );
+
+        let mut over = StagingSink::new(MAX_STREAMING_OUTPUT_BYTES);
+        assert_eq!(over.text_chunk("x"), Err(ProviderSinkError::StreamTooLarge));
+
+        let mut chunk = StagingSink::new(0);
+        assert!(
+            chunk
+                .text_chunk(&"x".repeat(MAX_PROVIDER_CHUNK_BYTES))
+                .is_ok()
+        );
+        assert_eq!(
+            chunk.text_chunk(&"x".repeat(MAX_PROVIDER_CHUNK_BYTES + 1)),
+            Err(ProviderSinkError::ChunkTooLarge)
+        );
+    }
+
+    #[test]
+    fn staging_sink_enforces_chunk_and_action_counts() {
+        let mut chunks = StagingSink::new(0);
+        for _ in 0..MAX_PROVIDER_CHUNKS {
+            chunks.text_chunk("x").unwrap();
+        }
+        assert_eq!(
+            chunks.text_chunk("x"),
+            Err(ProviderSinkError::TooManyChunks)
+        );
+
+        let mut actions = StagingSink::new(0);
+        for _ in 0..MAX_ACTIONS_PER_TURN {
+            actions.action(protected_read_request()).unwrap();
+        }
+        assert_eq!(
+            actions.action(protected_read_request()),
+            Err(ProviderSinkError::TooManyActions)
+        );
+    }
+
+    #[test]
+    fn deterministic_provider_advances_to_the_next_scripted_turn() {
+        let mut provider = DeterministicProvider::new(vec![
+            ScriptedStep {
+                chunks: vec!["first".to_owned()],
+                actions: Vec::new(),
+                continuation: ProviderStep::AwaitToolResults,
+            },
+            ScriptedStep {
+                chunks: vec!["second".to_owned()],
+                actions: Vec::new(),
+                continuation: ProviderStep::Complete,
+            },
+        ]);
+        let request = ProviderRequest::new(Vec::new(), Vec::new(), 0);
+        let mut first_sink = StagingSink::new(0);
+        assert_eq!(
+            provider.invoke(&request, &mut first_sink).unwrap(),
+            ProviderStep::AwaitToolResults
+        );
+        let mut second_sink = StagingSink::new(first_sink.finish().total_stream_bytes);
+        assert_eq!(
+            provider.invoke(&request, &mut second_sink).unwrap(),
+            ProviderStep::Complete
+        );
+        assert_eq!(second_sink.finish().text, "second");
+    }
+}

@@ -212,7 +212,30 @@ preserves the following invariant:
 G1-G10 must provide source-backed tests for every planned control before the
 Gateway Phase 1 checkpoint can pass.
 
+## Gateway Hardening 1.5 update
+
+The hardening pass formalized the lifecycle and effect contract before any
+provider adapter:
+
+- provider output remains staged until final flow and egress-Zaslon approval;
+- every action proposal is preflighted before executor calls;
+- at most one non-read action is allowed per turn, while awaited turns are
+  read-only and later failures cannot create an irreversible effect;
+- `ExternalRequest::new` enforces aggregate message, metadata, tool-label, and
+  semantic request budgets in addition to per-field and raw-wire limits;
+- the Gateway owns a private fail-closed lifecycle state machine and never
+  exposes reusable Propusk values;
+- timeout, cancellation, malformed output, duplicate/replayed action, and
+  terminal egress denial discard staged output and pending actions;
+- the complete 319-mutant Gateway run left 31 survivors, all classified as
+  diagnostic-only, public-API-unreachable, or equivalent defense-in-depth
+  behavior. No unexplained security-relevant survivor remains.
+
+Phase 1 remains a synchronous in-process boundary. It does not claim
+transactional rollback for arbitrary external systems; instead it prevents
+premature irreversible execution and intentionally rejects multi-write batches.
+
 Repository: Tkach-Security
 Version: strong-core-v0.1 / 585bde22f7b39ee227c1b6e7876cb7999643ca6f
 Gateway implementation: `1e1d16c`, hardening: `36ce4f7`, packaging:
-`9026605`.
+`9026605`; Gateway Hardening 1.5: `203d7e9`, tag `gateway-v0.1`.

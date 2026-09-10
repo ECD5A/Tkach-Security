@@ -24,19 +24,35 @@ use tkach_gateway::{
     CancelledProvider, DeterministicProvider, ExternalRequest, FailureProvider, FakeToolBroker,
     Gateway, GatewayErrorKind, HostileProvider, MAX_MESSAGES, MAX_METADATA_KEY_BYTES,
     MAX_METADATA_VALUE_BYTES, MAX_PROVIDER_CHUNK_BYTES, MAX_REQUEST_BODY_BYTES,
-    MAX_TOOL_DECLARATIONS, MalformedProvider, ModelInput, Provider, ProviderError, ProviderRequest,
-    ProviderSink, ProviderStep, ScriptedStep, TimeoutProvider, ToolDescription,
-    external_send_request, harmless_read_request, protected_read_request, protected_write_request,
-    secret_reveal_request,
+    MAX_TOOL_DECLARATIONS, MAX_TOOL_RESULT_BYTES, MalformedProvider, ModelInput, Provider,
+    ProviderError, ProviderRequest, ProviderSink, ProviderStep, ScriptedStep, TimeoutProvider,
+    ToolDescription, external_send_request, harmless_read_request, protected_read_request,
+    protected_write_request, secret_reveal_request,
 };
 
-struct SharedExecutor(Rc<RefCell<FakeToolBroker>>);
+struct SharedExecutor {
+    broker: Rc<RefCell<FakeToolBroker>>,
+    replacement_data_bytes: Option<usize>,
+}
 
 impl ProtectedExecutor for SharedExecutor {
     type Output = tkach_gateway::ToolResult;
 
     fn execute(&mut self, action: Propusk) -> Result<Self::Output, ExecutionError> {
-        self.0.borrow_mut().execute(action)
+        let result = self.broker.borrow_mut().execute(action)?;
+        if let Some(bytes) = self.replacement_data_bytes {
+            if matches!(result, tkach_gateway::ToolResult::Data(_)) {
+                return Ok(tkach_gateway::ToolResult::Data(
+                    tkach_core::niti_metka::TaggedData::from_trusted_ingress(
+                        "x".repeat(bytes),
+                        ProvenanceSource::Tool(Identity::new("test-tool").unwrap()),
+                        Classification::Public,
+                    )
+                    .map_err(|_| ExecutionError::Rejected)?,
+                ));
+            }
+        }
+        Ok(result)
     }
 }
 
@@ -96,6 +112,16 @@ fn gateway(
     release_destination: Destination,
     ingress_zaslon: Zaslon,
     egress_zaslon: Zaslon,
+) -> (Gateway, Rc<RefCell<FakeToolBroker>>) {
+    gateway_with_replacement(release_destination, ingress_zaslon, egress_zaslon, None)
+}
+
+#[allow(clippy::too_many_lines)]
+fn gateway_with_replacement(
+    release_destination: Destination,
+    ingress_zaslon: Zaslon,
+    egress_zaslon: Zaslon,
+    replacement_data_bytes: Option<usize>,
 ) -> (Gateway, Rc<RefCell<FakeToolBroker>>) {
     let database = resource(ResourceKind::Database, "customer-db");
     let network = resource(ResourceKind::Network, "public-api");
@@ -192,7 +218,10 @@ fn gateway(
     let diode = Diode::new(diode_rules).unwrap();
     let kernel = Krosna::with_zaslon_and_diode(policy, Zaslon::empty(), diode);
     let broker = Rc::new(RefCell::new(FakeToolBroker::new()));
-    let executor = SharedExecutor(broker.clone());
+    let executor = SharedExecutor {
+        broker: broker.clone(),
+        replacement_data_bytes,
+    };
     (
         Gateway::new(
             kernel,
@@ -879,4 +908,254 @@ fn gateway_results_and_diagnostics_are_nonempty_and_payload_safe() {
     assert!(result_debug.contains("GatewayResult"));
     assert!(!result_debug.contains("workspace/output.txt"));
     assert_eq!(broker.borrow().effect_count(), 1);
+}
+
+struct BoundaryReadProvider {
+    turn: usize,
+}
+
+struct ReadThenFailureProvider {
+    turn: usize,
+}
+
+impl Provider for ReadThenFailureProvider {
+    fn invoke(
+        &mut self,
+        _request: &ProviderRequest,
+        sink: &mut dyn ProviderSink,
+    ) -> Result<ProviderStep, ProviderError> {
+        if self.turn == 0 {
+            self.turn += 1;
+            sink.action(protected_read_request())
+                .map_err(|_| ProviderError::OutputLimitExceeded)?;
+            return Ok(ProviderStep::AwaitToolResults);
+        }
+        Err(ProviderError::Failed)
+    }
+}
+
+impl Provider for BoundaryReadProvider {
+    fn invoke(
+        &mut self,
+        _request: &ProviderRequest,
+        sink: &mut dyn ProviderSink,
+    ) -> Result<ProviderStep, ProviderError> {
+        if self.turn == 0 {
+            self.turn += 1;
+            sink.action(protected_read_request())
+                .map_err(|_| ProviderError::OutputLimitExceeded)?;
+            return Ok(ProviderStep::AwaitToolResults);
+        }
+        sink.text_chunk("done")
+            .map_err(|_| ProviderError::OutputLimitExceeded)?;
+        Ok(ProviderStep::Complete)
+    }
+}
+
+#[test]
+fn tool_result_exact_limit_is_accepted_and_next_byte_is_rejected() {
+    let (mut exact_gateway, exact_broker) = gateway_with_replacement(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+        Some(MAX_TOOL_RESULT_BYTES),
+    );
+    let mut exact_provider = BoundaryReadProvider { turn: 0 };
+    assert!(
+        exact_gateway
+            .run_json(&mut exact_provider, &request_json("boundary"))
+            .is_ok()
+    );
+    assert_eq!(exact_broker.borrow().read_count(), 1);
+
+    let (mut oversized_gateway, oversized_broker) = gateway_with_replacement(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+        Some(MAX_TOOL_RESULT_BYTES + 1),
+    );
+    let mut oversized_provider = BoundaryReadProvider { turn: 0 };
+    let error = oversized_gateway
+        .run_json(&mut oversized_provider, &request_json("boundary"))
+        .unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::ToolRejected));
+    assert_eq!(oversized_broker.borrow().read_count(), 1);
+}
+
+#[test]
+fn second_turn_failure_after_a_read_cannot_release_or_create_an_effect() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let mut provider = ReadThenFailureProvider { turn: 0 };
+    let error = gateway
+        .run_json(&mut provider, &request_json("cancel after read"))
+        .unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        GatewayErrorKind::Provider(ProviderError::Failed)
+    ));
+    assert_eq!(broker.borrow().read_count(), 1);
+    assert_eq!(broker.borrow().external_send_count(), 0);
+    assert!(
+        broker
+            .borrow()
+            .effects()
+            .iter()
+            .all(|receipt| { receipt.operation() == &Operation::Read })
+    );
+}
+
+#[test]
+fn denied_read_then_write_is_preflighted_without_read_effect() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let denied_write = tkach_core::domain::ActionRequest::new(
+        Principal::Model,
+        Operation::Write,
+        resource(ResourceKind::File, "workspace/other.txt"),
+        Destination::Internal(Identity::new("storage").unwrap()),
+        cap("file.write"),
+    );
+    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: Vec::new(),
+        actions: vec![protected_read_request(), denied_write],
+        continuation: ProviderStep::Complete,
+    }]);
+    let error = gateway
+        .run_json(&mut provider, &request_json("read then denied write"))
+        .unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::ActionDenied(_)));
+    assert_eq!(broker.borrow().read_count(), 0);
+    assert_eq!(broker.borrow().effect_count(), 0);
+}
+
+#[test]
+fn multiple_irreversible_actions_are_rejected_before_execution() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: Vec::new(),
+        actions: vec![protected_write_request(), protected_write_request()],
+        continuation: ProviderStep::Complete,
+    }]);
+    let error = gateway
+        .run_json(&mut provider, &request_json("two writes"))
+        .unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
+    assert_eq!(broker.borrow().effect_count(), 0);
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OracleState {
+    Received,
+    Validated,
+    Contained,
+    ProviderRunning,
+    OutputStaged,
+    EgressApproved,
+    ActionsEvaluated,
+    EffectsCommitted,
+    Released,
+    TerminalDenied,
+    TerminalError,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OracleAction {
+    Read,
+    Write,
+    ExternalSend,
+    SecretUse,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OracleEgress {
+    NotEvaluated,
+    Approved,
+    Denied,
+}
+
+fn oracle_allows_irreversible_effect(
+    state: OracleState,
+    action: OracleAction,
+    egress: OracleEgress,
+    cancelled: bool,
+) -> bool {
+    !cancelled
+        && matches!(
+            state,
+            OracleState::EgressApproved | OracleState::EffectsCommitted
+        )
+        && matches!(egress, OracleEgress::Approved)
+        && !matches!(action, OracleAction::Read)
+}
+
+#[test]
+fn independent_lifecycle_oracle_rejects_effects_on_terminal_denial_or_error() {
+    let valid = [
+        OracleState::Received,
+        OracleState::Validated,
+        OracleState::Contained,
+        OracleState::ProviderRunning,
+        OracleState::OutputStaged,
+        OracleState::EgressApproved,
+        OracleState::ActionsEvaluated,
+        OracleState::EffectsCommitted,
+        OracleState::Released,
+    ];
+    assert_eq!(valid.last(), Some(&OracleState::Released));
+
+    for terminal in [OracleState::TerminalDenied, OracleState::TerminalError] {
+        for action in [
+            OracleAction::Write,
+            OracleAction::ExternalSend,
+            OracleAction::SecretUse,
+        ] {
+            assert!(!oracle_allows_irreversible_effect(
+                terminal,
+                action,
+                OracleEgress::Approved,
+                false
+            ));
+        }
+    }
+    for action in [
+        OracleAction::Write,
+        OracleAction::ExternalSend,
+        OracleAction::SecretUse,
+    ] {
+        assert!(!oracle_allows_irreversible_effect(
+            OracleState::OutputStaged,
+            action,
+            OracleEgress::NotEvaluated,
+            false
+        ));
+        assert!(!oracle_allows_irreversible_effect(
+            OracleState::EgressApproved,
+            action,
+            OracleEgress::Denied,
+            false
+        ));
+        assert!(!oracle_allows_irreversible_effect(
+            OracleState::EgressApproved,
+            action,
+            OracleEgress::Approved,
+            true
+        ));
+    }
+    assert!(!oracle_allows_irreversible_effect(
+        OracleState::EgressApproved,
+        OracleAction::Read,
+        OracleEgress::Approved,
+        false
+    ));
 }
