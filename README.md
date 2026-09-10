@@ -42,6 +42,10 @@ integration surface is typed Rust, not a stable SDK.
 
 - `PRODUCT_CONTRACT.md` — concise guarantees and deployment assumptions.
 - `INTEGRATION_MODEL.md` — Basic, Controlled, and Sealed deployment profiles.
+- `QUICKSTART.md` — actual Basic Gateway API path and integration effort.
+- `SECURITY_UTILITY_BENCHMARK.md` — executable Product Proof contract.
+- `PRODUCT_PROOF_REPORT.md` — latest offline security/utility measurements.
+- `PRODUCT_PROOF_CHECKPOINT.md` — B22 acceptance checklist.
 - `crates/tkach-core` — typed security kernel and primitives.
 - `crates/tkach-gateway` — bounded lifecycle, staging, and executor boundary.
 - `crates/tkach-provider-openai` — bounded OpenAI Responses adapter.
@@ -60,6 +64,8 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-targets --all-features --locked
 cargo test --workspace --release --all-targets --all-features --locked
+cargo test -p tkach-gateway --test product_proof --all-features --locked -- --nocapture
+cargo run -p tkach-gateway --example quickstart --locked
 cargo audit --no-fetch
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked --offline
