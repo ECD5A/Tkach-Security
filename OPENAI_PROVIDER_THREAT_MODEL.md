@@ -164,10 +164,14 @@ transport errors. It does not log request headers or credential-bearing URLs.
 ## Review record
 
 This model was produced from a sequential source review because delegated
-architecture workers were unavailable in the current environment. It is
-reconciled with the adapter implementation, offline fixtures, Gateway
-integration test, and adversarial tests before the provider checkpoint.
+architecture workers were unavailable in the current environment. The
+automated Codex Security diff runner also rejected the worktree as lacking a
+resolvable HEAD, so the parent completed the source-backed diff review and
+recorded the limitation. The model is reconciled with the adapter
+implementation, offline fixtures, Gateway integration test, and adversarial
+tests before the provider checkpoint.
 
 Repository: Tkach-Security
-Version: implementation commit `a8d67dd` plus the documentation reconciliation
-commit that follows.
+Version: OpenAI Provider v0.1; implementation commit `a8d67dd`, documentation
+reconciliation `cf8cb54`, mutation hardening `60835a2`, and dependency-policy
+follow-up `359b734`.

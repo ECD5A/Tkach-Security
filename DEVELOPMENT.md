@@ -494,4 +494,11 @@
   allowing the ISC, BSD-3-Clause, and CDLA-Permissive-2.0 licenses required by
   the selected rustls dependency chain; duplicate `syn`/`windows-sys`
   versions remain warnings only.
-- Hardening commit: recorded after this validation cycle.
+- Hardening commit: `60835a2 Harden OpenAI provider boundaries under mutation
+  review`.
+- Dependency-policy follow-up: `359b734 Align dependency license policy with
+  rustls`.
+- Automated Codex Security diff scan was unavailable because its runner
+  rejected the repository as lacking a resolvable HEAD; the parent therefore
+  completed a source-backed sequential diff review, `git diff --check`, and
+  explicit credential/redirect/parser/replay/authority checks.
