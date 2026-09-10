@@ -83,6 +83,9 @@ pub enum GatewayErrorKind {
     /// Provider failure or malformed provider lifecycle.
     #[error("provider failure: {0}")]
     Provider(ProviderError),
+    /// Cancellation was observed at a gateway lifecycle checkpoint.
+    #[error("gateway lifecycle cancelled")]
+    Cancelled,
     /// A provider-proposed action was denied by Strong Core.
     #[error("provider action was denied")]
     ActionDenied(Box<Decision>),
@@ -275,8 +278,33 @@ impl Gateway {
         provider: &mut P,
         request: &ExternalRequest,
     ) -> Result<GatewayResult, GatewayError> {
+        self.run_with_cancellation(provider, request, || false)
+    }
+
+    /// Run one lifecycle while checking a caller-owned cancellation signal at
+    /// every gateway boundary that precedes a provider or protected effect.
+    ///
+    /// A provider or operating-system call that is already blocking cannot be
+    /// interrupted by this synchronous API. If cancellation is observed after
+    /// such a call, the result is retained as the honest executor/provider
+    /// outcome; it is never retried or relabeled as a successful cancellation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GatewayErrorKind::Cancelled`] when cancellation is observed
+    /// before a pending provider/effect boundary, or the same failures as
+    /// [`Self::run`] otherwise.
+    pub fn run_with_cancellation<P: Provider, F: Fn() -> bool>(
+        &mut self,
+        provider: &mut P,
+        request: &ExternalRequest,
+        is_cancelled: F,
+    ) -> Result<GatewayResult, GatewayError> {
         let mut trace = SledTrace::new();
         let mut state = LifecycleState::Received;
+        if is_cancelled() {
+            return Err(Self::failure(GatewayErrorKind::Cancelled, trace));
+        }
         if !is_valid_release_destination(&self.release_destination) {
             return Err(Self::failure(GatewayErrorKind::InvalidLifecycle, trace));
         }
@@ -289,11 +317,17 @@ impl Gateway {
         let mut seen_actions = Vec::new();
 
         for _turn in 0..MAX_PROVIDER_TURNS {
+            if is_cancelled() {
+                return Err(Self::failure(GatewayErrorKind::Cancelled, trace));
+            }
             Self::transition(&mut state, LifecycleState::ProviderRunning, &trace)?;
             let mut sink = StagingSink::new(cumulative_stream_bytes);
             let step = provider
                 .invoke(&provider_request, &mut sink)
                 .map_err(|error| Self::failure(GatewayErrorKind::Provider(error), trace.clone()))?;
+            if is_cancelled() {
+                return Err(Self::failure(GatewayErrorKind::Cancelled, trace));
+            }
             let staged = sink.finish();
             cumulative_stream_bytes = staged.total_stream_bytes;
             Self::transition(&mut state, LifecycleState::OutputStaged, &trace)?;
@@ -317,10 +351,14 @@ impl Gateway {
                 None
             };
 
+            if is_cancelled() {
+                return Err(Self::failure(GatewayErrorKind::Cancelled, trace));
+            }
             let permits =
                 self.authorize_actions(&staged.actions, step, &mut trace, &mut seen_actions)?;
             Self::transition(&mut state, LifecycleState::ActionsEvaluated, &trace)?;
-            let tool_inputs = self.execute_actions(permits, &mut effects, &mut trace)?;
+            let tool_inputs =
+                self.execute_actions(permits, &mut effects, &mut trace, &is_cancelled)?;
             Self::transition(&mut state, LifecycleState::EffectsCommitted, &trace)?;
 
             match step {
@@ -446,9 +484,13 @@ impl Gateway {
         permits: Vec<tkach_core::propusk::Propusk>,
         effects: &mut Vec<EffectReceipt>,
         trace: &mut SledTrace,
+        is_cancelled: &dyn Fn() -> bool,
     ) -> Result<Vec<ModelInput>, GatewayError> {
         let mut tool_inputs = Vec::new();
         for permit in permits {
+            if is_cancelled() {
+                return Err(Self::failure(GatewayErrorKind::Cancelled, trace.clone()));
+            }
             let result = self
                 .executor
                 .execute(permit)

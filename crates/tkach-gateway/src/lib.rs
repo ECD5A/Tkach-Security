@@ -21,6 +21,7 @@
 mod gateway;
 mod input;
 mod provider;
+mod runtime;
 mod tools;
 
 pub use gateway::{Gateway, GatewayError, GatewayErrorKind, GatewayResult};
@@ -32,6 +33,13 @@ pub use provider::{
     CancelledProvider, DeterministicProvider, FailureProvider, HostileProvider, MalformedProvider,
     ModelInput, Provider, ProviderError, ProviderRequest, ProviderSink, ProviderSinkError,
     ProviderStep, ScriptedStep, TimeoutProvider, ToolDescription,
+};
+pub use runtime::{
+    CancellationToken, DEFAULT_MAX_ACTIVE_REQUESTS, LifecycleId, MAX_RUNTIME_AUTH_BYTES,
+    MAX_RUNTIME_FRAME_BYTES, MAX_RUNTIME_ID_BYTES, MAX_RUNTIME_REPLAY_ENTRIES,
+    MAX_RUNTIME_RESPONSE_BYTES, RequestId, RuntimeAuthenticator, RuntimeConfigError, RuntimeEffect,
+    RuntimeEffectOutcome, RuntimeFailure, RuntimeLimits, RuntimeOutcome, RuntimeReceipt,
+    RuntimeResponse, RuntimeService,
 };
 pub use tools::{
     EffectOutcome, EffectReceipt, FakeToolBroker, REAL_FILE_WRITE_CONTENT, REAL_NETWORK_PATH,

@@ -1,0 +1,1082 @@
+/*
+ * Tkach Security
+ *
+ * Copyright 2026 ECD5A
+ * Licensed under the Apache License, Version 2.0.
+ *
+ * Repository: https://github.com/ECD5A/Tkach-Security
+ *
+ * See LICENSE and SECURITY.md.
+ */
+
+//! Bounded authenticated runtime transport and lifecycle admission.
+//!
+//! This module is a transport-independent frame boundary. A deployment may
+//! carry the frame over an authenticated local IPC or loopback server, but the
+//! frame parser and lifecycle semantics remain inside Tkach. It deliberately
+//! does not expose a listener, raw socket, executor, or broker over the wire.
+
+use crate::gateway::{Gateway, GatewayError, GatewayErrorKind};
+use crate::input::ExternalRequest;
+use crate::provider::{Provider, ProviderError};
+use crate::tools::{EffectOutcome, EffectReceipt};
+use serde::de::{Deserializer, Error as DeError, Visitor};
+use serde::{Deserialize, Serialize, Serializer};
+use std::collections::BTreeSet;
+use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use thiserror::Error;
+use tkach_core::domain::{Destination, Operation, ResourceKind};
+
+/// Maximum encoded request frame accepted by the runtime transport.
+pub const MAX_RUNTIME_FRAME_BYTES: usize = 64 * 1024;
+/// Maximum encoded response frame emitted by the runtime transport.
+pub const MAX_RUNTIME_RESPONSE_BYTES: usize = 128 * 1024;
+/// Maximum authentication proof length accepted from the wire.
+pub const MAX_RUNTIME_AUTH_BYTES: usize = 256;
+/// Maximum request/lifecycle identifier length.
+pub const MAX_RUNTIME_ID_BYTES: usize = 128;
+/// Maximum remembered request/lifecycle identities in one runtime instance.
+pub const MAX_RUNTIME_REPLAY_ENTRIES: usize = 1_024;
+/// The runtime default is deliberately serialized: no unbounded worker queue.
+pub const DEFAULT_MAX_ACTIVE_REQUESTS: usize = 1;
+
+/// Errors in trusted runtime configuration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
+pub enum RuntimeConfigError {
+    /// The configured authentication proof is empty or oversized.
+    #[error("runtime authentication configuration is invalid")]
+    InvalidAuthentication,
+    /// A runtime limit is zero or exceeds the fixed transport ceiling.
+    #[error("runtime limit is invalid")]
+    InvalidLimit,
+}
+
+/// A bounded opaque request identity.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RequestId(String);
+
+impl RequestId {
+    /// Construct an identifier accepted by the runtime ledger.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeConfigError::InvalidLimit`] for empty, oversized, or
+    /// non-token values.
+    pub fn new(value: impl Into<String>) -> Result<Self, RuntimeConfigError> {
+        let value = value.into();
+        if !is_runtime_token(value.as_bytes()) {
+            return Err(RuntimeConfigError::InvalidLimit);
+        }
+        Ok(Self(value))
+    }
+
+    /// Return the bounded identifier.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Debug for RequestId {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("RequestId").field(&self.0).finish()
+    }
+}
+
+impl Serialize for RequestId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+/// A bounded opaque lifecycle identity.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LifecycleId(String);
+
+impl LifecycleId {
+    /// Construct a lifecycle identifier accepted by the runtime ledger.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeConfigError::InvalidLimit`] for invalid token syntax.
+    pub fn new(value: impl Into<String>) -> Result<Self, RuntimeConfigError> {
+        let value = value.into();
+        if !is_runtime_token(value.as_bytes()) {
+            return Err(RuntimeConfigError::InvalidLimit);
+        }
+        Ok(Self(value))
+    }
+
+    /// Return the bounded identifier.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Debug for LifecycleId {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("LifecycleId").field(&self.0).finish()
+    }
+}
+
+impl Serialize for LifecycleId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+/// Trusted runtime authentication configuration.
+pub struct RuntimeAuthenticator {
+    expected: Vec<u8>,
+}
+
+impl Debug for RuntimeAuthenticator {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("RuntimeAuthenticator(REDACTED)")
+    }
+}
+
+impl RuntimeAuthenticator {
+    /// Construct an authenticator from trusted deployment configuration.
+    ///
+    /// The proof is kept private and is never serialized, displayed, or put
+    /// into a runtime error. This API makes no zeroization claim.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeConfigError::InvalidAuthentication`] for an empty or
+    /// oversized proof.
+    pub fn new(proof: impl Into<Vec<u8>>) -> Result<Self, RuntimeConfigError> {
+        let expected = proof.into();
+        if expected.is_empty() || expected.len() > MAX_RUNTIME_AUTH_BYTES {
+            return Err(RuntimeConfigError::InvalidAuthentication);
+        }
+        Ok(Self { expected })
+    }
+
+    fn authenticates(&self, supplied: &str) -> bool {
+        constant_time_equal(supplied.as_bytes(), &self.expected)
+    }
+}
+
+/// Explicit runtime outcome. `OutcomeUnknown` is terminal and is never a
+/// success/failure claim or a retry instruction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOutcome {
+    /// The Gateway completed and any reported effect was verified.
+    Success,
+    /// Authentication or core authorization denied the request.
+    Denied,
+    /// The request failed before a protected effect was attempted.
+    FailedBeforeEffect,
+    /// An effect may have occurred but its final state cannot be proven.
+    OutcomeUnknown,
+}
+
+/// Safe runtime failure category. It contains no caller/model payload.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeFailure {
+    /// The encoded frame was oversized or malformed.
+    InvalidFrame,
+    /// The authentication proof was absent or invalid.
+    AuthenticationFailed,
+    /// The request or lifecycle identity was already consumed.
+    Replay,
+    /// The bounded replay ledger cannot admit another identity.
+    ReplayCapacityExceeded,
+    /// The runtime stopped accepting new lifecycles.
+    ShuttingDown,
+    /// The bounded active-request budget was reached.
+    ConcurrencyLimit,
+    /// The external request failed strict Gateway validation.
+    InvalidRequest,
+    /// Cancellation was observed before a pending boundary.
+    Cancelled,
+    /// Provider behavior failed or was malformed.
+    ProviderFailure,
+    /// Strong Core or egress authorization denied an operation.
+    AuthorizationDenied,
+    /// A protected executor rejected/failed before an effect.
+    EffectFailedBeforeEffect,
+    /// The effect outcome cannot be determined.
+    EffectOutcomeUnknown,
+    /// The safe response itself exceeded its transport bound.
+    ResponseTooLarge,
+}
+
+/// A payload-free summary of one executor effect for transport evidence.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct RuntimeEffect {
+    operation: Operation,
+    resource_kind: ResourceKind,
+    destination: Destination,
+    execution_id: u64,
+    outcome: RuntimeEffectOutcome,
+}
+
+impl RuntimeEffect {
+    /// Return the effect operation.
+    #[must_use]
+    pub const fn operation(&self) -> &Operation {
+        &self.operation
+    }
+
+    /// Return the resource category without a resource identifier.
+    #[must_use]
+    pub const fn resource_kind(&self) -> ResourceKind {
+        self.resource_kind
+    }
+
+    /// Return the destination category.
+    #[must_use]
+    pub const fn destination(&self) -> &Destination {
+        &self.destination
+    }
+
+    /// Return the bounded executor sequence number.
+    #[must_use]
+    pub const fn execution_id(&self) -> u64 {
+        self.execution_id
+    }
+
+    /// Return the verified effect outcome.
+    #[must_use]
+    pub const fn outcome(&self) -> RuntimeEffectOutcome {
+        self.outcome
+    }
+}
+
+/// Outcome of an effect represented inside a successful receipt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeEffectOutcome {
+    /// The executor verified the local commit/response contract.
+    Committed,
+}
+
+/// Bounded payload-free lifecycle receipt. It is evidence, never a `Propusk`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct RuntimeReceipt {
+    request_id: RequestId,
+    lifecycle_id: LifecycleId,
+    outcome: RuntimeOutcome,
+    uncertain: bool,
+    effects: Vec<RuntimeEffect>,
+}
+
+impl RuntimeReceipt {
+    /// Return the request identity.
+    #[must_use]
+    pub const fn request_id(&self) -> &RequestId {
+        &self.request_id
+    }
+
+    /// Return the lifecycle identity.
+    #[must_use]
+    pub const fn lifecycle_id(&self) -> &LifecycleId {
+        &self.lifecycle_id
+    }
+
+    /// Return the lifecycle outcome.
+    #[must_use]
+    pub const fn outcome(&self) -> RuntimeOutcome {
+        self.outcome
+    }
+
+    /// Return whether the effect result is uncertain.
+    #[must_use]
+    pub const fn uncertain(&self) -> bool {
+        self.uncertain
+    }
+
+    /// Return bounded effect summaries.
+    #[must_use]
+    pub fn effects(&self) -> &[RuntimeEffect] {
+        &self.effects
+    }
+}
+
+/// Safe response returned by the frame boundary.
+#[derive(Clone, Serialize)]
+pub enum RuntimeResponse {
+    /// A successful, fully gated Gateway result.
+    Success {
+        /// Payload-free receipt for the lifecycle.
+        receipt: RuntimeReceipt,
+        /// Output released by the Gateway's final egress checks.
+        output: Option<String>,
+    },
+    /// A terminal failure with no protected output.
+    Failure {
+        /// Parsed request identity, when it was safe to retain.
+        request_id: Option<RequestId>,
+        /// Parsed lifecycle identity, when it was safe to retain.
+        lifecycle_id: Option<LifecycleId>,
+        /// Static failure category.
+        failure: RuntimeFailure,
+        /// Payload-free terminal receipt.
+        receipt: Option<RuntimeReceipt>,
+    },
+}
+
+impl Debug for RuntimeResponse {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Success { receipt, output } => formatter
+                .debug_struct("RuntimeResponse::Success")
+                .field("receipt", receipt)
+                .field("has_output", &output.is_some())
+                .finish(),
+            Self::Failure {
+                request_id,
+                lifecycle_id,
+                failure,
+                receipt,
+            } => formatter
+                .debug_struct("RuntimeResponse::Failure")
+                .field("request_id", request_id)
+                .field("lifecycle_id", lifecycle_id)
+                .field("failure", failure)
+                .field("receipt", receipt)
+                .finish(),
+        }
+    }
+}
+
+impl RuntimeResponse {
+    /// Encode a bounded response frame without exposing authentication data.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeFailure::ResponseTooLarge`] if the encoded response
+    /// exceeds the fixed response budget.
+    pub fn to_json(&self) -> Result<Vec<u8>, RuntimeFailure> {
+        let bytes = serde_json::to_vec(self).map_err(|_| RuntimeFailure::ResponseTooLarge)?;
+        if bytes.len() > MAX_RUNTIME_RESPONSE_BYTES {
+            return Err(RuntimeFailure::ResponseTooLarge);
+        }
+        Ok(bytes)
+    }
+}
+
+/// Cancellation state owned by the caller of one runtime lifecycle.
+#[derive(Clone, Debug, Default)]
+pub struct CancellationToken(Arc<AtomicBool>);
+
+impl CancellationToken {
+    /// Construct a non-cancelled token.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Mark the lifecycle cancelled. Cancellation is sticky.
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Release);
+    }
+
+    /// Return whether cancellation has been requested.
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+}
+
+/// Bounded runtime admission configuration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RuntimeLimits {
+    max_frame_bytes: usize,
+    max_active_requests: usize,
+}
+
+impl RuntimeLimits {
+    /// Construct limits below the fixed protocol ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeConfigError::InvalidLimit`] for zero or oversized
+    /// values.
+    pub fn new(
+        max_frame_bytes: usize,
+        max_active_requests: usize,
+    ) -> Result<Self, RuntimeConfigError> {
+        if max_frame_bytes == 0
+            || max_frame_bytes > MAX_RUNTIME_FRAME_BYTES
+            || max_active_requests == 0
+        {
+            return Err(RuntimeConfigError::InvalidLimit);
+        }
+        Ok(Self {
+            max_frame_bytes,
+            max_active_requests,
+        })
+    }
+
+    /// Return the configured request frame ceiling.
+    #[must_use]
+    pub const fn max_frame_bytes(self) -> usize {
+        self.max_frame_bytes
+    }
+
+    /// Return the configured active-request ceiling.
+    #[must_use]
+    pub const fn max_active_requests(self) -> usize {
+        self.max_active_requests
+    }
+}
+
+impl Default for RuntimeLimits {
+    fn default() -> Self {
+        Self {
+            max_frame_bytes: MAX_RUNTIME_FRAME_BYTES,
+            max_active_requests: DEFAULT_MAX_ACTIVE_REQUESTS,
+        }
+    }
+}
+
+struct RuntimeLedger {
+    accepting: bool,
+    active_requests: usize,
+    request_ids: BTreeSet<RequestId>,
+    lifecycle_ids: BTreeSet<LifecycleId>,
+}
+
+impl RuntimeLedger {
+    fn new() -> Self {
+        Self {
+            accepting: true,
+            active_requests: 0,
+            request_ids: BTreeSet::new(),
+            lifecycle_ids: BTreeSet::new(),
+        }
+    }
+
+    fn begin(
+        &mut self,
+        request_id: RequestId,
+        lifecycle_id: LifecycleId,
+        limits: RuntimeLimits,
+    ) -> Result<(), RuntimeFailure> {
+        if !self.accepting {
+            return Err(RuntimeFailure::ShuttingDown);
+        }
+        if self.active_requests >= limits.max_active_requests {
+            return Err(RuntimeFailure::ConcurrencyLimit);
+        }
+        if self.request_ids.contains(&request_id) || self.lifecycle_ids.contains(&lifecycle_id) {
+            return Err(RuntimeFailure::Replay);
+        }
+        if self.request_ids.len() >= MAX_RUNTIME_REPLAY_ENTRIES
+            || self.lifecycle_ids.len() >= MAX_RUNTIME_REPLAY_ENTRIES
+        {
+            return Err(RuntimeFailure::ReplayCapacityExceeded);
+        }
+        self.request_ids.insert(request_id);
+        self.lifecycle_ids.insert(lifecycle_id);
+        self.active_requests += 1;
+        Ok(())
+    }
+
+    fn finish(&mut self) {
+        self.active_requests = self.active_requests.saturating_sub(1);
+    }
+}
+
+/// Provider-independent authenticated runtime service.
+pub struct RuntimeService<P> {
+    gateway: Gateway,
+    provider: P,
+    authenticator: RuntimeAuthenticator,
+    limits: RuntimeLimits,
+    ledger: RuntimeLedger,
+}
+
+impl<P> Debug for RuntimeService<P> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RuntimeService")
+            .field("authenticator", &self.authenticator)
+            .field("limits", &self.limits)
+            .field("accepting", &self.ledger.accepting)
+            .field("active_requests", &self.ledger.active_requests)
+            .field("remembered_requests", &self.ledger.request_ids.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<P: Provider> RuntimeService<P> {
+    /// Construct a service with a trusted Gateway, provider, authenticator,
+    /// and bounded admission policy.
+    #[must_use]
+    pub fn new(
+        gateway: Gateway,
+        provider: P,
+        authenticator: RuntimeAuthenticator,
+        limits: RuntimeLimits,
+    ) -> Self {
+        Self {
+            gateway,
+            provider,
+            authenticator,
+            limits,
+            ledger: RuntimeLedger::new(),
+        }
+    }
+
+    /// Stop accepting new lifecycles. Existing synchronous work is not
+    /// forcefully interrupted; its eventual result remains explicit.
+    pub fn shutdown(&mut self) {
+        self.ledger.accepting = false;
+    }
+
+    /// Return whether new frames are accepted.
+    #[must_use]
+    pub const fn is_accepting(&self) -> bool {
+        self.ledger.accepting
+    }
+
+    /// Return the configured runtime limits.
+    #[must_use]
+    pub const fn limits(&self) -> RuntimeLimits {
+        self.limits
+    }
+
+    /// Handle one bounded authenticated frame.
+    ///
+    /// Authentication is checked before nested Gateway request decoding and
+    /// before lifecycle admission. The request and lifecycle identities are
+    /// consumed for the lifetime of this service even when Gateway denies or
+    /// fails; retrying an unknown outcome therefore requires an explicit new
+    /// lifecycle and is never automatic.
+    #[must_use]
+    pub fn handle_frame(
+        &mut self,
+        frame: &[u8],
+        cancellation: &CancellationToken,
+    ) -> RuntimeResponse {
+        if frame.len() > self.limits.max_frame_bytes {
+            return failure_response(None, None, RuntimeFailure::InvalidFrame, None);
+        }
+        let wire: RuntimeWireRequest = match serde_json::from_slice(frame) {
+            Ok(wire) => wire,
+            Err(_) => return failure_response(None, None, RuntimeFailure::InvalidFrame, None),
+        };
+        let Ok(request_id) = RequestId::new(wire.request_id) else {
+            return failure_response(None, None, RuntimeFailure::InvalidFrame, None);
+        };
+        let Ok(lifecycle_id) = LifecycleId::new(wire.lifecycle_id) else {
+            return failure_response(Some(request_id), None, RuntimeFailure::InvalidFrame, None);
+        };
+        if !self.authenticator.authenticates(&wire.auth) {
+            return failure_response(
+                Some(request_id),
+                Some(lifecycle_id),
+                RuntimeFailure::AuthenticationFailed,
+                None,
+            );
+        }
+        if cancellation.is_cancelled() {
+            return failure_response(
+                Some(request_id),
+                Some(lifecycle_id),
+                RuntimeFailure::Cancelled,
+                None,
+            );
+        }
+        if let Err(failure) =
+            self.ledger
+                .begin(request_id.clone(), lifecycle_id.clone(), self.limits)
+        {
+            return failure_response(Some(request_id), Some(lifecycle_id), failure, None);
+        }
+
+        let request_bytes = match serde_json::to_vec(&wire.request) {
+            Ok(bytes) if bytes.len() <= crate::MAX_REQUEST_BODY_BYTES => bytes,
+            _ => {
+                self.ledger.finish();
+                return failure_response(
+                    Some(request_id),
+                    Some(lifecycle_id),
+                    RuntimeFailure::InvalidRequest,
+                    None,
+                );
+            }
+        };
+        let Ok(request) = ExternalRequest::from_json(&request_bytes) else {
+            self.ledger.finish();
+            return failure_response(
+                Some(request_id),
+                Some(lifecycle_id),
+                RuntimeFailure::InvalidRequest,
+                None,
+            );
+        };
+
+        let result = self
+            .gateway
+            .run_with_cancellation(&mut self.provider, &request, || cancellation.is_cancelled());
+        self.ledger.finish();
+        match result {
+            Ok(result) => RuntimeResponse::Success {
+                receipt: success_receipt(&request_id, &lifecycle_id, result.effects()),
+                output: result.output().map(str::to_owned),
+            },
+            Err(error) => failure_from_gateway(&request_id, &lifecycle_id, &error),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RuntimeWireRequest {
+    #[serde(deserialize_with = "deserialize_bounded_id")]
+    request_id: String,
+    #[serde(deserialize_with = "deserialize_bounded_id")]
+    lifecycle_id: String,
+    #[serde(deserialize_with = "deserialize_bounded_auth")]
+    auth: String,
+    request: serde_json::Value,
+}
+
+fn deserialize_bounded_id<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_bounded_string::<D, MAX_RUNTIME_ID_BYTES>(deserializer)
+}
+
+fn deserialize_bounded_auth<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_bounded_string::<D, MAX_RUNTIME_AUTH_BYTES>(deserializer)
+}
+
+fn deserialize_bounded_string<'de, D, const MAX: usize>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct BoundedStringVisitor<const MAX: usize>;
+
+    impl<const MAX: usize> Visitor<'_> for BoundedStringVisitor<MAX> {
+        type Value = String;
+
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a string with at most {MAX} bytes")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            if value.len() > MAX {
+                return Err(E::custom("runtime string exceeds bound"));
+            }
+            Ok(value.to_owned())
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            if value.len() > MAX {
+                return Err(E::custom("runtime string exceeds bound"));
+            }
+            Ok(value)
+        }
+    }
+
+    deserializer.deserialize_string(BoundedStringVisitor::<MAX>)
+}
+
+fn is_runtime_token(value: &[u8]) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_RUNTIME_ID_BYTES
+        && value
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
+
+fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
+    let max = left.len().max(right.len());
+    let mut difference = left.len() ^ right.len();
+    for index in 0..max {
+        difference |= usize::from(
+            left.get(index).copied().unwrap_or_default()
+                ^ right.get(index).copied().unwrap_or_default(),
+        );
+    }
+    difference == 0
+}
+
+fn success_receipt(
+    request_id: &RequestId,
+    lifecycle_id: &LifecycleId,
+    effects: &[EffectReceipt],
+) -> RuntimeReceipt {
+    RuntimeReceipt {
+        request_id: request_id.clone(),
+        lifecycle_id: lifecycle_id.clone(),
+        outcome: RuntimeOutcome::Success,
+        uncertain: false,
+        effects: effects.iter().map(runtime_effect).collect(),
+    }
+}
+
+fn runtime_effect(effect: &EffectReceipt) -> RuntimeEffect {
+    RuntimeEffect {
+        operation: effect.operation().clone(),
+        resource_kind: effect.resource_kind(),
+        destination: effect.destination().clone(),
+        execution_id: effect.execution_id(),
+        outcome: match effect.outcome() {
+            EffectOutcome::Committed => RuntimeEffectOutcome::Committed,
+        },
+    }
+}
+
+fn failure_from_gateway(
+    request_id: &RequestId,
+    lifecycle_id: &LifecycleId,
+    error: &GatewayError,
+) -> RuntimeResponse {
+    let (failure, outcome, uncertain) = match error.kind() {
+        GatewayErrorKind::IngressDenied(_)
+        | GatewayErrorKind::ActionDenied(_)
+        | GatewayErrorKind::EgressDenied(_)
+        | GatewayErrorKind::EgressContentDenied(_) => (
+            RuntimeFailure::AuthorizationDenied,
+            RuntimeOutcome::Denied,
+            false,
+        ),
+        GatewayErrorKind::InvalidRequest => (
+            RuntimeFailure::InvalidRequest,
+            RuntimeOutcome::FailedBeforeEffect,
+            false,
+        ),
+        GatewayErrorKind::Provider(provider_error) => {
+            if matches!(provider_error, ProviderError::Cancelled) {
+                (
+                    RuntimeFailure::Cancelled,
+                    RuntimeOutcome::FailedBeforeEffect,
+                    false,
+                )
+            } else {
+                (
+                    RuntimeFailure::ProviderFailure,
+                    RuntimeOutcome::FailedBeforeEffect,
+                    false,
+                )
+            }
+        }
+        GatewayErrorKind::Cancelled => (
+            RuntimeFailure::Cancelled,
+            RuntimeOutcome::FailedBeforeEffect,
+            false,
+        ),
+        GatewayErrorKind::EffectOutcomeUnknown => (
+            RuntimeFailure::EffectOutcomeUnknown,
+            RuntimeOutcome::OutcomeUnknown,
+            true,
+        ),
+        GatewayErrorKind::ExecutorFailedBeforeEffect | GatewayErrorKind::ToolRejected => (
+            RuntimeFailure::EffectFailedBeforeEffect,
+            RuntimeOutcome::FailedBeforeEffect,
+            false,
+        ),
+        GatewayErrorKind::InvalidLifecycle
+        | GatewayErrorKind::TraceCapacityExceeded
+        | GatewayErrorKind::TurnLimitExceeded => (
+            RuntimeFailure::ProviderFailure,
+            RuntimeOutcome::FailedBeforeEffect,
+            false,
+        ),
+    };
+    let receipt = RuntimeReceipt {
+        request_id: request_id.clone(),
+        lifecycle_id: lifecycle_id.clone(),
+        outcome,
+        uncertain,
+        effects: Vec::new(),
+    };
+    failure_response(
+        Some(request_id.clone()),
+        Some(lifecycle_id.clone()),
+        failure,
+        Some(receipt),
+    )
+}
+
+fn failure_response(
+    request_id: Option<RequestId>,
+    lifecycle_id: Option<LifecycleId>,
+    failure: RuntimeFailure,
+    receipt: Option<RuntimeReceipt>,
+) -> RuntimeResponse {
+    RuntimeResponse::Failure {
+        request_id,
+        lifecycle_id,
+        failure,
+        receipt,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Gateway;
+    use crate::provider::{DeterministicProvider, ProviderStep, ScriptedStep};
+    use crate::tools::{FakeToolBroker, protected_write_request};
+    use serde_json::json;
+    use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
+    use tkach_core::krosna::{Krosna, Policy};
+    use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
+    use tkach_core::zaslon::Zaslon;
+
+    fn service(provider: DeterministicProvider) -> RuntimeService<DeterministicProvider> {
+        let gateway = Gateway::new(
+            Krosna::with_ruslo(
+                Policy::new(PolicyId::new("runtime-test").unwrap(), vec![]).unwrap(),
+                Ruslo::new(vec![FlowRule::allow(
+                    RuleId::new("allow-runtime-release").unwrap(),
+                    FlowMatcher::any()
+                        .principal(Principal::Model)
+                        .source(FlowSource::Model)
+                        .destination(Destination::Internal(Identity::new("client").unwrap()))
+                        .operation(FlowOperation::Export),
+                )])
+                .unwrap(),
+            ),
+            Zaslon::empty(),
+            Zaslon::empty(),
+            Destination::Internal(Identity::new("client").unwrap()),
+            FakeToolBroker::new(),
+        );
+        RuntimeService::new(
+            gateway,
+            provider,
+            RuntimeAuthenticator::new(b"runtime-secret".to_vec()).unwrap(),
+            RuntimeLimits::default(),
+        )
+    }
+
+    fn frame(request_id: &str, lifecycle_id: &str, auth: &str) -> Vec<u8> {
+        serde_json::to_vec(&json!({
+            "request_id": request_id,
+            "lifecycle_id": lifecycle_id,
+            "auth": auth,
+            "request": {"messages": [{"role": "user", "content": "hello"}]}
+        }))
+        .unwrap()
+    }
+
+    fn complete_provider() -> DeterministicProvider {
+        DeterministicProvider::new(vec![ScriptedStep {
+            chunks: vec!["safe response".to_owned()],
+            actions: Vec::new(),
+            continuation: ProviderStep::Complete,
+        }])
+    }
+
+    fn unauthorized_action_provider() -> DeterministicProvider {
+        DeterministicProvider::new(vec![ScriptedStep {
+            chunks: Vec::new(),
+            actions: vec![protected_write_request()],
+            continuation: ProviderStep::Complete,
+        }])
+    }
+
+    #[test]
+    fn authenticated_bounded_frame_reaches_only_final_gateway_release() {
+        let mut service = service(complete_provider());
+        let response = service.handle_frame(
+            &frame("request-1", "lifecycle-1", "runtime-secret"),
+            &CancellationToken::new(),
+        );
+        match response {
+            RuntimeResponse::Success { receipt, output } => {
+                assert_eq!(output.as_deref(), Some("safe response"));
+                assert_eq!(receipt.outcome(), RuntimeOutcome::Success);
+                assert!(!receipt.uncertain());
+                assert!(receipt.effects().is_empty());
+            }
+            RuntimeResponse::Failure { .. } => panic!("authenticated request must succeed"),
+        }
+    }
+
+    #[test]
+    fn invalid_auth_is_terminal_before_provider_and_effect() {
+        let mut service = service(complete_provider());
+        let response = service.handle_frame(
+            &frame("request-1", "lifecycle-1", "wrong"),
+            &CancellationToken::new(),
+        );
+        assert!(matches!(
+            response,
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::AuthenticationFailed,
+                receipt: None,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn valid_authentication_does_not_authorize_an_unauthorized_effect() {
+        let mut service = service(unauthorized_action_provider());
+        let response = service.handle_frame(
+            &frame("request-1", "lifecycle-1", "runtime-secret"),
+            &CancellationToken::new(),
+        );
+        assert!(matches!(
+            response,
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::AuthorizationDenied,
+                receipt: Some(RuntimeReceipt {
+                    outcome: RuntimeOutcome::Denied,
+                    uncertain: false,
+                    ..
+                }),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn request_and_lifecycle_replay_are_rejected_without_provider_retry() {
+        let mut service = service(complete_provider());
+        let token = CancellationToken::new();
+        assert!(matches!(
+            service.handle_frame(&frame("request-1", "lifecycle-1", "runtime-secret"), &token),
+            RuntimeResponse::Success { .. }
+        ));
+        assert!(matches!(
+            service.handle_frame(&frame("request-1", "lifecycle-2", "runtime-secret"), &token),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::Replay,
+                ..
+            }
+        ));
+        assert!(matches!(
+            service.handle_frame(&frame("request-2", "lifecycle-1", "runtime-secret"), &token),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::Replay,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn cancellation_and_shutdown_are_terminal_admission_states() {
+        let mut service = service(complete_provider());
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        assert!(matches!(
+            service.handle_frame(
+                &frame("request-1", "lifecycle-1", "runtime-secret"),
+                &cancelled
+            ),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::Cancelled,
+                ..
+            }
+        ));
+        service.shutdown();
+        assert!(!service.is_accepting());
+        assert!(matches!(
+            service.handle_frame(
+                &frame("request-2", "lifecycle-2", "runtime-secret"),
+                &CancellationToken::new()
+            ),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::ShuttingDown,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn frame_and_response_budgets_and_debug_surfaces_are_bounded() {
+        let mut service = service(complete_provider());
+        let oversized = vec![b'x'; MAX_RUNTIME_FRAME_BYTES + 1];
+        assert!(matches!(
+            service.handle_frame(&oversized, &CancellationToken::new()),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::InvalidFrame,
+                ..
+            }
+        ));
+        let response = service.handle_frame(
+            &frame("request-1", "lifecycle-1", "runtime-secret"),
+            &CancellationToken::new(),
+        );
+        let debug = format!("{response:?}");
+        assert!(!debug.contains("runtime-secret"));
+        assert!(!debug.contains("safe response"));
+        assert!(response.to_json().unwrap().len() <= MAX_RUNTIME_RESPONSE_BYTES);
+    }
+
+    #[test]
+    fn malformed_nested_request_fails_after_auth_without_gateway_invocation() {
+        let mut service = service(complete_provider());
+        let body = serde_json::to_vec(&json!({
+            "request_id": "request-1",
+            "lifecycle_id": "lifecycle-1",
+            "auth": "runtime-secret",
+            "request": {"messages": []}
+        }))
+        .unwrap();
+        assert!(matches!(
+            service.handle_frame(&body, &CancellationToken::new()),
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::InvalidRequest,
+                receipt: None,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn constant_time_comparison_does_not_accept_prefix_or_empty_proofs() {
+        assert!(constant_time_equal(b"secret", b"secret"));
+        assert!(!constant_time_equal(b"secret", b"secret2"));
+        assert!(!constant_time_equal(b"", b"secret"));
+    }
+
+    #[test]
+    fn runtime_limits_reject_zero_and_oversized_values() {
+        assert!(RuntimeLimits::new(0, 1).is_err());
+        assert!(RuntimeLimits::new(MAX_RUNTIME_FRAME_BYTES + 1, 1).is_err());
+        assert!(RuntimeLimits::new(MAX_RUNTIME_FRAME_BYTES, 0).is_err());
+        assert!(RuntimeAuthenticator::new(Vec::new()).is_err());
+        assert!(RequestId::new("../escape").is_err());
+        assert!(LifecycleId::new(" ").is_err());
+    }
+
+    #[test]
+    fn admission_ledger_enforces_a_bounded_active_request_count() {
+        let limits = RuntimeLimits::new(MAX_RUNTIME_FRAME_BYTES, 1).unwrap();
+        let mut ledger = RuntimeLedger::new();
+        ledger
+            .begin(
+                RequestId::new("request-1").unwrap(),
+                LifecycleId::new("lifecycle-1").unwrap(),
+                limits,
+            )
+            .unwrap();
+        assert_eq!(
+            ledger.begin(
+                RequestId::new("request-2").unwrap(),
+                LifecycleId::new("lifecycle-2").unwrap(),
+                limits,
+            ),
+            Err(RuntimeFailure::ConcurrencyLimit)
+        );
+        ledger.finish();
+    }
+}
