@@ -417,3 +417,21 @@
   security-relevant survivors.
 - Commit/tag: `gateway: harden lifecycle and staged effects`; local tag
   `gateway-v0.1`.
+
+## Real Provider Phase v0.1 — Mandate P0
+
+- Scope: begin the first real-provider phase with an OpenAI Responses API
+  boundary. Anthropic, MCP, SDK, UI, cloud, and production gateway transport
+  remain out of scope.
+- Architecture: `OPENAI_PROVIDER_THREAT_MODEL.md` records the source-backed
+  Client → Gateway → adapter → OpenAI → adapter → Gateway boundary. OpenAI
+  output is model data only; response IDs, call IDs, metadata, and model
+  authority claims are opaque and never become Tkach authority.
+- Security invariants: provider output cannot mint Propusk, access an
+  executor/Pechat broker, alter Krosna/Zaslon/Diode policy, strip Niti/Metka,
+  or bypass final egress gates. The planned adapter must use explicit
+  `store:false`, no background/conversation state, no provider-side tools, and
+  trusted HTTPS-only endpoint configuration.
+- Review limitation: the threat model was reviewed sequentially because
+  delegated architecture workers were unavailable.
+- Commit: recorded with the P0 threat-model milestone.

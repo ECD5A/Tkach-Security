@@ -1,4 +1,6 @@
 /target/
+/fuzz/target/
+/%TEMP%/
 /.cargo/
 *.log
 /mutants.out*/
