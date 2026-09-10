@@ -10,8 +10,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 serde_json = "1"
-tkach-core = { path = "../crates/tkach-core" }
-tkach-gateway = { path = "../crates/tkach-gateway" }
+tkach-core = { path = "../crates/tkach-core", version = "0.1.0" }
+tkach-gateway = { path = "../crates/tkach-gateway", version = "0.1.0" }
 
 [[bin]]
 name = "canonical_text"
