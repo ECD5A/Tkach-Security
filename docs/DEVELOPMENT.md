@@ -26,8 +26,10 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - `823d0f0`: stored the OpenAI adapter's trusted configuration credential in
   `zeroize::Zeroizing<String>`; HTTP-client/header and caller buffers remain
   explicitly outside the ownership claim.
-- current release-engineering cycle: CI now mirrors the local release matrix
-  for metadata, release tests, docs/rustdoc, packaging, and Quickstart.
+- `7389023`: made CI mirror the local release matrix for metadata, release
+  tests, docs/rustdoc, packaging, and Quickstart.
+- current checkpoint cycle: reran the local Strong Core matrix and recorded
+  the bounded release decision and residual claims in `EVIDENCE.md`.
 
 ## Security review rules applied
 

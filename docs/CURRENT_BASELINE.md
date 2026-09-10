@@ -145,10 +145,11 @@ is started and no existing scan is canceled.
 
 ## Current phase
 
-The current phase is repository/documentation shape cleanup after the local
-production-runtime baseline. The next engineering boundary is selected from
-residual risks and integration evidence in `ROADMAP.md`; no speculative
-provider, SDK, UI, cloud, or MCP implementation is implied by this baseline.
+The current phase is the local Strong Core / bounded Gateway release
+checkpoint after runtime and credential-ownership hardening. The next
+engineering boundary is selected from residual risks and integration evidence
+in `ROADMAP.md`; no speculative provider, SDK, UI, cloud, or MCP implementation
+is implied by this baseline.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering

@@ -6,9 +6,9 @@ and security evidence is in `EVIDENCE.md`.
 
 ## CURRENT
 
-Compact documentation tree after the local `production-runtime-v0.1` baseline
-and trusted credential-ownership hardening. The runtime source is stable; the
-next product decision is not assumed.
+Compact documentation tree after the local `production-runtime-v0.1` baseline,
+trusted credential-ownership hardening, and Strong Core checkpoint. The runtime
+source is stable; the next product decision is not assumed.
 
 ## DONE
 

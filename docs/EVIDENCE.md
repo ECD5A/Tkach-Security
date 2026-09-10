@@ -1,7 +1,8 @@
 # Security and Validation Evidence
 
 This is the single evidence record for the current repository. The current
-hardening evidence was rerun against HEAD `823d0f0`. Source code and
+provider hardening evidence was rerun after source commit `823d0f0`; subsequent
+release-engineering/docs commits do not alter runtime source. Source code and
 executable tests remain authoritative; this document records what was run,
 what it establishes, and what it does not establish. Older phase reports were
 consolidated here and removed from the active tree.
@@ -69,6 +70,31 @@ separate pinned CI steps.
 Fuzz binaries compile with locked offline dependencies; libFuzzer execution is
 not claimed on this Windows MSVC host. The ignored `target/` and
 `fuzz/target/` directories are generated artifacts, not repository inputs.
+
+## Strong Core Checkpoint
+
+Status: PASS for the local production-boundary candidate. The authoritative
+local and independent gates above passed on the current source; the checkpoint
+does not treat stalled external tooling as evidence.
+
+- A fully compromised model remains confined to hostile DATA and typed raw
+  proposals; only trusted Krosna-issued `Propusk` values can reach the fixed
+  executor, and protected-derived export remains denied by Ruslo/Zaslon.
+- Canonical Gnezdo injection, Klyuchnik reveal, provenance/classification
+  laundering, malformed/replay/over-limit provider data, runtime auth/replay,
+  cancellation/shutdown, uncertain effects, and real fixed-effect boundaries
+  have executable adversarial coverage.
+- Credential-owned runtime proof and OpenAI configuration storage are private,
+  redacted, bounded, and zeroized on drop. HTTP-client/header copies, caller
+  buffers, host memory, TLS/IPC/process isolation, durable replay, and
+  forceful interruption remain outside the claim.
+- The release boundary is intentionally narrow: no generic executor, SDK, MCP,
+  streaming release API, public gateway, UI, or cloud control plane.
+
+Release decision: the candidate is suitable for local Strong Core / bounded
+Gateway release review under the documented deployment conditions. It is not a
+claim of a universally hardened production deployment; the PARTIAL and
+UNPROVEN items below are release conditions for any broader deployment.
 
 ## Adversarial and mutation evidence
 
