@@ -214,3 +214,5 @@ Gateway Phase 1 checkpoint can pass.
 
 Repository: Tkach-Security
 Version: strong-core-v0.1 / 585bde22f7b39ee227c1b6e7876cb7999643ca6f
+Gateway implementation: `1e1d16c`, hardening: `36ce4f7`, packaging:
+`9026605`.

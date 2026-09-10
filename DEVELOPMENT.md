@@ -325,7 +325,7 @@
   implemented Strong Core controls.
 - Review limitation: independent delegated architecture review was unavailable;
   the threat model was reviewed sequentially against the current source.
-- Commit: recorded below after the G0 documentation diff review.
+- Commit: `59a0903` (`gateway: establish phase 1 threat model`).
 
 ## Gateway Phase 1 — G1-G10 implementation and red team
 
@@ -369,4 +369,5 @@
 - Review limitation: independent delegated security workers were unavailable;
   the parent performed a source-backed sequential diff review and recorded the
   limitation in the Gateway threat model.
-- Commit: recorded below after the Gateway Phase 1 checkpoint.
+- Commits: `1e1d16c` (Gateway boundary), `36ce4f7` (provenance/lifecycle
+  hardening), and `9026605` (dependency-version packaging hardening).
