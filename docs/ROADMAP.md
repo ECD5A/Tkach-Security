@@ -7,9 +7,9 @@ and security evidence is in `EVIDENCE.md`.
 ## CURRENT
 
 Compact documentation tree after the local `production-runtime-v0.1` baseline,
-trusted credential-ownership hardening, Strong Core checkpoint, and v0.1 public
-API contract. The runtime source is stable; the next product decision is not
-assumed.
+trusted credential-ownership hardening, Strong Core checkpoint, v0.1 public API
+contract, and the bounded CLI onboarding adapter. Productization is now active
+by owner direction; the Core remains frozen.
 
 ## DONE
 
@@ -26,14 +26,17 @@ assumed.
   configuration credentials, with redaction and compile-time regression proof.
 - Local validation, dependency checks, fuzz compilation, packaging, and
   Quickstart execution documented in `EVIDENCE.md`.
+- v0.1 public Rust boundary contract and consumer-side API smoke test.
+- Minimal `tkach` CLI with bounded `init`, strict `check`, and deterministic
+  `run --demo` onboarding path, including no-overwrite and symlink/reparse
+  boundary tests.
 
 ## NEXT
 
-Choose one boundary only from demonstrated risk and useful workload evidence:
-
-1. reviewed authenticated IPC/process deployment;
-2. durable replay and effect recovery semantics; or
-3. another thin adapter over the existing Gateway/core authority path.
+The next productization cycle is the language-neutral HTTP/API adapter over the
+existing Gateway/runtime boundary. It must define bounded request/response
+schemas, authentication and lifecycle semantics before implementation. SDK,
+MCP, and distribution work stays behind that contract.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -49,26 +52,28 @@ handle-relative filesystem transaction. A future boundary may be added only
 if it remains a thin adapter over the existing authority model and passes its
 own security review.
 
-## RESERVED NEXT PHASE — PRODUCTIZATION / DISTRIBUTION / DX
+## PRODUCTIZATION / DISTRIBUTION / DX BOUNDARY
 
-This phase is intentionally inactive until Strong Release is accepted. Then
-freeze the Core security contract/API and build only thin adapters around it:
+This phase is active after the owner-directed Strong Release candidate and
+freezes the Core security contract/API. Build only thin adapters around it, in
+this order:
 
+- stable API contract (done) and minimal `tkach` CLI (done);
+- language-neutral HTTP/API adapter with bounded schemas and health/diagnostic
+  behavior;
+- optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
+  reviewed;
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks;
-- a minimal `tkach` CLI (`init`, check, run), copyable examples, README
-  Quick Start under five minutes, and clean-machine onboarding proof;
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing;
-- a language-neutral local HTTP/API gateway plus optional thin Rust/Python/
-  JS/TS/Go adapters, with no duplicated security/business logic;
 - a separate MCP server/adapter and, only after current requirements are
   researched and met, Official MCP Registry publication;
 - production configuration, safe defaults, structured diagnostics, logging,
   health checks, integration examples, and final reliability/performance/
   security regression audit.
 
-No item in this reserved phase authorizes changing the frozen Core, adding
+No item in this phase authorizes changing the frozen Core, adding
 integrations for quantity, or publishing externally without an explicit owner
 decision.
 

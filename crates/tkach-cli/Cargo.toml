@@ -1,0 +1,19 @@
+[package]
+name = "tkach-cli"
+version = "0.1.0"
+description = "Small safe CLI onboarding adapter for Tkach Security"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+tkach-core = { path = "../tkach-core", version = "0.1.0" }
+tkach-gateway = { path = "../tkach-gateway", version = "0.1.0" }
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "tkach"
+path = "src/main.rs"

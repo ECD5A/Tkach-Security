@@ -23,6 +23,24 @@ The permanent project constitution is
 [Tkach Security — MASTER_MANDATE.md](Tkach%20Security%20%E2%80%94%20MASTER_MANDATE.md).
 The reporting policy is [SECURITY.md](SECURITY.md).
 
+## Five-minute local start
+
+The local CLI onboarding adapter is available from the workspace:
+
+```text
+cargo install --path crates/tkach-cli --locked
+tkach init my-agent
+tkach check my-agent/.tkach/request.json
+tkach run --demo
+```
+
+`init` creates only a new `.tkach/request.json` starter and never writes
+credentials or overwrites an existing starter. `check` applies the same strict
+bounded request parser used by the Gateway. `run --demo` exercises the local
+deterministic Gateway path without a provider network call or real effect; it
+is an onboarding proof, not a general-purpose agent runner. Publication to a
+package registry and prebuilt binaries are later distribution steps.
+
 ## Implemented boundary
 
 ```text
@@ -36,7 +54,8 @@ bounded authenticated frame
   -> bounded receipt and release
 ```
 
-The workspace contains three provider-independent Rust boundary crates:
+The workspace contains three provider-independent Rust boundary crates and one
+thin local CLI adapter:
 
 - `tkach-core` — Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka,
   Klyuchnik, and Sled;
@@ -44,6 +63,9 @@ The workspace contains three provider-independent Rust boundary crates:
   local runtime, and the narrow real-effect reference boundary;
 - `tkach-provider-openai` — a bounded non-streaming OpenAI Responses adapter
   whose output remains untrusted provider DATA.
+
+- `tkach-cli` - the bounded `tkach init`, `check`, and deterministic `run
+  --demo` onboarding surface; it adds no authority or security logic.
 
 There is no SDK, MCP adapter, streaming release API, public internet gateway,
 UI, cloud control plane, or generic executor in the current source surface.

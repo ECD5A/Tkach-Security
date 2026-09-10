@@ -2,8 +2,9 @@
 
 Status: authoritative current-state summary. The production-runtime baseline
 is tagged `production-runtime-v0.1` at `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`;
-the current source also includes reviewed runtime-proof hardening `756d695`
-and OpenAI credential ownership hardening `823d0f0`.
+the current source also includes reviewed runtime-proof hardening `756d695`,
+OpenAI credential ownership hardening `823d0f0`, the v0.1 public API boundary,
+and the thin productization CLI.
 
 This file describes what is implemented now. It is not a replacement for the
 permanent constitution, source code, or executable tests.
@@ -26,7 +27,7 @@ and historical acceptance records do not become permanent bans.
 
 ## Implemented product boundary
 
-The workspace contains three Rust crates:
+The workspace contains four Rust packages:
 
 - `tkach-core`: provider-independent typed security domain, Krosna policy
   evaluation, Zaslon hard-deny rules, Gnezdo data/control containment,
@@ -38,6 +39,8 @@ The workspace contains three Rust crates:
   bounded replay/response receipts;
 - `tkach-provider-openai`: a non-streaming OpenAI Responses adapter whose
   output remains hostile provider DATA and must pass the Gateway/core gates.
+- `tkach-cli`: a thin local `tkach init`, `check`, and deterministic `run
+  --demo` onboarding adapter; it adds no authority or security logic.
 
 The canonical product vocabulary is:
 
@@ -46,7 +49,8 @@ The canonical product vocabulary is:
 
 No deprecated primitive name, provider SDK, MCP adapter, streaming release
 API, generic executor, public internet gateway, UI, or cloud control plane is
-implemented at this baseline.
+implemented at this baseline. The CLI is local onboarding only and is not a
+general-purpose agent runner.
 
 ## Security boundary that exists
 
@@ -125,8 +129,8 @@ The final production-runtime local evidence passed:
 - locked metadata, offline `cargo audit --no-fetch`, `cargo deny check`,
   offline fuzz-binary compilation, offline packaging, and Quickstart execution;
 - 113 core, 9 composition, 9 independent-oracle, 49 Gateway unit, 25 Gateway
-  boundary, 1 public-api smoke, 14 product-proof, 13 real-effect, 34 provider,
-  and 1 opt-in live
+  boundary, 1 public-api smoke, 4 CLI unit, 14 product-proof, 13 real-effect,
+  34 provider, and 1 opt-in live
   guard tests in the debug/release matrix;
 - targeted runtime mutation: 110 mutants, 85 caught, 24 unviable, and one
   diagnostic-only `Visitor::expecting` survivor; no security-path survivor;
@@ -146,12 +150,11 @@ is started and no existing scan is canceled.
 
 ## Current phase
 
-The current phase is the local Strong Core / bounded Gateway release
-checkpoint after runtime and credential-ownership hardening. The next
-engineering boundary is selected from residual risks and integration evidence
-in `ROADMAP.md`. Productization / Distribution / DX is recorded there as a
-reserved post-Strong-Release phase, not active work in this baseline; no
-speculative provider, SDK, UI, cloud, or MCP implementation is implied here.
+The current phase is Productization / Distribution / DX, beginning with the
+stable API contract and bounded CLI onboarding. The Core and Gateway authority
+model remain frozen; the next boundary is the language-neutral HTTP API. No
+speculative provider, SDK, UI, cloud, or MCP implementation is implied by the
+CLI cycle.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering

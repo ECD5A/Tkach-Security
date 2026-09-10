@@ -19,6 +19,26 @@ bounded `Zaslon` values; wires a `Gateway` to a protected executor; submits a
 bounded `ExternalRequest`; runs a deterministic provider; and releases output
 only from a successful `GatewayResult`.
 
+## CLI onboarding
+
+The workspace also includes a deliberately small local onboarding adapter. From
+the repository root, install its binary and create a starter request:
+
+```text
+cargo install --path crates/tkach-cli --locked
+tkach init my-agent
+tkach check my-agent/.tkach/request.json
+tkach run --demo
+```
+
+`tkach init [DIRECTORY]` creates `.tkach/request.json` with a bounded example;
+it contains no credentials, refuses to overwrite an existing starter, and
+rejects a pre-existing `.tkach` symlink, junction, or non-directory. `tkach
+check [REQUEST_JSON]` caps the file read at the Gateway's request bound and
+uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
+existing deterministic Gateway proof with a fake broker and no network or real
+side effect. The CLI is not a generic executor and does not create authority.
+
 ## Public API contract — v0.1
 
 The supported Rust integration points are deliberately split by trust boundary:

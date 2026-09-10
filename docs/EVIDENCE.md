@@ -1,8 +1,9 @@
 # Security and Validation Evidence
 
-This is the single evidence record for the current repository. The current
-provider hardening evidence was rerun after source commit `823d0f0`; subsequent
-release-engineering/docs commits do not alter runtime source. Source code and
+This is the single evidence record for the current repository. It covers the
+frozen Strong Core/Gateway boundary and the thin productization CLI. The
+provider hardening evidence was rerun after source commit `823d0f0`; the public
+API smoke test and CLI are recorded separately below. Source code and
 executable tests remain authoritative; this document records what was run,
 what it establishes, and what it does not establish. Older phase reports were
 consolidated here and removed from the active tree.
@@ -46,9 +47,13 @@ cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked --offline
 cargo package --workspace --allow-dirty --no-verify --offline
 cargo run -p tkach-gateway --example quickstart --locked
+cargo run -p tkach-cli --offline -- --help
+cargo run -p tkach-cli --offline -- --version
+cargo run -p tkach-cli --offline -- run --demo
 ```
 
-The current debug/release workspace matrix contains 268 passing tests:
+The current Windows MSVC debug/release workspace matrix contains 272 passing
+tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 
 | Suite | Tests |
 | --- | ---: |
@@ -58,13 +63,15 @@ The current debug/release workspace matrix contains 268 passing tests:
 | Gateway unit | 49 |
 | Gateway boundary | 25 |
 | Public API smoke | 1 |
+| CLI unit | 4 |
 | Product proof | 14 |
 | Real effects | 13 |
 | OpenAI provider | 34 |
 | Opt-in live guard | 1 |
 
 The same suites pass in both debug and release profiles. The docs, packaging,
-Quickstart, audit, deny, metadata, formatting, and clippy gates pass locally.
+Quickstart, CLI command smoke, audit, deny, metadata, formatting, and clippy
+gates pass locally.
 The checked-in CI workflow now invokes the same metadata, debug/release test,
 documentation, package, and Quickstart gates; dependency audit and deny remain
 separate pinned CI steps.
@@ -89,13 +96,28 @@ does not treat stalled external tooling as evidence.
   redacted, bounded, and zeroized on drop. HTTP-client/header copies, caller
   buffers, host memory, TLS/IPC/process isolation, durable replay, and
   forceful interruption remain outside the claim.
-- The release boundary is intentionally narrow: no generic executor, SDK, MCP,
-  streaming release API, public gateway, UI, or cloud control plane.
+- The release boundary is intentionally narrow: the CLI is only an onboarding
+  adapter; there is no generic executor, SDK, MCP, streaming release API,
+  public gateway, UI, or cloud control plane.
 
 Release decision: the candidate is suitable for local Strong Core / bounded
 Gateway release review under the documented deployment conditions. It is not a
 claim of a universally hardened production deployment; the PARTIAL and
 UNPROVEN items below are release conditions for any broader deployment.
+
+## Productization CLI checkpoint
+
+Status: PASS for the local onboarding adapter. The CLI adds no Core authority,
+provider trust, generic executor, network transport, or credential surface.
+`init` creates a bounded no-secret starter without overwriting an existing
+starter and rejects a pre-existing `.tkach` symlink/junction/non-directory;
+`check` uses the Gateway parser and bound; `run --demo` exercises the existing
+deterministic Gateway with no network or real effect. Focused tests, full
+debug/release workspace tests, Clippy, packaging, and command smoke passed.
+
+This checkpoint does not claim a published crate, signed binary, HTTP API,
+SDK, MCP server, or production agent runner. It also does not upgrade the
+documented portable concurrent path-substitution residual.
 
 ## Adversarial and mutation evidence
 

@@ -28,6 +28,11 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
   explicitly outside the ownership claim.
 - `7389023`: made CI mirror the local release matrix for metadata, release
   tests, docs/rustdoc, packaging, and Quickstart.
+- `f1c052c`: established the v0.1 public Rust API boundary and consumer-side
+  Gateway API smoke test without changing Core.
+- current Productization cycle: added the bounded `tkach` onboarding CLI with
+  strict `init`/`check`/`run --demo` commands, no-overwrite behavior, and
+  symlink/reparse-point rejection.
 - current checkpoint cycle: reran the local Strong Core matrix and recorded
   the bounded release decision and residual claims in `EVIDENCE.md`.
 
