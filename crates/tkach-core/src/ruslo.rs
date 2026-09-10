@@ -563,6 +563,30 @@ mod tests {
     }
 
     #[test]
+    fn explicitly_public_external_export_is_allowed_by_ruslo() {
+        let public_provenance = Provenance::from_source(ProvenanceSource::User).unwrap();
+        let request = FlowRequest::new(
+            Principal::Model,
+            FlowSource::Model,
+            Destination::PublicExternal,
+            FlowOperation::Export,
+            public_provenance,
+            Classification::Public,
+        );
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
+            RuleId::new("allow-public-release").unwrap(),
+            FlowMatcher::any()
+                .source(FlowSource::Model)
+                .destination(Destination::PublicExternal)
+                .operation(FlowOperation::Export)
+                .classification(Classification::Public),
+        )])
+        .unwrap();
+
+        assert_eq!(ruslo.evaluate(&request).kind, DecisionKind::Allow);
+    }
+
+    #[test]
     fn protected_public_destination_is_denied_for_every_flow_operation() {
         let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-any").unwrap(),
