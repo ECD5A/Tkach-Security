@@ -16,9 +16,10 @@ use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_gateway::{
     DeterministicProvider, EffectOutcome, EffectReceipt, ExternalMessage, ExternalRequest,
-    ExternalRole, Gateway, GatewayErrorKind, ProviderStep, REAL_FILE_WRITE_CONTENT,
-    REAL_NETWORK_PATH, REAL_NETWORK_PAYLOAD, RealEffectExecutor, RealExecutorConfigError,
-    ScriptedStep, ToolResult, external_send_request, protected_write_request,
+    ExternalRole, Gateway, GatewayErrorKind, MAX_TOOL_RESULT_BYTES, ProviderStep,
+    REAL_FILE_WRITE_CONTENT, REAL_NETWORK_PATH, REAL_NETWORK_PAYLOAD, RealEffectExecutor,
+    RealExecutorConfigError, ScriptedStep, ToolResult, external_send_request,
+    protected_write_request,
 };
 
 static NEXT_SANDBOX_ID: AtomicU64 = AtomicU64::new(1);
@@ -65,6 +66,10 @@ struct ReceiverReport {
 
 impl Receiver {
     fn start(status: u16, delay: Duration) -> Self {
+        Self::start_with_body(status, delay, 0)
+    }
+
+    fn start_with_body(status: u16, delay: Duration, response_body_bytes: usize) -> Self {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let address = listener.local_addr().unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -109,10 +114,13 @@ impl Receiver {
                             500 => "Internal Server Error",
                             _ => "Test Status",
                         };
+                        let response_body = vec![b'R'; response_body_bytes];
                         let response = format!(
-                            "HTTP/1.1 {status} {reason}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                            "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            response_body.len()
                         );
                         let _ = stream.write_all(response.as_bytes());
+                        let _ = stream.write_all(&response_body);
                         return ReceiverReport {
                             requests_received: 1,
                             exact_request: request == expected,
@@ -280,6 +288,54 @@ fn real_filesystem_read_is_exact_and_retains_conservative_metadata() {
     assert_eq!(executor.attempt_count(), 1);
     assert_eq!(executor.successful_read_count(), 1);
     assert_eq!(executor.committed_effect_count(), 0);
+    let debug = format!("{executor:?}");
+    assert!(debug.contains("attempts"));
+    assert!(!debug.contains(sandbox.path().to_string_lossy().as_ref()));
+}
+
+#[test]
+fn real_filesystem_read_accepts_exact_limit_but_rejects_the_next_byte() {
+    let sandbox = Sandbox::new();
+    let input = sandbox.path().join("workspace/input.txt");
+    fs::write(&input, vec![b'a'; MAX_TOOL_RESULT_BYTES]).unwrap();
+    let mut executor =
+        RealEffectExecutor::new(sandbox.path(), SocketAddr::from(([127, 0, 0, 1], 1))).unwrap();
+    let action = file_read_request("workspace/input.txt");
+    match executor.execute(unknown_permit(&action)).unwrap() {
+        ToolResult::Data(data) => assert_eq!(data.value().len(), MAX_TOOL_RESULT_BYTES),
+        ToolResult::Effect(_) => panic!("read must return tagged data"),
+    }
+
+    fs::write(&input, vec![b'a'; MAX_TOOL_RESULT_BYTES + 1]).unwrap();
+    assert_eq!(
+        executor.execute(unknown_permit(&action)).unwrap_err(),
+        ExecutionError::FailedBeforeEffect
+    );
+}
+
+#[test]
+fn real_filesystem_read_dispatch_requires_the_exact_action_shape() {
+    let wrong_resource = file_read_request("workspace/other.txt");
+    let wrong_destination = ActionRequest::new(
+        tkach_core::domain::Principal::Model,
+        Operation::Read,
+        Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/input.txt").unwrap(),
+        ),
+        Destination::Internal(Identity::new("storage").unwrap()),
+        CapabilityName::new("file.read").unwrap(),
+    );
+    for action in [wrong_resource, wrong_destination] {
+        let sandbox = Sandbox::new();
+        let mut executor =
+            RealEffectExecutor::new(sandbox.path(), SocketAddr::from(([127, 0, 0, 1], 1))).unwrap();
+        assert_eq!(
+            executor.execute(unknown_permit(&action)).unwrap_err(),
+            ExecutionError::FailedBeforeEffect
+        );
+        assert_eq!(executor.successful_read_count(), 0);
+    }
 }
 
 #[test]
@@ -322,6 +378,50 @@ fn real_filesystem_write_is_create_only_and_cannot_widen_scope() {
         );
     }
     assert_eq!(executor.unknown_effect_count(), 0);
+}
+
+#[test]
+fn real_filesystem_write_dispatch_requires_the_exact_action_shape() {
+    let wrong_capability = ActionRequest::new(
+        tkach_core::domain::Principal::Model,
+        Operation::Write,
+        Resource::new(
+            ResourceKind::Database,
+            ResourceId::new("workspace/output.txt").unwrap(),
+        ),
+        Destination::Internal(Identity::new("storage").unwrap()),
+        CapabilityName::new("database.write").unwrap(),
+    );
+    let wrong_resource = ActionRequest::new(
+        tkach_core::domain::Principal::Model,
+        Operation::Write,
+        Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/other.txt").unwrap(),
+        ),
+        Destination::Internal(Identity::new("storage").unwrap()),
+        CapabilityName::new("file.write").unwrap(),
+    );
+    let wrong_destination = ActionRequest::new(
+        tkach_core::domain::Principal::Model,
+        Operation::Write,
+        Resource::new(
+            ResourceKind::File,
+            ResourceId::new("workspace/output.txt").unwrap(),
+        ),
+        Destination::Internal(Identity::new("other-storage").unwrap()),
+        CapabilityName::new("file.write").unwrap(),
+    );
+    for action in [wrong_capability, wrong_resource, wrong_destination] {
+        let sandbox = Sandbox::new();
+        let mut executor =
+            RealEffectExecutor::new(sandbox.path(), SocketAddr::from(([127, 0, 0, 1], 1))).unwrap();
+        assert_eq!(
+            executor.execute(unknown_permit(&action)).unwrap_err(),
+            ExecutionError::FailedBeforeEffect
+        );
+        assert!(!sandbox.path().join("workspace/output.txt").exists());
+    }
 }
 
 #[test]
@@ -399,6 +499,20 @@ fn real_executor_rejects_symlinked_files_and_parents() {
     );
 
     fs::remove_file(sandbox.path().join("workspace/input.txt")).unwrap();
+    fs::write(sandbox.path().join("workspace/inside.txt"), b"inside").unwrap();
+    symlink(
+        sandbox.path().join("workspace/inside.txt"),
+        sandbox.path().join("workspace/input.txt"),
+    )
+    .unwrap();
+    assert_eq!(
+        executor
+            .execute(unknown_permit(&file_read_request("workspace/input.txt")))
+            .unwrap_err(),
+        ExecutionError::FailedBeforeEffect
+    );
+
+    fs::remove_file(sandbox.path().join("workspace/input.txt")).unwrap();
     fs::remove_dir(sandbox.path().join("workspace")).unwrap();
     symlink(
         outside.path().join("workspace"),
@@ -411,6 +525,43 @@ fn real_executor_rejects_symlinked_files_and_parents() {
         ExecutionError::FailedBeforeEffect
     );
     assert!(!outside.path().join("workspace/output.txt").exists());
+}
+
+#[cfg(windows)]
+#[test]
+fn real_executor_rejects_a_windows_junction_parent() {
+    use std::os::windows::fs::MetadataExt;
+    use std::process::Command;
+
+    let sandbox = Sandbox::new();
+    let alternate = sandbox.path().join("alternate");
+    fs::create_dir(&alternate).unwrap();
+    fs::write(alternate.join("input.txt"), b"junction-target").unwrap();
+    fs::remove_file(sandbox.path().join("workspace/input.txt")).unwrap();
+    fs::remove_dir(sandbox.path().join("workspace")).unwrap();
+    let link = sandbox.path().join("workspace");
+    let link_text = link.to_string_lossy().into_owned();
+    let alternate_text = alternate.to_string_lossy().into_owned();
+    let result = Command::new("cmd.exe")
+        .args(["/C", "mklink", "/J", &link_text, &alternate_text])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "mklink failed: {}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let metadata = fs::symlink_metadata(&link).unwrap();
+    assert_ne!(metadata.file_attributes() & 0x400, 0);
+
+    let mut executor =
+        RealEffectExecutor::new(sandbox.path(), SocketAddr::from(([127, 0, 0, 1], 1))).unwrap();
+    assert_eq!(
+        executor
+            .execute(unknown_permit(&file_read_request("workspace/input.txt")))
+            .unwrap_err(),
+        ExecutionError::FailedBeforeEffect
+    );
 }
 
 #[test]
@@ -567,6 +718,35 @@ fn network_failure_after_send_is_reported_as_unknown_and_timeout_is_not_a_succes
     assert!(failed_report.exact_request);
     assert_eq!(failed_executor.committed_effect_count(), 0);
     assert_eq!(failed_executor.unknown_effect_count(), 1);
+
+    let bounded_receiver = Receiver::start_with_body(200, Duration::ZERO, 2 * 1024);
+    let mut bounded_executor =
+        RealEffectExecutor::new(sandbox.path(), bounded_receiver.address).unwrap();
+    let bounded_permit = kernel
+        .authorize_tagged_public_send(&trusted_public_data(), &action)
+        .unwrap();
+    let bounded_effect = receipt(bounded_executor.execute(bounded_permit).unwrap());
+    let bounded_report = bounded_receiver.finish();
+    assert_eq!(bounded_report.requests_received, 1);
+    assert!(bounded_report.exact_request);
+    assert_eq!(bounded_effect.execution_id(), 1);
+    assert_eq!(bounded_executor.committed_effect_count(), 1);
+
+    let oversized_receiver = Receiver::start_with_body(200, Duration::ZERO, 8 * 1024 + 1);
+    let mut oversized_executor =
+        RealEffectExecutor::new(sandbox.path(), oversized_receiver.address).unwrap();
+    let oversized_permit = kernel
+        .authorize_tagged_public_send(&trusted_public_data(), &action)
+        .unwrap();
+    assert_eq!(
+        oversized_executor.execute(oversized_permit).unwrap_err(),
+        ExecutionError::OutcomeUnknown
+    );
+    let oversized_report = oversized_receiver.finish();
+    assert_eq!(oversized_report.requests_received, 1);
+    assert!(oversized_report.exact_request);
+    assert_eq!(oversized_executor.committed_effect_count(), 0);
+    assert_eq!(oversized_executor.unknown_effect_count(), 1);
 
     let timeout_receiver = Receiver::start(200, Duration::from_millis(700));
     let mut timeout_executor =

@@ -699,4 +699,20 @@ mod tests {
         assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
         assert_eq!(state, LifecycleState::Released);
     }
+
+    #[test]
+    fn executor_failure_outcomes_keep_gateway_error_categories_distinct() {
+        assert!(matches!(
+            map_execution_error(ExecutionError::Rejected),
+            GatewayErrorKind::ToolRejected
+        ));
+        assert!(matches!(
+            map_execution_error(ExecutionError::FailedBeforeEffect),
+            GatewayErrorKind::ExecutorFailedBeforeEffect
+        ));
+        assert!(matches!(
+            map_execution_error(ExecutionError::OutcomeUnknown),
+            GatewayErrorKind::EffectOutcomeUnknown
+        ));
+    }
 }

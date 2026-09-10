@@ -12,7 +12,7 @@
 //! Protected effect boundaries for the provider-independent Gateway.
 
 use std::fmt::{Debug, Formatter};
-use std::fs::{self, Metadata, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
@@ -184,7 +184,14 @@ impl RealEffectExecutor {
         let supplied_root = sandbox_root.as_ref();
         let supplied_metadata = fs::symlink_metadata(supplied_root)
             .map_err(|_| RealExecutorConfigError::InvalidSandboxRoot)?;
-        if !supplied_metadata.is_dir() || is_link_or_reparse(&supplied_metadata) {
+        if supplied_metadata.file_type().is_symlink() {
+            return Err(RealExecutorConfigError::InvalidSandboxRoot);
+        }
+        #[cfg(windows)]
+        if is_windows_reparse_point(&supplied_metadata) {
+            return Err(RealExecutorConfigError::InvalidSandboxRoot);
+        }
+        if !supplied_metadata.is_dir() {
             return Err(RealExecutorConfigError::InvalidSandboxRoot);
         }
         if !endpoint.ip().is_loopback() || endpoint.port() == 0 {
@@ -194,7 +201,14 @@ impl RealEffectExecutor {
             .map_err(|_| RealExecutorConfigError::InvalidSandboxRoot)?;
         let canonical_metadata = fs::symlink_metadata(&canonical_root)
             .map_err(|_| RealExecutorConfigError::InvalidSandboxRoot)?;
-        if !canonical_metadata.is_dir() || is_link_or_reparse(&canonical_metadata) {
+        if canonical_metadata.file_type().is_symlink() {
+            return Err(RealExecutorConfigError::InvalidSandboxRoot);
+        }
+        #[cfg(windows)]
+        if is_windows_reparse_point(&canonical_metadata) {
+            return Err(RealExecutorConfigError::InvalidSandboxRoot);
+        }
+        if !canonical_metadata.is_dir() {
             return Err(RealExecutorConfigError::InvalidSandboxRoot);
         }
         Ok(Self {
@@ -262,7 +276,7 @@ impl RealEffectExecutor {
         })
     }
 
-    fn execute_read(&mut self, action: &Propusk) -> Result<ToolResult, ExecutionError> {
+    fn execute_read(&mut self) -> Result<ToolResult, ExecutionError> {
         let path = self.checked_existing_path("workspace/input.txt")?;
         let mut file = OpenOptions::new()
             .read(true)
@@ -287,7 +301,6 @@ impl RealEffectExecutor {
         let tagged = TaggedData::from_trusted_ingress(value, source, Classification::Confidential)
             .map_err(|_| ExecutionError::FailedBeforeEffect)?;
         self.successful_reads += 1;
-        let _ = action;
         Ok(ToolResult::Data(tagged))
     }
 
@@ -304,17 +317,20 @@ impl RealEffectExecutor {
             .open(&path)
             .map_err(|_| ExecutionError::FailedBeforeEffect)?;
 
-        if file.write_all(REAL_FILE_WRITE_CONTENT).is_err()
-            || file.flush().is_err()
-            || file.sync_all().is_err()
-        {
+        if write_exact_and_flush(&mut file).is_err() {
+            return self.mark_unknown();
+        }
+        if file.sync_all().is_err() {
             return self.mark_unknown();
         }
         if file.seek(SeekFrom::Start(0)).is_err() {
             return self.mark_unknown();
         }
         let mut verified = vec![0_u8; REAL_FILE_WRITE_CONTENT.len()];
-        if file.read_exact(&mut verified).is_err() || verified != REAL_FILE_WRITE_CONTENT {
+        if file.read_exact(&mut verified).is_err() {
+            return self.mark_unknown();
+        }
+        if verified != REAL_FILE_WRITE_CONTENT {
             return self.mark_unknown();
         }
         let mut extra = [0_u8; 1];
@@ -348,11 +364,10 @@ impl RealEffectExecutor {
             "POST {REAL_NETWORK_PATH} HTTP/1.1\r\nHost: {host}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
             REAL_NETWORK_PAYLOAD.len()
         );
-        if stream.write_all(request.as_bytes()).is_err()
-            || stream.write_all(REAL_NETWORK_PAYLOAD).is_err()
-            || stream.flush().is_err()
-            || stream.shutdown(Shutdown::Write).is_err()
-        {
+        if write_network_request(&mut stream, &request).is_err() {
+            return self.mark_unknown();
+        }
+        if stream.shutdown(Shutdown::Write).is_err() {
             return self.mark_unknown();
         }
         let mut response = Vec::with_capacity(MAX_NETWORK_RESPONSE_BYTES);
@@ -361,10 +376,9 @@ impl RealEffectExecutor {
             match stream.read(&mut chunk) {
                 Ok(0) => break,
                 Ok(count) => {
-                    if response.len().saturating_add(count) > MAX_NETWORK_RESPONSE_BYTES {
+                    if append_bounded_response(&mut response, &chunk[..count]).is_err() {
                         return self.mark_unknown();
                     }
-                    response.extend_from_slice(&chunk[..count]);
                 }
                 Err(_) => return self.mark_unknown(),
             }
@@ -386,7 +400,14 @@ impl RealEffectExecutor {
         let parent = path.parent().ok_or(ExecutionError::FailedBeforeEffect)?;
         let metadata =
             fs::symlink_metadata(parent).map_err(|_| ExecutionError::FailedBeforeEffect)?;
-        if !metadata.is_dir() || is_link_or_reparse(&metadata) {
+        if metadata.file_type().is_symlink() {
+            return Err(ExecutionError::FailedBeforeEffect);
+        }
+        #[cfg(windows)]
+        if is_windows_reparse_point(&metadata) {
+            return Err(ExecutionError::FailedBeforeEffect);
+        }
+        if !metadata.is_dir() {
             return Err(ExecutionError::FailedBeforeEffect);
         }
         let canonical_parent =
@@ -401,7 +422,14 @@ impl RealEffectExecutor {
         let path = self.checked_parent(relative)?;
         let metadata =
             fs::symlink_metadata(&path).map_err(|_| ExecutionError::FailedBeforeEffect)?;
-        if !metadata.is_file() || is_link_or_reparse(&metadata) {
+        if metadata.file_type().is_symlink() {
+            return Err(ExecutionError::FailedBeforeEffect);
+        }
+        #[cfg(windows)]
+        if is_windows_reparse_point(&metadata) {
+            return Err(ExecutionError::FailedBeforeEffect);
+        }
+        if !metadata.is_file() {
             return Err(ExecutionError::FailedBeforeEffect);
         }
         let canonical = fs::canonicalize(&path).map_err(|_| ExecutionError::FailedBeforeEffect)?;
@@ -414,8 +442,14 @@ impl RealEffectExecutor {
     fn checked_new_path(&self, relative: &str) -> Result<PathBuf, ExecutionError> {
         let path = self.checked_parent(relative)?;
         match fs::symlink_metadata(&path) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(path),
-            Ok(_) | Err(_) => Err(ExecutionError::FailedBeforeEffect),
+            Ok(_) => Err(ExecutionError::FailedBeforeEffect),
+            Err(error) => {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Ok(path)
+                } else {
+                    Err(ExecutionError::FailedBeforeEffect)
+                }
+            }
         }
     }
 }
@@ -435,7 +469,7 @@ impl ProtectedExecutor for RealEffectExecutor {
             && request.resource().id().as_str() == "workspace/input.txt"
             && request.destination() == &Destination::Model
         {
-            return self.execute_read(&action);
+            return self.execute_read();
         }
         if request.operation() == &Operation::Write
             && request.capability().as_str() == "file.write"
@@ -459,12 +493,18 @@ impl ProtectedExecutor for RealEffectExecutor {
 
 fn is_safe_relative_path(path: &Path) -> bool {
     let raw = path.to_string_lossy();
-    if path.is_absolute()
-        || raw.is_empty()
-        || raw.contains('\\')
-        || raw
-            .split('/')
-            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    if path.is_absolute() {
+        return false;
+    }
+    if raw.is_empty() {
+        return false;
+    }
+    if raw.contains('\\') {
+        return false;
+    }
+    if raw
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
     {
         return false;
     }
@@ -477,18 +517,39 @@ fn is_safe_relative_path(path: &Path) -> bool {
     })
 }
 
-fn is_link_or_reparse(metadata: &Metadata) -> bool {
-    metadata.file_type().is_symlink() || is_windows_reparse_point(metadata)
+fn write_exact_and_flush<W: Write>(writer: &mut W) -> Result<(), ()> {
+    if writer.write_all(REAL_FILE_WRITE_CONTENT).is_err() || writer.flush().is_err() {
+        return Err(());
+    }
+    Ok(())
+}
+
+fn write_network_request<W: Write>(writer: &mut W, request_head: &str) -> Result<(), ()> {
+    if writer.write_all(request_head.as_bytes()).is_err()
+        || writer.write_all(REAL_NETWORK_PAYLOAD).is_err()
+        || writer.flush().is_err()
+    {
+        return Err(());
+    }
+    Ok(())
+}
+
+fn append_bounded_response(response: &mut Vec<u8>, chunk: &[u8]) -> Result<(), ()> {
+    if response.len().saturating_add(chunk.len()) > MAX_NETWORK_RESPONSE_BYTES {
+        return Err(());
+    }
+    response.extend_from_slice(chunk);
+    Ok(())
 }
 
 #[cfg(windows)]
-fn is_windows_reparse_point(metadata: &Metadata) -> bool {
+fn is_windows_reparse_point(metadata: &fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
     metadata.file_attributes() & 0x400 != 0
 }
 
 #[cfg(not(windows))]
-const fn is_windows_reparse_point(_metadata: &Metadata) -> bool {
+const fn is_windows_reparse_point(_metadata: &fs::Metadata) -> bool {
     false
 }
 
@@ -990,6 +1051,99 @@ mod tests {
         }
     }
 
+    struct FaultWriter {
+        fail_write: bool,
+        fail_flush: bool,
+        bytes: Vec<u8>,
+    }
+
+    impl Write for FaultWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.fail_write {
+                return Err(std::io::Error::other("injected write failure"));
+            }
+            self.bytes.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            if self.fail_flush {
+                return Err(std::io::Error::other("injected flush failure"));
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn real_write_stage_fails_closed_for_injected_write_and_flush_errors() {
+        for (fail_write, fail_flush) in [(true, false), (false, true)] {
+            let mut writer = FaultWriter {
+                fail_write,
+                fail_flush,
+                bytes: Vec::new(),
+            };
+            assert!(write_exact_and_flush(&mut writer).is_err());
+        }
+    }
+
+    #[test]
+    fn effect_receipt_preserves_non_default_execution_sequence() {
+        let receipt = EffectReceipt {
+            operation: Operation::Write,
+            resource_kind: ResourceKind::File,
+            destination: Destination::Model,
+            execution_id: 37,
+            outcome: EffectOutcome::Committed,
+        };
+        assert_eq!(receipt.execution_id(), 37);
+        assert_eq!(receipt.outcome(), EffectOutcome::Committed);
+    }
+
+    #[test]
+    fn real_network_stage_requires_every_write_and_flush_step() {
+        for failed_step in 0..3 {
+            let mut writer = NetworkFaultWriter {
+                failed_step,
+                step: 0,
+            };
+            assert!(write_network_request(&mut writer, "POST /test HTTP/1.1\r\n").is_err());
+        }
+    }
+
+    #[test]
+    fn real_network_response_buffer_has_an_exact_upper_bound() {
+        let mut response = Vec::new();
+        assert!(
+            append_bounded_response(&mut response, &vec![b'R'; MAX_NETWORK_RESPONSE_BYTES]).is_ok()
+        );
+        assert!(append_bounded_response(&mut response, b"x").is_err());
+    }
+
+    struct NetworkFaultWriter {
+        failed_step: usize,
+        step: usize,
+    }
+
+    impl Write for NetworkFaultWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let step = self.step;
+            self.step += 1;
+            if step == self.failed_step {
+                return Err(std::io::Error::other("injected network write failure"));
+            }
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            let step = self.step;
+            self.step += 1;
+            if step == self.failed_step {
+                return Err(std::io::Error::other("injected network flush failure"));
+            }
+            Ok(())
+        }
+    }
+
     #[test]
     fn real_path_parser_rejects_escape_and_normalization_syntax() {
         for value in [
@@ -1021,5 +1175,40 @@ mod tests {
         ] {
             assert!(!is_successful_http_response(response));
         }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_reparse_gate_detects_a_junction_metadata_record() {
+        use std::os::windows::fs::MetadataExt;
+        use std::process::Command;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock is after the Unix epoch")
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("tkach-gateway-reparse-{suffix}"));
+        let target = base.join("target");
+        let link = base.join("junction");
+        fs::create_dir_all(&target).unwrap();
+        let link_text = link.to_string_lossy().into_owned();
+        let target_text = target.to_string_lossy().into_owned();
+        let result = Command::new("cmd.exe")
+            .args(["/C", "mklink", "/J", &link_text, &target_text])
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "mklink failed: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+
+        let metadata = fs::symlink_metadata(&link).unwrap();
+        assert_ne!(metadata.file_attributes() & 0x400, 0);
+        assert!(is_windows_reparse_point(&metadata));
+
+        let _ = fs::remove_dir(&link);
+        let _ = fs::remove_dir_all(&base);
     }
 }
