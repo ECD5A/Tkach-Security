@@ -1,5 +1,8 @@
 # Tkach Security Production Runtime Hardening v0.1
 
+Historical production-runtime evidence only; this report is not an active
+mandate. It records the evidence behind the `production-runtime-v0.1` tag.
+
 ### PRODUCTION RUNTIME STATUS
 
 PASS on authoritative local evidence. This is a local production-runtime

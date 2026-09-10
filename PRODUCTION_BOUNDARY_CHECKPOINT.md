@@ -1,5 +1,8 @@
 # Strong Core Checkpoint — production boundary candidate
 
+Historical production-boundary evidence only; this checkpoint is not an
+active mandate.
+
 Date: 2026-09-10  
 Baseline: `5f2aeb133607207cabb68e82bbdf1f62dd4e5219`
 (`integration-proof-v0.1`)  

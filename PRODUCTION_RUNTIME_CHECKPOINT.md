@@ -1,5 +1,8 @@
 # Tkach Security Production Runtime Checkpoint
 
+Historical production-runtime evidence only; this checkpoint is not an active
+mandate. The current release-candidate state is in `CURRENT_BASELINE.md`.
+
 Date: 2026-09-11
 
 Baseline: 0b2887a93270dd3d5e93e31f3a41dc213cbde0bc

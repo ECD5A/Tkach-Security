@@ -1,5 +1,7 @@
 # Product Proof Report
 
+Historical Product Proof evidence only; this report is not an active mandate.
+
 This is the reportable output of the offline Product Proof harness. It is
 security evidence for the fake bounded environment, not a production
 availability or semantic-model claim.

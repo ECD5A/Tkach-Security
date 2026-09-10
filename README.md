@@ -6,6 +6,9 @@ An AI model may be compromised, follow hostile instructions, or propose an
 effect outside its intended scope. Tkach Security limits what that model can
 actually cause.
 
+The authoritative current-state summary is [`CURRENT_BASELINE.md`](CURRENT_BASELINE.md);
+the active release plan is [`RELEASE_CANDIDATE_PLAN.md`](RELEASE_CANDIDATE_PLAN.md).
+
 ## What does Tkach do?
 
 Tkach is a deterministic typed boundary around model input, tool proposals,
@@ -23,8 +26,9 @@ semantics.
 Tkach does not make an LLM truthful or trusted, detect every prompt injection,
 protect a deliberately bypassed Gateway, or protect a fully compromised host
 or operating system. It is not an SDK, MCP, streaming, UI, cloud control
-plane, or general internet gateway. The repository does include a narrow
-trusted `RealEffectExecutor` for exact sandbox files and loopback HTTP; it is
+plane, or general internet gateway at the current baseline. The repository
+does include a narrow trusted `RealEffectExecutor` for exact sandbox files and
+loopback HTTP; it is
 not a general production executor.
 
 ## How does it work?
@@ -56,7 +60,9 @@ integration surface is typed Rust, not a stable SDK.
 - `SECURITY_MODEL.md` — guarantees, assumptions, non-guarantees, and limits.
 - `THREAT_MODEL.md` — threats and expected containment behavior.
 - `SECURITY_VALUE_MAP.md` — component-to-threat and enforcement map.
-- `ROADMAP.md` — mandate state.
+- `ROADMAP.md` — compact current roadmap.
+- `CURRENT_BASELINE.md` — authoritative implemented-state summary.
+- `RELEASE_CANDIDATE_PLAN.md` — active release-candidate plan.
 - `DEVELOPMENT.md` — concise engineering continuity record.
 - `Tkach Security — MASTER_MANDATE.md` — permanent engineering constitution.
 

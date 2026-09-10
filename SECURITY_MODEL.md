@@ -161,8 +161,8 @@ scenarios A–H and tractable state-space combinations pass. The red-team pass
 The production runtime red-team pass and final adversarial hardening checkpoint
 are recorded in `PRODUCTION_RUNTIME_REPORT.md` after the local validation matrix
 and freeze commit. Provider streaming, MCP, SDK, cloud, UI, and production
-gateway orchestration are not
-part of this status. The OpenAI adapter's HTTPS transport is a bounded
+gateway orchestration are not implemented at this baseline. The OpenAI
+adapter's HTTPS transport is a bounded
 provider boundary, not a production gateway or deployment integration. The
 local effect boundary is not a generic OS/network executor: it is exact,
 create-only, loopback-only, and retains an explicit concurrent

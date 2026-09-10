@@ -1,5 +1,7 @@
 # Product Contract Checkpoint
 
+Historical A20 evidence only; this checkpoint is not an active mandate.
+
 Status: PASS. Validation completed on the unchanged pruning code at
 `a64dad07e15dce4536fdcdabc5bdf1fde292763d`; subsequent commits in this phase
 are documentation-only.

@@ -35,8 +35,8 @@ or release function.
 ## Minimum integration steps
 
 1. Install/use the `tkach-core` and `tkach-gateway` Rust crates in the host
-   process. The current phase intentionally has no SDK or package-manager
-   facade.
+   process. The current source surface has no SDK or package-manager facade;
+   this is an integration fact, not a permanent ban.
 2. Convert external messages into `ExternalRequest`; use `ExternalRole::Data`
    for imported documents, web text, and other attacker-influenced material.
 3. Define capabilities as typed `ActionRequest` shapes and Krosna policy rules;
@@ -181,5 +181,5 @@ from a same-privilege out-of-band executor.
 The common safe case is: bounded JSON, `ExternalRole::Data` for imported text,
 default-deny policy, no external export of protected-derived values, no raw
 credential input, and final Gateway-only release. Advanced policy and endpoint
-customization remain possible through typed Rust APIs; this phase adds no new
-configuration DSL.
+customization remain possible through typed Rust APIs; the current source
+surface adds no configuration DSL.

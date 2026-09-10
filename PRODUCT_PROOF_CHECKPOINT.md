@@ -1,5 +1,7 @@
 # Product Proof Checkpoint
 
+Historical B22 evidence only; this checkpoint is not an active mandate.
+
 Status: PASS — Product Proof B0-B22 completed locally on 2026-09-10.
 
 | # | Requirement | Evidence |

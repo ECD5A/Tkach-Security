@@ -1,5 +1,10 @@
 # Development Record
 
+This is a chronological historical engineering record. It is evidence for
+completed phases, not an active mandate and not a source of permanent feature
+bans. Current state and active work are in `CURRENT_BASELINE.md`,
+`RELEASE_CANDIDATE_PLAN.md`, and `ROADMAP.md`.
+
 ## Mandate 0 — Foundation and security baseline
 
 - Architecture: one provider-independent `tkach-core` crate; synchronous core;

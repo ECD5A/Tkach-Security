@@ -1,5 +1,7 @@
 # Strong Core Integration Proof Checkpoint
 
+Historical Phase C evidence only; this checkpoint is not an active mandate.
+
 Status: PASS — Phase C acceptance completed locally on 2026-09-10 after the
 complete validation matrix, security self-review, clean worktree check, and
 local tag.

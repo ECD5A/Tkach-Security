@@ -1,10 +1,13 @@
 # Gateway Hardening 1.5
 
+Historical Gateway boundary contract and evidence only; this document is not
+an active mandate.
+
 Status: implemented on the provider-independent Gateway Phase 1 boundary.
 
-This document freezes the Phase 1 execution semantics before any real
-provider adapter. It does not authorize OpenAI, Anthropic, MCP, SDK, HTTP,
-cloud, UI, or production transport work.
+This document records the execution semantics used before the real-provider
+adapter. Its old phase-specific integration scope is historical; current
+scope is summarized in `CURRENT_BASELINE.md`.
 
 ## Effect-ordering invariant
 

@@ -1,5 +1,10 @@
 # Architecture
 
+This document describes the current implemented architecture. For the single
+short state summary and active phase, see `CURRENT_BASELINE.md` and
+`RELEASE_CANDIDATE_PLAN.md`. Historical checkpoint instructions are evidence,
+not active mandates.
+
 ## Implemented baseline
 
 The repository currently contains a provider-independent `tkach-core` crate
@@ -39,7 +44,7 @@ secret values, and Zaslon stream input are bounded. A streaming Zaslon scan
 returns `NeedMoreData` until explicitly finished, so an intermediate result is
 never a release permission.
 
-## Target Strong Core shape
+## Implemented Strong Core shape
 
 ```text
 validated SecurityEnvelope
@@ -153,14 +158,14 @@ read-only actions only, and replayed action requests are rejected within a
 request lifecycle.
 
 Tool execution is a gateway-owned `ProtectedExecutor` boundary receiving only
-core-issued Propusk values. Phase 1's fake broker supports protected reads,
+core-issued Propusk values. The deterministic fake broker supports protected reads,
 harmless reads, a bounded write, external-send attempts, and Klyuchnik-backed
 secret use. The narrow `RealEffectExecutor` additionally proves exact local
 filesystem and loopback effects; it has no model-controlled OS path, endpoint,
 HTTP path, or payload. Raw fake secret material stays in the broker;
 provider-visible results preserve Niti/Metka or are payload-free receipts. No
-generic executor, SDK, MCP, cloud control plane, or internet gateway is
-implemented.
+generic executor, SDK, MCP, cloud control plane, or internet gateway exists in
+the current source surface.
 
 ## Production runtime boundary
 
@@ -221,10 +226,9 @@ release output. The real provider path is therefore still subject to the same
 Krosna, Ruslo, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
 
 Responses streaming, provider-side tools, MCP, automatic retry, SDKs, and
-production transport orchestration remain intentionally disabled. The current
-Gateway contract is synchronous and buffers security-relevant output before
-release; no token-by-token release API exists to accidentally bypass that
-contract.
+production transport orchestration are not implemented in the current source
+surface. The Gateway contract is synchronous and buffers security-relevant
+output before release; no token-by-token release API exists in this baseline.
 
 ## Architecture pruning and product contract
 
@@ -244,13 +248,15 @@ checks, not competing policy engines.
 
 `INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, Sealed Agent,
 and Local Authenticated Runtime deployment profiles. `PRUNING_METRICS.md`
-records the measured source and public-surface reduction. No SDK,
-configuration DSL, provider abstraction layer, streaming event model, MCP
-layer, or internet gateway was added.
+records the measured source and public-surface reduction. The current source
+surface has no SDK, configuration DSL, provider abstraction layer, streaming
+event model, MCP layer, or internet gateway.
 
-## Future, not implemented
+## Current non-implemented surfaces
 
 Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,
 production gateway orchestration, TLS/process supervisor integration, and
-generic executors are explicitly deferred. The runtime listener is a narrow
-local frame boundary, not a claim of generic production readiness.
+generic executors are not part of this baseline. The runtime listener is a
+narrow local frame boundary, not a claim of generic production readiness.
+Future selection is governed by `RELEASE_CANDIDATE_PLAN.md`; these facts are
+not permanent bans.
