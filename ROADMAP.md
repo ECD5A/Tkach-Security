@@ -24,7 +24,7 @@ repository, not future product marketing.
 - DONE — Gateway Phase 1 G0 threat model (provider-independent boundary).
 - DONE — Gateway Phase 1 G1-G10 bounded in-process gateway, hostile fake
   providers, protected tool boundary, canonical scenario, and red-team tests.
-- DONE — Gateway Phase 1 checkpoint (2026-09-10; HEAD `fdfce9a`).
+- DONE — Gateway Phase 1 checkpoint (2026-09-10; HEAD `c77e6e1`).
 - STOP — No real provider, MCP, SDK, UI, cloud, or production transport work
   is authorized before owner review of this checkpoint.
 - DEFERRED — real provider integrations, MCP, SDKs, UI, cloud, and production
