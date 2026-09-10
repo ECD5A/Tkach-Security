@@ -755,6 +755,148 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
+    fn parser_rejects_identity_status_argument_and_output_boundaries() {
+        for output in [
+            r#"[{"type":"message","id":"msg_1","status":"completed","role":"user","content":[{"type":"output_text","text":"x"}]}]"#,
+            r#"[{"type":"message","id":"msg_1","status":"in_progress","role":"assistant","content":[{"type":"output_text","text":"x"}]}]"#,
+            r#"[{"type":"function_call","id":"bad/id","call_id":"call_1","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+            r#"[{"type":"function_call","id":"fc_1","call_id":"call_1","name":"bad/name","arguments":"{}","status":"completed"}]"#,
+        ] {
+            assert!(parse_response(&response(output)).is_err());
+        }
+
+        let exact_argument_value = format!(
+            r#"{{"x":"{}"}}"#,
+            "x".repeat(MAX_FUNCTION_ARGUMENT_BYTES - 8)
+        );
+        assert_eq!(exact_argument_value.len(), MAX_FUNCTION_ARGUMENT_BYTES);
+        let exact_arguments = format!(
+            r#"[{{"type":"function_call","id":"fc_exact","call_id":"call_exact","name":"harmless_read","arguments":{},"status":"completed"}}]"#,
+            serde_json::to_string(&exact_argument_value).unwrap()
+        );
+        assert!(parse_response(&response(&exact_arguments)).is_ok());
+        let oversized_argument_value = format!(
+            r#"{{"x":"{}"}}"#,
+            "x".repeat(MAX_FUNCTION_ARGUMENT_BYTES - 7)
+        );
+        let oversized_arguments = format!(
+            r#"[{{"type":"function_call","id":"fc_large","call_id":"call_large","name":"harmless_read","arguments":{},"status":"completed"}}]"#,
+            serde_json::to_string(&oversized_argument_value).unwrap()
+        );
+        assert!(parse_response(&response(&oversized_arguments)).is_err());
+
+        let oversized_text = format!(
+            r#"[{{"type":"message","id":"msg_1","status":"completed","role":"assistant","content":[{{"type":"output_text","text":"{}"}}]}}]"#,
+            "x".repeat(MAX_MODEL_OUTPUT_BYTES + 1)
+        );
+        assert!(parse_response(&response(&oversized_text)).is_err());
+
+        let oversized_id = format!(
+            r#"{{"id":"{}","object":"response","status":"completed","output":[]}}"#,
+            "i".repeat(MAX_PROVIDER_ID_BYTES + 1)
+        );
+        assert!(parse_response(oversized_id.as_bytes()).is_err());
+        let exact_id = format!(
+            r#"{{"id":"{}","object":"response","status":"completed","output":[]}}"#,
+            "i".repeat(MAX_PROVIDER_ID_BYTES)
+        );
+        assert!(parse_response(exact_id.as_bytes()).is_ok());
+
+        let exact_name = format!(
+            r#"[{{"type":"function_call","id":"fc_name","call_id":"call_name","name":"{}","arguments":"{{}}","status":"completed"}}]"#,
+            "n".repeat(MAX_PROVIDER_ID_BYTES)
+        );
+        assert!(parse_response(&response(&exact_name)).is_ok());
+        let oversized_name = format!(
+            r#"[{{"type":"function_call","id":"fc_name_large","call_id":"call_name_large","name":"{}","arguments":"{{}}","status":"completed"}}]"#,
+            "n".repeat(MAX_PROVIDER_ID_BYTES + 1)
+        );
+        assert!(parse_response(&response(&oversized_name)).is_err());
+
+        let exact_text = "x".repeat(MAX_MODEL_OUTPUT_BYTES);
+        let exact_text_response = response(
+            &serde_json::json!([{
+                "type": "message",
+                "id": "msg_exact",
+                "status": "completed",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": exact_text}]
+            }])
+            .to_string(),
+        );
+        assert!(parse_response(&exact_text_response).is_ok());
+
+        let half = MAX_MODEL_OUTPUT_BYTES / 2;
+        let aggregate_exact = response(
+            &serde_json::json!([
+                {
+                    "type": "message",
+                    "id": "msg_a",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "a".repeat(half)}]
+                },
+                {
+                    "type": "message",
+                    "id": "msg_b",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "b".repeat(MAX_MODEL_OUTPUT_BYTES - half)}]
+                }
+            ])
+            .to_string(),
+        );
+        assert!(parse_response(&aggregate_exact).is_ok());
+        let aggregate_over = response(
+            &serde_json::json!([
+                {
+                    "type": "message",
+                    "id": "msg_a2",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "a".repeat(half)}]
+                },
+                {
+                    "type": "message",
+                    "id": "msg_b2",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "b".repeat(MAX_MODEL_OUTPUT_BYTES - half + 1)}]
+                }
+            ])
+            .to_string(),
+        );
+        assert!(parse_response(&aggregate_over).is_err());
+    }
+
+    #[test]
+    fn request_and_response_budgets_fail_closed_at_serialization_boundary() {
+        let oversized = "x".repeat(MAX_REQUEST_BODY_BYTES);
+        assert!(ResponsesRequest::encode("gpt-4.1-mini", vec![user_message(&oversized)]).is_err());
+
+        let mut low = 0;
+        let mut high = MAX_REQUEST_BODY_BYTES;
+        while low < high {
+            let middle = low + (high - low).div_ceil(2);
+            if ResponsesRequest::encode("gpt-4.1-mini", vec![user_message(&"x".repeat(middle))])
+                .is_ok()
+            {
+                low = middle;
+            } else {
+                high = middle - 1;
+            }
+        }
+        let exact =
+            ResponsesRequest::encode("gpt-4.1-mini", vec![user_message(&"x".repeat(low))]).unwrap();
+        assert_eq!(exact.len(), MAX_REQUEST_BODY_BYTES);
+        assert!(
+            ResponsesRequest::encode("gpt-4.1-mini", vec![user_message(&"x".repeat(low + 1))])
+                .is_err()
+        );
+    }
+
+    #[test]
     fn duplicate_top_level_fields_and_response_items_are_rejected() {
         let duplicate = br#"{"id":"resp_1","id":"resp_2","object":"response","status":"completed","output":[]}"#;
         assert_eq!(parse_response(duplicate), Err(ParseError::Invalid));

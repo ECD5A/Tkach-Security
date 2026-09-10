@@ -36,5 +36,8 @@ repository, not future product marketing.
   bounded config/HTTPS transport, strict wire parser, fixed proposal mapping,
   replay markers, Gateway integration, fixtures, fuzz target, and opt-in live
   smoke test.
+- DONE — Real Provider adversarial/mutation hardening: 33 all-feature tests,
+  bounded transport checks, and 201-mutant review; streaming remains disabled
+  by design for the synchronous Gateway contract.
 - DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway
   transport.

@@ -15,5 +15,5 @@ use libfuzzer_sys::fuzz_target;
 use tkach_provider_openai::fuzz_response;
 
 fuzz_target!(|input: &[u8]| {
-    fuzz_response(input);
+    let _ = fuzz_response(input);
 });

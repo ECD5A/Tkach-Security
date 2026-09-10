@@ -34,8 +34,9 @@ pub use provider::OpenAiProvider;
 /// adapter without creating a network-capable fuzz target.
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
-pub fn fuzz_response(input: &[u8]) {
-    let _ = wire::parse_response(input);
+#[must_use]
+pub fn fuzz_response(input: &[u8]) -> bool {
+    wire::parse_response(input).is_ok()
 }
 
 /// Maximum bytes read from one successful or error HTTP response body.
@@ -52,3 +53,30 @@ pub const MAX_PROVIDER_ID_BYTES: usize = 128;
 pub const MAX_CONVERSATION_ITEMS: usize = 128;
 /// Maximum serialized request body sent by the adapter.
 pub const MAX_REQUEST_BODY_BYTES: usize = 512 * 1024;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn published_provider_budgets_are_stable() {
+        assert_eq!(MAX_RESPONSE_BODY_BYTES, 128 * 1024);
+        assert_eq!(MAX_RESPONSE_ITEMS, 32);
+        assert_eq!(MAX_RESPONSE_CONTENT_ITEMS, 32);
+        assert_eq!(MAX_FUNCTION_ARGUMENT_BYTES, 8 * 1024);
+        assert_eq!(MAX_PROVIDER_ID_BYTES, 128);
+        assert_eq!(MAX_CONVERSATION_ITEMS, 128);
+        assert_eq!(MAX_REQUEST_BODY_BYTES, 512 * 1024);
+    }
+
+    #[cfg(feature = "fuzzing")]
+    #[test]
+    fn fuzz_hook_reports_only_parser_acceptance() {
+        assert!(fuzz_response(include_bytes!(
+            "../fixtures/normal_text.json"
+        )));
+        assert!(!fuzz_response(include_bytes!(
+            "../fixtures/unknown_item.json"
+        )));
+    }
+}

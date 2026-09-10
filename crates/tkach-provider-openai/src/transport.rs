@@ -120,3 +120,83 @@ fn read_bounded_body(mut response: Response) -> Result<Vec<u8>, TransportError> 
     }
     Ok(body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener};
+    use std::thread;
+
+    fn read_local_response(
+        body: Vec<u8>,
+        content_length: Option<usize>,
+    ) -> Result<Vec<u8>, TransportError> {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 512];
+            while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                let read = stream.read(&mut buffer).unwrap();
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&buffer[..read]);
+            }
+            let header = match content_length {
+                Some(length) => format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
+                ),
+                None => "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n".to_owned(),
+            };
+            stream.write_all(header.as_bytes()).unwrap();
+            stream.write_all(&body).unwrap();
+        });
+        let client = Client::builder().build().unwrap();
+        let response = client.get(format!("http://{address}/")).send().unwrap();
+        read_bounded_body(response)
+    }
+
+    #[test]
+    fn bounded_reader_accepts_exact_limit_and_rejects_length_header_over_limit() {
+        let exact = read_local_response(
+            vec![b'x'; MAX_RESPONSE_BODY_BYTES],
+            Some(MAX_RESPONSE_BODY_BYTES),
+        )
+        .unwrap();
+        assert_eq!(exact.len(), MAX_RESPONSE_BODY_BYTES);
+        assert_eq!(
+            read_local_response(Vec::new(), Some(MAX_RESPONSE_BODY_BYTES + 1)),
+            Err(TransportError::ResponseTooLarge)
+        );
+    }
+
+    #[test]
+    fn bounded_reader_rejects_chunked_or_close_delimited_body_over_limit() {
+        assert_eq!(
+            read_local_response(vec![b'x'; MAX_RESPONSE_BODY_BYTES + 1], None),
+            Err(TransportError::ResponseTooLarge)
+        );
+    }
+
+    #[test]
+    fn post_does_not_synthesize_success_when_tls_connection_fails() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let _ = stream.shutdown(Shutdown::Both);
+        });
+        let config = OpenAiConfig::with_endpoint_and_timeout(
+            "sk-test-only",
+            "gpt-4.1-mini",
+            &format!("https://{address}/v1/"),
+            std::time::Duration::from_secs(1),
+        )
+        .unwrap();
+        let transport = ReqwestTransport::new(&config).unwrap();
+        assert!(transport.post(&config, b"{}").is_err());
+    }
+}

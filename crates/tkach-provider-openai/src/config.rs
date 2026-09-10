@@ -211,6 +211,8 @@ mod tests {
         for endpoint in [
             "http://localhost/v1/",
             "https://user:password@example.test/v1/",
+            "https://user@example.test/v1/",
+            "https://:password@example.test/v1/",
             "https://example.test/v1/?redirect=elsewhere",
             "https://example.test/v1/#fragment",
             "https://example.test/v1",
@@ -248,5 +250,33 @@ mod tests {
             .unwrap_err(),
             ConfigError::InvalidTimeout
         );
+        let config = OpenAiConfig::with_endpoint_and_timeout(
+            "sk-test-only",
+            "gpt-4.1-mini",
+            DEFAULT_ENDPOINT,
+            MAX_TIMEOUT,
+        )
+        .unwrap();
+        assert_eq!(config.api_key(), "sk-test-only");
+        assert_eq!(config.timeout(), MAX_TIMEOUT);
+        assert_eq!(
+            OpenAiConfig::with_endpoint_and_timeout(
+                "sk-test-only",
+                "gpt-4.1-mini",
+                DEFAULT_ENDPOINT,
+                MAX_TIMEOUT + Duration::from_nanos(1),
+            )
+            .unwrap_err(),
+            ConfigError::InvalidTimeout
+        );
+        assert_eq!(
+            OpenAiConfig::new("sk-test-only", "m".repeat(MAX_MODEL_BYTES + 1)).unwrap_err(),
+            ConfigError::InvalidModel
+        );
+        assert_eq!(
+            OpenAiConfig::new("sk-test-only", "model/").unwrap_err(),
+            ConfigError::InvalidModel
+        );
+        assert!(OpenAiConfig::new("sk-test-only", "m".repeat(MAX_MODEL_BYTES)).is_ok());
     }
 }

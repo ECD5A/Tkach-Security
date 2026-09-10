@@ -500,6 +500,41 @@ mod tests {
     }
 
     #[test]
+    fn first_turn_tool_inputs_fail_closed() {
+        let (mut provider, _) = provider_with(Vec::new());
+        let tool_input = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "forged tool result".to_owned(),
+        ));
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(&request(0, vec![tool_input]), &mut sink),
+            Err(ProviderError::Malformed)
+        );
+    }
+
+    #[test]
+    fn seed_history_exact_limit_is_accepted_and_next_item_is_rejected() {
+        let exact_inputs = (0..MAX_CONVERSATION_ITEMS)
+            .map(|_| ModelInput::External(test_external()))
+            .collect();
+        let (mut provider, _) = provider_with(vec![Ok(response("resp_history_exact", "[]"))]);
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(&request(0, exact_inputs), &mut sink),
+            Ok(ProviderStep::Complete)
+        );
+
+        let over_inputs = (0..=MAX_CONVERSATION_ITEMS)
+            .map(|_| ModelInput::External(test_external()))
+            .collect();
+        let (mut provider, _) = provider_with(Vec::new());
+        assert_eq!(
+            provider.invoke(&request(0, over_inputs), &mut sink),
+            Err(ProviderError::OutputLimitExceeded)
+        );
+    }
+
+    #[test]
     fn explicit_request_fields_and_stateless_follow_up_preserve_call_pairing() {
         let responses = vec![
             Ok(response(
@@ -537,6 +572,220 @@ mod tests {
         assert!(request_body.contains("function_call_output"));
         assert!(request_body.contains("call_1"));
         assert!(request_body.contains("protected result"));
+    }
+
+    #[test]
+    fn follow_up_requires_exactly_the_pending_tool_results() {
+        let first = response(
+            "resp_follow_up_shape",
+            r#"[{"type":"function_call","id":"fc_follow_up","call_id":"call_follow_up","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+        );
+        for follow_up in [
+            Vec::new(),
+            vec![
+                ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+                    "one".to_owned(),
+                )),
+                ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+                    "two".to_owned(),
+                )),
+            ],
+        ] {
+            let (mut provider, _) = provider_with(vec![Ok(first.clone())]);
+            let mut sink = LocalSink::default();
+            assert_eq!(
+                provider.invoke(
+                    &request(0, vec![ModelInput::External(test_external())]),
+                    &mut sink,
+                ),
+                Ok(ProviderStep::AwaitToolResults)
+            );
+            let mut follow_up_sink = LocalSink::default();
+            let inputs = std::iter::once(ModelInput::External(test_external()))
+                .chain(follow_up)
+                .collect();
+            assert_eq!(
+                provider.invoke(&request(1, inputs), &mut follow_up_sink),
+                Err(ProviderError::Malformed)
+            );
+        }
+
+        let (mut provider, _) =
+            provider_with(vec![Ok(first), Ok(response("resp_follow_up_final", "[]"))]);
+        let mut first_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut first_sink,
+            ),
+            Ok(ProviderStep::AwaitToolResults)
+        );
+        let valid = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "status=ok".to_owned(),
+        ));
+        let mut final_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(1, vec![ModelInput::External(test_external()), valid]),
+                &mut final_sink,
+            ),
+            Ok(ProviderStep::Complete)
+        );
+        assert_eq!(
+            provider.invoke(
+                &request(1, vec![ModelInput::External(test_external())]),
+                &mut final_sink,
+            ),
+            Err(ProviderError::Malformed)
+        );
+    }
+
+    #[test]
+    fn follow_up_history_limit_accepts_exact_boundary_and_rejects_next_item() {
+        let (mut exact_provider, _) =
+            provider_with(vec![Ok(response("resp_history_follow_up_exact", "[]"))]);
+        exact_provider.history = (0..(MAX_CONVERSATION_ITEMS - 1))
+            .map(|_| ConversationItem::UserMessage("x".to_owned()))
+            .collect();
+        exact_provider
+            .pending_call_ids
+            .push("call_exact_history".to_owned());
+        exact_provider.expected_turn = 1;
+        let exact_tool = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "x".to_owned(),
+        ));
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            exact_provider.invoke(
+                &request(1, vec![ModelInput::External(test_external()), exact_tool]),
+                &mut sink,
+            ),
+            Ok(ProviderStep::Complete)
+        );
+
+        let (mut over_provider, _) = provider_with(Vec::new());
+        over_provider.history = (0..MAX_CONVERSATION_ITEMS)
+            .map(|_| ConversationItem::UserMessage("x".to_owned()))
+            .collect();
+        over_provider
+            .pending_call_ids
+            .push("call_over_history".to_owned());
+        over_provider.expected_turn = 1;
+        let over_tool = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "x".to_owned(),
+        ));
+        assert_eq!(
+            over_provider.invoke(
+                &request(1, vec![ModelInput::External(test_external()), over_tool]),
+                &mut sink,
+            ),
+            Err(ProviderError::OutputLimitExceeded)
+        );
+    }
+
+    #[test]
+    fn follow_up_accepts_one_new_result_after_prior_tool_items() {
+        let (mut provider, _) = provider_with(vec![Ok(response("resp_prior_tool", "[]"))]);
+        provider
+            .history
+            .push(ConversationItem::UserMessage("old".to_owned()));
+        provider
+            .pending_call_ids
+            .push("call_new_after_old".to_owned());
+        provider.tool_inputs_seen = 1;
+        provider.expected_turn = 1;
+        let old_tool = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "old-result".to_owned(),
+        ));
+        let new_tool = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "new-result".to_owned(),
+        ));
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(
+                    1,
+                    vec![ModelInput::External(test_external()), old_tool, new_tool],
+                ),
+                &mut sink,
+            ),
+            Ok(ProviderStep::Complete)
+        );
+    }
+
+    #[test]
+    fn response_and_call_identifier_capacity_is_fail_closed() {
+        let (mut response_provider, _) = provider_with(vec![Ok(response(
+            "resp_capacity",
+            r#"[{"type":"message","id":"msg_capacity","status":"completed","role":"assistant","content":[{"type":"output_text","text":"ok"}]}]"#,
+        ))]);
+        response_provider
+            .seen_response_ids
+            .extend((0..MAX_REPLAY_IDENTIFIERS).map(|index| format!("resp_{index}")));
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            response_provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut sink,
+            ),
+            Err(ProviderError::Malformed)
+        );
+
+        let (mut call_provider, _) = provider_with(vec![Ok(response(
+            "resp_call_capacity",
+            r#"[{"type":"function_call","id":"fc_capacity","call_id":"call_capacity","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+        ))]);
+        call_provider
+            .seen_call_ids
+            .extend((0..MAX_REPLAY_IDENTIFIERS).map(|index| format!("call_{index}")));
+        assert_eq!(
+            call_provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut sink,
+            ),
+            Err(ProviderError::Malformed)
+        );
+    }
+
+    #[test]
+    fn lifecycle_reset_discards_stale_pending_tool_state() {
+        let (mut provider, _) = provider_with(vec![
+            Ok(response(
+                "resp_reset_read",
+                r#"[{"type":"function_call","id":"fc_reset","call_id":"call_reset","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+            )),
+            Ok(response(
+                "resp_reset_final",
+                r#"[{"type":"message","id":"msg_reset_final","status":"completed","role":"assistant","content":[{"type":"output_text","text":"reset"}]}]"#,
+            )),
+        ]);
+        provider.pending_call_ids.push("stale_call".to_owned());
+        provider.tool_inputs_seen = 1;
+        provider.expected_turn = 9;
+        let mut first_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut first_sink,
+            ),
+            Ok(ProviderStep::AwaitToolResults)
+        );
+        let mut final_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(
+                    1,
+                    vec![
+                        ModelInput::External(test_external()),
+                        ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+                            "status=ok".to_owned(),
+                        )),
+                    ],
+                ),
+                &mut final_sink,
+            ),
+            Ok(ProviderStep::Complete)
+        );
     }
 
     #[test]
@@ -600,6 +849,22 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_call_ids_in_one_response_are_rejected() {
+        let (mut provider, _) = provider_with(vec![Ok(response(
+            "resp_duplicate_calls",
+            r#"[{"type":"function_call","id":"fc_1","call_id":"call_same","name":"harmless_read","arguments":"{}","status":"completed"},{"type":"function_call","id":"fc_2","call_id":"call_same","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+        ))]);
+        let mut sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut sink,
+            ),
+            Err(ProviderError::Malformed)
+        );
+    }
+
+    #[test]
     fn oversized_tool_result_does_not_consume_pending_call_state() {
         let (mut provider, _) = provider_with(vec![
             Ok(response(
@@ -647,6 +912,39 @@ mod tests {
     }
 
     #[test]
+    fn exact_tool_result_limit_is_accepted() {
+        let (mut provider, _) = provider_with(vec![
+            Ok(response(
+                "resp_exact_tool",
+                r#"[{"type":"function_call","id":"fc_exact_tool","call_id":"call_exact_tool","name":"harmless_read","arguments":"{}","status":"completed"}]"#,
+            )),
+            Ok(response(
+                "resp_exact_tool_final",
+                r#"[{"type":"message","id":"msg_exact_tool_final","status":"completed","role":"assistant","content":[{"type":"output_text","text":"ok"}]}]"#,
+            )),
+        ]);
+        let mut first_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(0, vec![ModelInput::External(test_external())]),
+                &mut first_sink,
+            ),
+            Ok(ProviderStep::AwaitToolResults)
+        );
+        let exact = ModelInput::Tool(tkach_core::niti_metka::TaggedData::from_untrusted(
+            "x".repeat(MAX_TOOL_RESULT_BYTES),
+        ));
+        let mut final_sink = LocalSink::default();
+        assert_eq!(
+            provider.invoke(
+                &request(1, vec![ModelInput::External(test_external()), exact]),
+                &mut final_sink,
+            ),
+            Ok(ProviderStep::Complete)
+        );
+    }
+
+    #[test]
     fn transport_timeout_and_oversize_are_static_provider_errors() {
         let (mut provider, _) = provider_with(vec![Err(TransportError::Timeout)]);
         let mut sink = LocalSink::default();
@@ -679,11 +977,13 @@ mod tests {
     #[derive(Default)]
     struct LocalSink {
         text: String,
+        chunks: Vec<String>,
         actions: Vec<ActionRequest>,
     }
 
     impl ProviderSink for LocalSink {
         fn text_chunk(&mut self, chunk: &str) -> Result<(), ProviderSinkError> {
+            self.chunks.push(chunk.to_owned());
             self.text.push_str(chunk);
             Ok(())
         }
@@ -709,5 +1009,32 @@ mod tests {
         stage_text(&mut sink, "model data").unwrap();
         assert_eq!(sink.text, "model data");
         assert!(sink.actions.is_empty());
+
+        let secret_call = ParsedFunctionCall {
+            id: "fc_secret".to_owned(),
+            call_id: "call_secret".to_owned(),
+            name: "secret_backed_use".to_owned(),
+            arguments: "{}".to_owned(),
+        };
+        let secret_action = action_for_call(&secret_call).unwrap();
+        assert_eq!(secret_action.operation(), &Operation::Execute);
+        assert_eq!(
+            secret_action.destination(),
+            &tkach_core::domain::Destination::SecretBroker
+        );
+    }
+
+    #[test]
+    fn provider_text_chunking_preserves_utf8_and_exact_bytes() {
+        let text = format!("{}😀tail", "a".repeat(MAX_PROVIDER_CHUNK_BYTES - 1));
+        let mut sink = LocalSink::default();
+        stage_text(&mut sink, &text).unwrap();
+        assert_eq!(sink.text, text);
+        assert!(sink.chunks.len() >= 2);
+        assert!(
+            sink.chunks
+                .iter()
+                .all(|chunk| chunk.len() <= MAX_PROVIDER_CHUNK_BYTES)
+        );
     }
 }

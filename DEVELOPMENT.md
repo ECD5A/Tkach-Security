@@ -471,3 +471,22 @@
   tool-result lineage, and real-Gateway authorization tests pass. The initial
   pending-call drain weakness found during self-review was fixed before commit.
 - Commit: `a8d67dd Add bounded OpenAI Responses provider adapter`.
+
+## Real Provider Phase v0.1 — mutation hardening cycle
+
+- Expanded the provider suite to 33 all-feature unit tests with exact budget
+  boundaries, duplicate/replay capacity, follow-up cardinality/history, UTF-8
+  chunk seams, credential/endpoint limits, local bounded HTTP readers, and a
+  TLS-failure transport test.
+- Mutation run: `cargo mutants --package tkach-provider-openai
+  --all-features --jobs 1 --no-times` tested 201 mutants: 158 caught, 29
+  unviable, 1 timeout, and 13 missed. The missed set is limited to the
+  non-authority `Debug`/`Display`/Serde `expecting` diagnostics, a private
+  fixed-catalog guard unreachable through the public `ProviderRequest` API,
+  a capacity-only allocation change, and the mathematically equivalent
+  `stage_text` boundary guard. The timeout was the intentionally hostile
+  nonterminating arithmetic mutant. No unexplained security-relevant survivor
+  remains.
+- Fuzz hook is covered under `--all-features`; the OpenAI response target
+  returns only parser acceptance and cannot create a network client.
+- Hardening commit: recorded after this validation cycle.
