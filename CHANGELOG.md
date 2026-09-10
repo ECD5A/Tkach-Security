@@ -5,8 +5,8 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
-- Prepare reproducible release artifacts, CI publishing checks, and deployment
-  diagnostics around the frozen Strong Core contract.
+- Prepare reproducible release artifacts, pinned CI release checks, and
+  deployment diagnostics around the frozen Strong Core contract.
 
 ## [0.1.0] — release candidate, not published
 

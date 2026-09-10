@@ -47,6 +47,12 @@ artifact checksums, and a fresh install of the CLI and MCP adapter. LibFuzzer
 execution and cross-platform artifact execution are release-environment gates;
 the Windows development host only proves target compilation.
 
+`.github/workflows/release.yml` performs this release-environment preflight only
+for a strict `vX.Y.Z` tag. It builds Linux x86_64, macOS x86_64/ARM64, and
+Windows x86_64 archives for `tkach` and `tkach-mcp`, emits SHA-256 files,
+requests GitHub build provenance, and creates a draft GitHub Release after
+checksum verification. It does not publish a public release automatically.
+
 ## Artifact and integration boundaries
 
 The first useful binary is `tkach`, which provides bounded onboarding and a

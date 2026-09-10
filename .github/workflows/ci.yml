@@ -21,7 +21,7 @@ jobs:
       - run: cargo +1.85.1 test --workspace --release --all-targets --all-features --locked
       - run: cargo +1.85.1 test --workspace --doc --all-features --locked
       - name: Build documentation with warnings denied
-        run: RUSTDOCFLAGS=-D warnings cargo +1.85.1 doc --workspace --all-features --no-deps --locked
+        run: RUSTDOCFLAGS="-D warnings" cargo +1.85.1 doc --workspace --all-features --no-deps --locked
       - name: Install pinned dependency audit tools
         run: |
           cargo install cargo-audit --version 0.22.2 --locked

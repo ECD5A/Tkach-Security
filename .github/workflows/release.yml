@@ -1,0 +1,163 @@
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RUST_TOOLCHAIN: 1.85.1
+  CARGO_TERM_COLOR: never
+
+jobs:
+  verify:
+    name: Verify release contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --no-self-update
+      - name: Validate SemVer tag against the Core package
+        env:
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          expected="${TAG#v}"
+          actual="$(cargo +"${RUST_TOOLCHAIN}" pkgid -p tkach-core | sed 's/.*#//')"
+          test "${expected}" = "${actual}"
+      - run: cargo +${RUST_TOOLCHAIN} fmt --all -- --check
+      - run: cargo +${RUST_TOOLCHAIN} metadata --format-version=1 --locked --no-deps
+      - run: cargo +${RUST_TOOLCHAIN} clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - run: cargo +${RUST_TOOLCHAIN} test --workspace --all-targets --all-features --locked
+      - run: cargo +${RUST_TOOLCHAIN} test --workspace --release --all-targets --all-features --locked
+      - run: cargo +${RUST_TOOLCHAIN} test --workspace --doc --all-features --locked
+      - name: Build documentation with warnings denied
+        run: RUSTDOCFLAGS="-D warnings" cargo +${RUST_TOOLCHAIN} doc --workspace --all-features --no-deps --locked
+      - name: Install pinned dependency audit tools
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo install cargo-deny --version 0.20.2 --locked
+      - run: cargo audit
+      - run: cargo deny check
+      - run: cargo +${RUST_TOOLCHAIN} check --manifest-path fuzz/Cargo.toml --bins --locked
+      - run: cargo +${RUST_TOOLCHAIN} package --workspace --no-verify --locked
+      - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install "${{ env.RUST_TOOLCHAIN }}" --profile minimal --no-self-update
+      - name: Install target
+        run: rustup target add --toolchain "${{ env.RUST_TOOLCHAIN }}" "${{ matrix.target }}"
+      - name: Build release binaries
+        run: cargo +${{ env.RUST_TOOLCHAIN }} build --locked --release --target "${{ matrix.target }}" -p tkach-cli -p tkach-mcp
+      - name: Package Unix release assets
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${VERSION#v}"
+          name="tkach-${version}-${TARGET}"
+          mkdir -p "release/${name}"
+          cp "target/${TARGET}/release/tkach" "release/${name}/tkach"
+          cp "target/${TARGET}/release/tkach-mcp" "release/${name}/tkach-mcp"
+          (cd release && tar -czf "${name}.tar.gz" "${name}")
+          (cd release && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
+      - name: Package Windows release assets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          $version = $env:VERSION.Substring(1)
+          $name = "tkach-$version-$env:TARGET"
+          New-Item -ItemType Directory -Force -Path "release/$name" | Out-Null
+          Copy-Item "target/$env:TARGET/release/tkach.exe" "release/$name/tkach.exe"
+          Copy-Item "target/$env:TARGET/release/tkach-mcp.exe" "release/$name/tkach-mcp.exe"
+          Compress-Archive -Path "release/$name/*" -DestinationPath "release/$name.zip"
+          $hash = (Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $encoding = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText("release/$name.zip.sha256", "$hash  $name.zip", $encoding)
+      - name: Upload release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            release/*.tar.gz
+            release/*.zip
+            release/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  draft-release:
+    name: Create attested draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Download platform assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify release checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$(find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print -quit)"
+          (cd release-assets && sha256sum -c ./*.sha256)
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release-assets/*
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --verify-tag \
+            --draft \
+            --generate-notes \
+            --title "Tkach Security ${GITHUB_REF_NAME}"

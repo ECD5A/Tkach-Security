@@ -183,6 +183,13 @@ metadata and preflight evidence only: no crate, binary, container, GitHub
 Release, or MCP Registry entry has been published, and no external publishing
 credentials or actions were used.
 
+The checked-in `.github/workflows/release.yml` is tag-gated to strict `vX.Y.Z`
+tags, rechecks the Core package version, builds Linux/macOS/Windows CLI and MCP
+archives, verifies SHA-256 files, requests GitHub build provenance, and creates
+only a draft Release. The workflow has not run in this local-only repository;
+its hosted runner, cross-target execution, attestation, and draft-release path
+remain deployment evidence to collect after an owner-authorized push.
+
 ## Adversarial and mutation evidence
 
 - Core composition and independent-oracle tests cover authority laundering,

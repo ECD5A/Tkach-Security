@@ -42,8 +42,8 @@ Core remains frozen.
 ## NEXT
 
 The current productization cycle is distribution and developer-experience
-hardening: shared package metadata and a local release contract are prepared;
-reproducible artifacts, CI release checks, and configuration diagnostics remain
+hardening: shared package metadata, release artifacts, and CI release checks
+are prepared; configuration diagnostics and owner-controlled publication remain
 next. It must not duplicate policy, authority, or execution logic. External
 publication remains behind that contract and an owner decision.
 
