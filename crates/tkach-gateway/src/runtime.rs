@@ -31,6 +31,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use thiserror::Error;
 use tkach_core::domain::{Destination, Operation, ResourceKind};
+use zeroize::Zeroizing;
 
 /// Maximum encoded request frame accepted by the runtime transport.
 pub const MAX_RUNTIME_FRAME_BYTES: usize = 64 * 1024;
@@ -134,7 +135,7 @@ impl Serialize for LifecycleId {
 
 /// Trusted runtime authentication configuration.
 pub struct RuntimeAuthenticator {
-    expected: Vec<u8>,
+    expected: Zeroizing<Vec<u8>>,
 }
 
 impl Debug for RuntimeAuthenticator {
@@ -146,15 +147,17 @@ impl Debug for RuntimeAuthenticator {
 impl RuntimeAuthenticator {
     /// Construct an authenticator from trusted deployment configuration.
     ///
-    /// The proof is kept private and is never serialized, displayed, or put
-    /// into a runtime error. This API makes no zeroization claim.
+    /// The proof is kept private, is never serialized/displayed or put into a
+    /// runtime error, and is zeroized when this authenticator is dropped. The
+    /// transient caller-owned wire buffer remains outside this ownership
+    /// guarantee.
     ///
     /// # Errors
     ///
     /// Returns [`RuntimeConfigError::InvalidAuthentication`] for an empty or
     /// oversized proof.
     pub fn new(proof: impl Into<Vec<u8>>) -> Result<Self, RuntimeConfigError> {
-        let expected = proof.into();
+        let expected = Zeroizing::new(proof.into());
         if expected.is_empty() || expected.len() > MAX_RUNTIME_AUTH_BYTES {
             return Err(RuntimeConfigError::InvalidAuthentication);
         }
@@ -162,7 +165,7 @@ impl RuntimeAuthenticator {
     }
 
     fn authenticates(&self, supplied: &str) -> bool {
-        constant_time_equal(supplied.as_bytes(), &self.expected)
+        constant_time_equal(supplied.as_bytes(), self.expected.as_slice())
     }
 }
 

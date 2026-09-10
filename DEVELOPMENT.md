@@ -5,6 +5,18 @@ completed phases, not an active mandate and not a source of permanent feature
 bans. Current state and active work are in `CURRENT_BASELINE.md`,
 `RELEASE_CANDIDATE_PLAN.md`, and `ROADMAP.md`.
 
+## Strong Release Candidate — runtime credential hardening
+
+- Finding: `RuntimeAuthenticator` kept a bounded bearer proof private and
+  redacted, but did not clear its long-lived owned bytes on drop.
+- Hardening: the gateway now stores the trusted proof in
+  `zeroize::Zeroizing<Vec<u8>>`; invalid construction inputs are covered by the
+  same owning wrapper, and the transient caller-owned wire frame remains an
+  explicit non-guarantee.
+- Review: authentication remains separate from model authority; bounds,
+  constant-time comparison, redaction, and authentication-before-Gateway
+  admission are unchanged.
+
 ## Mandate 0 — Foundation and security baseline
 
 - Architecture: one provider-independent `tkach-core` crate; synchronous core;

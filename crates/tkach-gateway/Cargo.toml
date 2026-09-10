@@ -12,6 +12,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 thiserror = "2"
 tkach-core = { path = "../tkach-core", version = "0.1.0" }
+zeroize = "1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -95,7 +95,9 @@ PARTIAL or deployment-dependent:
 - no-follow and path-substitution resistance where the portable API cannot
   provide universal handle-relative transactions;
 - authentication trust, TLS/IPC, OS/process/ACL isolation, core-dump policy,
-  secret injection, and durable replay;
+  secret injection, and durable replay; the trusted in-process authentication
+  proof is zeroized on authenticator drop, but caller-owned frame buffers are
+  outside that guarantee;
 - protection from same-privilege out-of-band effects or a compromised host;
 - real-provider availability and behavior beyond the offline adapter tests.
 

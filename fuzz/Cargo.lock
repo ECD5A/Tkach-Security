@@ -922,6 +922,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tkach-core",
+ "zeroize",
 ]
 
 [[package]]

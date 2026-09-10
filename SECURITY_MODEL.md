@@ -77,6 +77,9 @@
   authenticates a trusted proof before Gateway invocation, separates the
   authenticated caller from the model principal, and rejects duplicate request
   or lifecycle identities in a bounded per-instance ledger;
+- the trusted runtime authentication proof is private, redacted, bounded, and
+  zeroized when its authenticator is dropped; transient caller-owned frame
+  buffers remain outside this ownership claim;
 - the runtime listener binds only to loopback, uses bounded length-prefixed
   frames and response writes, has no compression/redirect/proxy path, and
   serves one connection at a time;
