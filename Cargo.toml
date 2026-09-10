@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/tkach-core"]
+members = ["crates/tkach-core", "crates/tkach-gateway"]
 exclude = ["fuzz"]
 
 [workspace.package]

@@ -49,6 +49,27 @@
 - an in-progress Zaslon stream is not releasable until `finish()` returns
   `Clear`, and a finished stream is terminal: later input fails closed;
   empty, malformed, or oversized streams deny.
+- the Phase 1 gateway bounds raw requests, messages, metadata, tool labels,
+  provider chunks, cumulative staged output, model context, tool results,
+  action proposals, and provider turns before release or protected effects;
+- external messages are contained by Gnezdo and ingress Zaslon before provider
+  invocation, while client tool declarations remain data and cannot extend the
+  fixed trusted tool catalog;
+- provider output can propose only text and typed ActionRequest values; it
+  cannot construct or receive Decision, Propusk, trusted provenance,
+  declassification authority, executor, or broker values;
+- provider output is buffered until final Krosna/Diode and egress Zaslon checks
+  pass, and final output validation occurs before any action in that response
+  executes;
+- protected action proposals are preflighted through Krosna before execution,
+  AwaitToolResults permits read-only actions only, and a repeated action in one
+  lifecycle is rejected as a replay;
+- Phase 1 fake tools accept only Propusk, preserve Niti/Metka on data results,
+  keep broker-held raw material private, and expose only payload-free effect
+  receipts;
+- malformed, timeout, failure, cancellation, over-limit, denied, and invalid
+  release-destination provider paths fail closed without returning staged
+  output or executing staged actions.
 
 These guarantees apply only to validated inputs reaching the core and to
 executors that do not provide an out-of-band bypass.
@@ -59,6 +80,12 @@ executors that do not provide an out-of-band bypass.
 - external adapters correctly map and validate inputs into the domain types;
 - protected executors require the kernel-issued authorization type;
 - real secrets are not separately inserted into model-visible context;
+- the Gateway's trusted constructor inputs (Krosna, Zaslon instances, release
+  destination, and executor implementation) are supplied by trusted host code;
+  the host must not give the provider an out-of-band executor or broker path;
+- Phase 1 fake tools are deterministic test doubles, not production transport
+  or transaction semantics; a real executor must preserve the Propusk-only
+  boundary and bounded result contract;
 - `Serialize` on model-readable data is context construction, not an egress
   authorization decision; adapters must apply Diode/Zaslon before release.
 
@@ -77,7 +104,8 @@ and this review does not claim constant-time behavior.
 ## Current implementation status
 
 The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Diode, Pechat,
-Sled, and the enforcement testbed are implemented and tested. Strong Core
+Sled, the enforcement testbed, and the provider-independent Gateway Phase 1
+boundary are implemented and tested. Strong Core
 Hardening Round 3 additionally closes diagnostic metadata injection and
 forgeable evidence construction, fixes Niti wire round-trips, rejects unknown
 declassification resources, bounds aggregate Pechat memory, and replaces the
@@ -90,7 +118,8 @@ testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
 and the final adversarial hardening checkpoint is complete only after the
 validation matrix and freeze commit recorded in `DEVELOPMENT.md`; no gateway
-or provider integration is part of this status.
+Real provider integration, HTTP, MCP, SDK, cloud, UI, and production gateway
+transport are not part of this status.
 
 Public `UntrustedContent` and `TaggedData<T>` serialization remains
 intentionally model-context serialization: it does not mint authority or

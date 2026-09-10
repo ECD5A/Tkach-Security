@@ -22,7 +22,8 @@ repository, not future product marketing.
 - DONE — Strong Core Final Hardening Round 3 and freeze validation; gateway work
   remains intentionally out of scope.
 - DONE — Gateway Phase 1 G0 threat model (provider-independent boundary).
-- CURRENT — Gateway Phase 1 G1 bounded in-process gateway and fake provider
-  boundary.
+- DONE — Gateway Phase 1 G1-G10 bounded in-process gateway, hostile fake
+  providers, protected tool boundary, canonical scenario, and red-team tests.
+- CURRENT — Gateway Phase 1 checkpoint and final security review.
 - DEFERRED — real provider integrations, MCP, SDKs, UI, cloud, and production
   transport.

@@ -1,9 +1,9 @@
 # Tkach Gateway Phase 1 Threat Model
 
-Status: G0 design baseline. The gateway described here is an in-process,
-synchronous, provider-independent boundary. It is not yet implemented at the
-time of this document's initial commit. Every control marked planned must be
-proven by Gateway Phase 1 tests before it is treated as a guarantee.
+Status: G0-G10 implementation baseline. The gateway is an in-process,
+synchronous, provider-independent boundary. Implemented controls below are
+backed by Gateway Phase 1 tests; real transports and providers remain out of
+scope.
 
 ## Overview
 
@@ -46,13 +46,12 @@ semantics remain in `tkach-core`.
 | Zaslon | `crates/tkach-core/src/zaslon.rs:224-300` and `:331-435` provide action and bounded streaming content gates. |
 | Pechat | `crates/tkach-core/src/pechat.rs:134-251` keeps fake broker values private and reveal-denied. |
 | Sled/testbed | `crates/tkach-core/src/sled.rs:456-516` records safe decisions and models protected execution. |
-| Gateway | Planned `tkach-gateway`: bounded protocol boundary, lifecycle, provider invocation, staging, ordering, and tool dispatch. |
+| Gateway | `crates/tkach-gateway`: bounded protocol boundary, lifecycle, provider invocation, staging, ordering, and Propusk-only tool dispatch. |
 
-### Planned resource budgets
+### Implemented resource budgets
 
-These are gateway-owned budgets and must be enforced before any protected
-effect or provider release. Exact constants will be committed with G1/G2 and
-tested at boundary and over-limit values.
+These gateway-owned budgets are enforced before provider release or, where
+applicable, before a protected effect:
 
 | Resource | Initial budget |
 | --- | ---: |
@@ -65,7 +64,10 @@ tested at boundary and over-limit values.
 | Provider output bytes | 64 KiB |
 | Provider stream chunks | 64 |
 | Cumulative staged output | 256 KiB |
+| Protected tool result | 16 KiB |
+| Model context | 256 KiB / 64 items |
 | Action requests per provider turn | 32 |
+| Provider/tool turns | 8 |
 
 The budgets are defensive availability controls, not policy authority. An
 over-limit or malformed input fails closed and cannot invoke a provider,
@@ -120,22 +122,22 @@ executor, broker, or egress sink.
 
 ### Threat scenarios
 
-The following are hypotheses for the planned gateway boundary, not findings in
-the unimplemented crate.
+The following were G0 hypotheses. G1-G10 tests now provide the evidence listed
+in the control column; residual assumptions remain explicit below.
 
 | Priority | Scenario and capability gain | Prerequisites | Expected control | Evidence/uncertainty |
 | --- | --- | --- | --- | --- |
-| Critical | Provider calls protected executor directly, gaining an effect without policy. | Provider obtains an executor reference or gateway exposes raw dispatch. | Provider trait exposes proposals only; gateway-owned executor accepts Propusk only. | Core type boundary is implemented; gateway path is pending. |
-| Critical | Provider obtains raw broker secret and returns it to the client. | Secret is copied into provider request or broker return value. | Pechat uses opaque handles and internal operation; staged output and debug/error surfaces are redacted. | Core broker control is source-backed; provider integration is pending. |
-| High | Protected model output is released before final authorization. | Streaming sink writes directly to client or network. | Buffer all security-relevant chunks; run Diode/Zaslon before one final release. | Requires implementation and partial-output tests. |
-| High | Malformed/timeout provider response leaves a partial protected effect. | Gateway executes actions while response is incomplete. | Stage response and actions; execute only after complete successful provider turn, or explicitly fail closed. | Lifecycle design is planned. |
-| High | Untrusted content is mapped to trusted system control. | Adapter accepts caller-provided role/trust/authority fields. | External schema has data-only roles; Gnezdo creates DATA; no public control constructor. | Core Gnezdo control is source-backed; schema is pending. |
-| High | Size-limit bypass causes memory/CPU exhaustion. | Limit checked after deserialization or per-message but not cumulative. | Raw body bound first; bounded vectors/strings/chunks and cumulative output budget. | Core has independent bounds; gateway budgets are pending. |
-| High | Provider strips Niti/Metka or claims a public/declassified output. | Provider response carries authority metadata trusted by gateway. | Provider response contains no security metadata; gateway derives output from staged protected inputs and re-evaluates flow. | Requires integration regression tests. |
-| High | Egress destination is confused with model context or internal response. | One generic destination path is reused for public sends and client release. | Typed destination mapping; explicit public external action path; final release destination is policy-configured. | Destination semantics exist in core; gateway mapping is pending. |
-| Medium | Duplicate/unknown fields create parser ambiguity or smuggle control. | Permissive deserializer or inconsistent adapters. | Strict schema, duplicate rejection, bounded reader, no unknown security fields. | Needs malformed JSON tests. |
-| Medium | Cancellation/reuse/replay applies stale authorization. | Propusk or staged state survives a failed turn and is reused. | Per-turn state ownership, no token serialization, terminal failed lifecycle, fresh authorization per action. | Core Propusk is non-deserializable; lifecycle pending. |
-| Medium | Sled/receipt metadata leaks protected labels or is treated as permission. | Trace contains payloads or gateway trusts a receipt. | Use core safe evidence and output-only artifacts; do not accept trace/receipt as input authority. | Core control is source-backed; gateway tests pending. |
+| Critical | Provider calls protected executor directly, gaining an effect without policy. | Provider obtains an executor reference or gateway exposes raw dispatch. | Provider trait exposes proposals only; gateway-owned executor accepts Propusk only. | Covered by trait/API shape and hostile-provider tests. |
+| Critical | Provider obtains raw broker secret and returns it to the client. | Secret is copied into provider request or broker return value. | Pechat uses opaque handles and internal operation; staged output and debug/error surfaces are redacted. | Covered by Pechat and Gateway secret-use/reveal tests. |
+| High | Protected model output is released before final authorization. | Streaming sink writes directly to client or network. | Buffer all security-relevant chunks; run Diode/Zaslon before one final release. | Covered by cross-chunk and rejected-final-output tests. |
+| High | Malformed/timeout provider response leaves a partial protected effect. | Gateway executes actions while response is incomplete. | Stage response and actions; failure/timeout/cancellation discards staging. | Covered by hostile lifecycle tests. |
+| High | Untrusted content is mapped to trusted system control. | Adapter accepts caller-provided role/trust/authority fields. | External schema has data-only roles; Gnezdo creates DATA; no public control constructor. | Covered by ingress and core data-lane tests. |
+| High | Size-limit bypass causes memory/CPU exhaustion. | Limit checked after deserialization or per-message but not cumulative. | Raw body bound first; bounded vectors/strings/chunks/results/context and cumulative output budget. | Covered by raw, chunk, core, and fuzz parser checks. |
+| High | Provider strips Niti/Metka or claims a public/declassified output. | Provider response carries authority metadata trusted by gateway. | Provider response contains no security metadata; gateway derives output from staged protected inputs and re-evaluates flow. | Covered by metadata-stripping and hostile export tests. |
+| High | Egress destination is confused with model context or internal response. | One generic destination path is reused for public sends and client release. | Typed destination mapping; explicit public external action path; final release destination is policy-configured. | Covered by public export and invalid-sink tests. |
+| Medium | Duplicate/unknown fields create parser ambiguity or smuggle control. | Permissive deserializer or inconsistent adapters. | Strict schema, duplicate rejection, bounded reader, no unknown security fields. | Covered by duplicate-field/name and fuzz parser tests. |
+| Medium | Cancellation/reuse/replay applies stale authorization. | Propusk or staged state survives a failed turn and is reused. | Per-turn state ownership, no token serialization, terminal failed lifecycle, fresh authorization per action, replay rejection. | Covered by failure/cancellation/replay tests. |
+| Medium | Sled/receipt metadata leaks protected labels or is treated as permission. | Trace contains payloads or gateway trusts a receipt. | Use core safe evidence and output-only artifacts; do not accept trace/receipt as input authority. | Covered by redacted trace/receipt tests and API shape. |
 
 ### Assumptions and unresolved questions
 

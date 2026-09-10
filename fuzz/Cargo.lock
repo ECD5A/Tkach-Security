@@ -201,6 +201,17 @@ dependencies = [
  "libfuzzer-sys",
  "serde_json",
  "tkach-core",
+ "tkach-gateway",
+]
+
+[[package]]
+name = "tkach-gateway"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tkach-core",
 ]
 
 [[package]]

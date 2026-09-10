@@ -2,8 +2,8 @@
 
 ## Implemented baseline
 
-The repository currently contains one provider-independent Rust workspace
-member, `tkach-core`. The crate has an explicit domain module with validated
+The repository currently contains a provider-independent `tkach-core` crate
+and a separate in-process `tkach-gateway` crate. The core has an explicit domain module with validated
 security types and a synchronous Krosna evaluator. It has no provider,
 network, database, runtime, or external execution dependency.
 
@@ -135,8 +135,33 @@ secret-handle, unknown-state, and public-API combinations. Serialization of
 model-readable data is not itself an egress permit; release adapters remain
 responsible for applying the directional and content gates.
 
+## Gateway Phase 1 boundary
+
+`tkach-gateway` owns only bounded ingress, lifecycle, provider orchestration,
+response staging, and dispatch. `ExternalRequest` rejects unknown fields,
+duplicate metadata names, oversized raw bodies, strings, collections, and
+ambiguous roles before provider invocation. Each message enters Gnezdo and
+ingress Zaslon before a private SecurityEnvelope is built.
+
+The provider trait can emit bounded text chunks and typed `ActionRequest`
+proposals only. It has no executor, broker, Propusk, Decision, release, or
+trusted-metadata API. Provider output is staged; a complete final response is
+derived from all protected tool inputs, checked by Krosna/Diode and egress
+Zaslon, and only then returned. A response with actions cannot leave an
+authorized effect behind if its final output gate fails. Awaited turns accept
+read-only actions only, and replayed action requests are rejected within a
+request lifecycle.
+
+Tool execution is a gateway-owned `ProtectedExecutor` boundary receiving only
+core-issued Propusk values. Phase 1's fake broker supports protected reads,
+harmless reads, a bounded write, external-send attempts, and Pechat-backed
+secret use. Raw fake secret material stays in the broker; provider-visible
+results preserve Niti/Metka or are payload-free receipts. No real provider,
+transport, SDK, MCP, cloud, or production executor is implemented.
+
 ## Future, not implemented
 
-OpenAI, Anthropic, MCP, HTTP gateways, cloud services, SDKs, dashboards, and
-human approval services are explicitly deferred until after owner review of the
-Strong Core checkpoint.
+OpenAI, Anthropic, MCP, cloud services, SDKs, dashboards, human approval
+services, production transports, and real executors are explicitly deferred
+until after owner review of the Gateway Phase 1 checkpoint. The local
+provider-independent gateway and hostile fakes described above are implemented.

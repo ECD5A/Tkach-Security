@@ -326,3 +326,47 @@
 - Review limitation: independent delegated architecture review was unavailable;
   the threat model was reviewed sequentially against the current source.
 - Commit: recorded below after the G0 documentation diff review.
+
+## Gateway Phase 1 — G1-G10 implementation and red team
+
+- Architecture: committed `tkach-gateway` as a separate provider-independent
+  crate. The gateway owns strict bounded JSON ingress, Gnezdo/Zaslon ingress,
+  private SecurityEnvelope construction, provider lifecycle, staged output,
+  Krosna/Diode/Zaslon egress, and Propusk-only tool dispatch. Core primitives
+  remain the authority and no client tool declaration changes the fixed tool
+  catalog.
+- Security: provider output is untrusted text and typed proposals only. It has
+  no executor, broker, Propusk, Decision, trusted provenance, declassification,
+  or release API. Final output is fully gated before actions execute; an
+  egress-denied response therefore cannot leave an authorized write behind.
+  Awaited turns allow reads only, all action proposals are preflighted, and
+  duplicate proposals are rejected within a lifecycle. Invalid release
+  destinations, parser ambiguity, raw/body and collection limits, provider
+  failure/timeout/cancellation, chunk/stream limits, malformed steps, Pechat
+  reveal, protected public export, metadata stripping, and fake-provider
+  authority claims fail closed.
+- Tools and secrets: fake protected read/write/external-send/harmless-read and
+  Pechat-backed secret-use routes are available only through kernel-issued
+  Propusk. Tool data retains Niti/Metka; receipts and traces carry no raw
+  secret. `FakeToolBroker` has a bounded effect log and never exposes its
+  broker value to a provider.
+- Tests: 14 Gateway boundary tests cover ingress, limits, fixed catalog,
+  canonical hostile read-then-exfiltration, Niti/Metka preservation, egress
+  stripping and stream seams, partial-effect regression, action preflight,
+  Pechat reveal/use, provider malformed/timeout/failure/cancellation, replay,
+  invalid release, and duplicate metadata. `fuzz/gateway_wire.rs` exercises
+  arbitrary bounded JSON parser input. Workspace tests, clippy with warnings
+  denied, and fuzz target compile-check pass.
+- Defect found and fixed during self-attack: the first action lifecycle could
+  execute a write before a later final egress gate failed. Final output flow
+  and content validation now precede action execution, with a regression test.
+- Defect found and fixed during the metadata/provenance attack: final output
+  derivation initially considered protected tool parents but omitted the
+  initial untrusted external inputs. A public tool result could then make a
+  mixed output look public. Every provider input is now projected into the
+  conservative Niti/Metka derivation, and a public-egress laundering regression
+  test covers the path.
+- Review limitation: independent delegated security workers were unavailable;
+  the parent performed a source-backed sequential diff review and recorded the
+  limitation in the Gateway threat model.
+- Commit: recorded below after the Gateway Phase 1 checkpoint.
