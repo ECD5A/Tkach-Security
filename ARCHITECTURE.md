@@ -192,6 +192,27 @@ Gateway contract is synchronous and buffers security-relevant output before
 release; no token-by-token release API exists to accidentally bypass that
 contract.
 
+## Architecture pruning and product contract
+
+The current product boundary is documented in `PRODUCT_CONTRACT.md`: Tkach is
+a synchronous, bounded security kernel plus an in-process Gateway and a
+non-streaming OpenAI adapter. Model/provider output is hostile DATA and can
+only become a typed proposal; authority, information flow, secret use, and
+release remain in the existing core/Gateway boundaries.
+
+The A0-A20 review removed only three redundant public names: the zero-sized
+`DataLane` marker, the empty `Pechat` facade, and the `ScriptedProvider` alias.
+The Gnezdo context, Pechat broker, and `DeterministicProvider` are the actual
+mechanisms. Krosna, Propusk, Diode, Zaslon, Pechat broker, Gnezdo, Niti,
+Metka, and Sled retain their documented roles. Repeated checks at Krosna,
+Diode, Gateway, and the provider boundary are intentional trust-boundary
+checks, not competing policy engines.
+
+`INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, and Sealed
+Agent deployment profiles. `PRUNING_METRICS.md` records the measured source
+and public-surface reduction. No SDK, configuration DSL, provider abstraction
+layer, streaming event model, MCP layer, or production transport was added.
+
 ## Future, not implemented
 
 Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,

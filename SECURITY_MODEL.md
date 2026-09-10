@@ -150,8 +150,11 @@ Fuzz targets cover the canonical text, domain-wire, gateway-wire, and OpenAI
 Responses parsers; their binaries compile on this host, while libFuzzer
 execution is currently unavailable under the installed MSVC linker. Linux CI
 provides the bounded execution smoke test.
-The Round 2 scan remains historical and incomplete. Round 3's Standard Security
-Scan is tracked separately in the workbench; if it is not sealed before the
-freeze, the final report records that limitation rather than calling it PASS.
-Local security review, mutation testing, independent oracles, dependency
-checks, and the full validation gate are reported with their exact results.
+The Round 2 scan remains historical and incomplete. The architecture-pruning
+repository-wide Standard Security Scan completed with zero reportable findings
+on its frozen source snapshot. Its coverage is marked partial because
+generated artifacts were excluded and delegated workers were unavailable;
+the final report preserves that limitation rather than overstating the result.
+The pruning-range diff review and the complete validation gate are reported
+with their exact results in `PRODUCT_CONTRACT_CHECKPOINT.md` and
+`DEVELOPMENT.md`.

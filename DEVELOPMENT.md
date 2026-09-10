@@ -503,3 +503,36 @@
   rejected the repository as lacking a resolvable HEAD; the parent therefore
   completed a source-backed sequential diff review, `git diff --check`, and
   explicit credential/redirect/parser/replay/authority checks.
+
+## Architecture Pruning & Product Contract Review A0-A20
+
+- Scope: simplify the product surface after `openai-provider-v0.1` without
+  adding providers, MCP, streaming, SDKs, UI, cloud integration, production
+  transport, or new security primitives. The product contract is frozen in
+  `PRODUCT_CONTRACT.md`; the integration flow and Basic/Controlled/Sealed
+  profiles are in `INTEGRATION_MODEL.md`.
+- Primitive review: `PRIMITIVE_REVIEW.md` and `SECURITY_VALUE_MAP.md` assign a
+  threat and enforcement role to Krosna, Propusk, Diode, Zaslon, Pechat,
+  Gnezdo, Niti, Metka, Sled, Gateway, and the OpenAI boundary. Repeated checks
+  at independent trust boundaries are retained deliberately.
+- Safe pruning: removed the zero-sized `DataLane` marker, empty `Pechat`
+  facade, and `ScriptedProvider` alias. No authority constructor, policy
+  decision, flow rule, secret broker operation, lifecycle transition, or
+  diagnostic invariant was removed. `SIMPLIFICATION_RED_TEAM.md` records the
+  hostile attempts and expected denials.
+- Dependency and cost review: removed a duplicate `serde_json` dev-dependency
+  declaration; no runtime dependency or policy engine was added. Complexity,
+  error mapping, and public-boundary decisions are in
+  `ARCHITECTURE_COST_REVIEW.md` and `DEPENDENCY_REVIEW.md`.
+- Measured result: 21 production Rust files remain; production Rust LOC fell
+  from 12,966 to 12,904; approximate public declaration/field lines fell from
+  372 to 364; unique direct normal dependency names remain 7. The exact
+  before/after record is `PRUNING_METRICS.md`.
+- Security review: the repository-wide Standard Security Scan found no
+  reportable findings on its frozen source snapshot. It used parent-only
+  review with partial coverage because generated artifacts were excluded;
+  this limitation is explicit in the final report. The pruning range also
+  receives a source-backed diff review and `git diff --check`.
+- Final checkpoint: `PRODUCT_CONTRACT_CHECKPOINT.md` is the A20 checklist.
+  It passes only after the final debug/release test matrix, clippy, audit,
+  deny, fuzz compile check, diff review, and clean worktree check.

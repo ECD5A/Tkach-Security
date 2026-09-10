@@ -39,5 +39,9 @@ repository, not future product marketing.
 - DONE — Real Provider adversarial/mutation hardening: 33 all-feature tests,
   bounded transport checks, and 201-mutant review; streaming remains disabled
   by design for the synchronous Gateway contract.
+- DONE — Architecture Pruning & Product Contract Review A0-A20: product
+  contract, primitive review, safe API pruning, integration profiles,
+  dependency/complexity review, hostile simplification review, and checkpoint
+  evidence are complete at the final local head.
 - DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway
   transport.
