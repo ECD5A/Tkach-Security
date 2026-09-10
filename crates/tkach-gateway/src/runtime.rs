@@ -381,6 +381,28 @@ impl RuntimeResponse {
         }
         Ok(bytes)
     }
+
+    fn transport_fallback(&self) -> Self {
+        match self {
+            Self::Success { receipt, .. } => Self::Failure {
+                request_id: Some(receipt.request_id.clone()),
+                lifecycle_id: Some(receipt.lifecycle_id.clone()),
+                failure: RuntimeFailure::ResponseTooLarge,
+                receipt: Some(receipt.clone()),
+            },
+            Self::Failure {
+                request_id,
+                lifecycle_id,
+                receipt,
+                ..
+            } => Self::Failure {
+                request_id: request_id.clone(),
+                lifecycle_id: lifecycle_id.clone(),
+                failure: RuntimeFailure::ResponseTooLarge,
+                receipt: receipt.clone(),
+            },
+        }
+    }
 }
 
 /// Cancellation state owned by the caller of one runtime lifecycle.
@@ -764,14 +786,10 @@ fn write_response_frame(
     stream: &mut TcpStream,
     response: &RuntimeResponse,
 ) -> Result<(), RuntimeTransportError> {
-    let bytes = if let Ok(bytes) = response.to_json() {
-        bytes
-    } else {
-        let fallback = failure_response(None, None, RuntimeFailure::ResponseTooLarge, None);
-        fallback
-            .to_json()
-            .map_err(|_| RuntimeTransportError::ResponseTooLarge)?
-    };
+    let bytes = response
+        .to_json()
+        .or_else(|_| response.transport_fallback().to_json())
+        .map_err(|_| RuntimeTransportError::ResponseTooLarge)?;
     let length = u32::try_from(bytes.len()).map_err(|_| RuntimeTransportError::ResponseTooLarge)?;
     stream
         .write_all(&length.to_be_bytes())
@@ -1258,6 +1276,37 @@ mod tests {
         assert!(!debug.contains("runtime-secret"));
         assert!(!debug.contains("safe response"));
         assert!(response.to_json().unwrap().len() <= MAX_RUNTIME_RESPONSE_BYTES);
+    }
+
+    #[test]
+    fn oversized_transport_output_preserves_the_effect_receipt_without_retry() {
+        let receipt = RuntimeReceipt {
+            request_id: RequestId::new("request-transport").unwrap(),
+            lifecycle_id: LifecycleId::new("lifecycle-transport").unwrap(),
+            outcome: RuntimeOutcome::Success,
+            uncertain: false,
+            effects: Vec::new(),
+        };
+        let response = RuntimeResponse::Success {
+            receipt,
+            output: Some("\0".repeat(32 * 1024)),
+        };
+        assert_eq!(response.to_json(), Err(RuntimeFailure::ResponseTooLarge));
+        let fallback = response.transport_fallback();
+        match &fallback {
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::ResponseTooLarge,
+                receipt: Some(receipt),
+                ..
+            } => {
+                assert_eq!(receipt.outcome(), RuntimeOutcome::Success);
+                assert!(!receipt.uncertain());
+            }
+            RuntimeResponse::Success { .. } | RuntimeResponse::Failure { .. } => {
+                panic!("transport fallback must preserve a terminal receipt")
+            }
+        }
+        assert!(fallback.to_json().is_ok());
     }
 
     #[test]
