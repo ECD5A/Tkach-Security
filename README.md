@@ -13,16 +13,17 @@ protected data, credentials, and final output. The model proposes; Tkach
 authorizes. Unauthorized, malformed, replayed, or over-limit privileged state
 fails closed.
 
-The repository includes the Strong Core, the bounded in-process Gateway, and a
-non-streaming OpenAI Responses adapter. The adapter does not change the core
-security semantics.
+The repository includes the Strong Core, the bounded in-process Gateway, a
+loopback-only authenticated runtime listener, and a non-streaming OpenAI
+Responses adapter. The runtime listener does not change the core security
+semantics.
 
 ## What does it not do?
 
 Tkach does not make an LLM truthful or trusted, detect every prompt injection,
 protect a deliberately bypassed Gateway, or protect a fully compromised host
-or operating system. It is not production-ready transport, an SDK, MCP,
-streaming, UI, or cloud orchestration. The repository does include a narrow
+or operating system. It is not an SDK, MCP, streaming, UI, cloud control
+plane, or general internet gateway. The repository does include a narrow
 trusted `RealEffectExecutor` for exact sandbox files and loopback HTTP; it is
 not a general production executor.
 
@@ -66,6 +67,12 @@ the Phase C evidence.
 
 `REAL_EFFECT_CONTRACT.md` documents the narrow trusted local filesystem and
 loopback effect boundary. It is not a general production executor.
+
+`RuntimeService` and `RuntimeListener` provide a bounded authenticated frame
+boundary for local integration. The listener binds only to loopback and uses
+length-prefixed JSON without compression, redirects, or automatic retries.
+Deployment TLS, OS ACLs, process separation, and durable replay protection are
+separate responsibilities; see the runtime threat and isolation models.
 
 ## Validation
 

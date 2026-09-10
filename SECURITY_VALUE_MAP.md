@@ -28,3 +28,14 @@ release; it does not replace any primitive or create a second policy engine.
 
 The workload column is evidence from the offline Product Proof harness, not a
 claim that a fake executor models production transactions or a live provider.
+
+## Runtime composition value
+
+The runtime service is deliberately not a tenth branded primitive. It composes
+the nine primitives and owns a different concern: bounded authenticated
+admission, lifecycle identity, cancellation, shutdown, and safe receipts. If
+the runtime layer is bypassed, authentication/replay/resource guarantees are
+lost even though Krosna and Propusk may still protect an effect reached through
+the typed path. If Krosna/Propusk/Ruslo/Zaslon/Klyuchnik are bypassed, runtime
+authentication alone must not authorize the effect. This separation is tested
+as authentication-pass/authorization-deny and invalid-auth/zero-effect cases.

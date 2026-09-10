@@ -159,8 +159,39 @@ secret use. The narrow `RealEffectExecutor` additionally proves exact local
 filesystem and loopback effects; it has no model-controlled OS path, endpoint,
 HTTP path, or payload. Raw fake secret material stays in the broker;
 provider-visible results preserve Niti/Metka or are payload-free receipts. No
-generic production transport, SDK, MCP, cloud, or arbitrary executor is
+generic executor, SDK, MCP, cloud control plane, or internet gateway is
 implemented.
+
+## Production runtime boundary
+
+The runtime hardening layer adds `RuntimeService` and a loopback-only
+`RuntimeListener` around the existing Gateway. Its four-byte length-prefixed
+JSON frame is bounded before nested request decoding; strict fields carry a
+bounded request ID, lifecycle ID, authentication proof, and Gateway DATA. The
+authenticator is a trusted deployment input and is checked before lifecycle
+admission, provider invocation, Krosna authorization, or protected effect.
+
+Authentication is intentionally not authorization: it identifies the runtime
+caller, while model proposals still use the fixed provider vocabulary and must
+obtain a fresh Krosna-issued Propusk. Request/lifecycle IDs are consumed by a
+bounded in-memory ledger, so duplicate/replayed IDs fail closed and an unknown
+effect outcome cannot be retried automatically. The listener has no queue and
+serves one connection at a time; existing Gateway/provider/effect budgets
+remain the inner bounds.
+
+`CancellationToken` is checked at Gateway lifecycle boundaries and before each
+executor call. `shutdown()` stops new admission but does not claim to interrupt
+an already blocking synchronous provider or OS call. Runtime receipts contain
+only identities, categories, execution IDs, outcome, uncertainty, and bounded
+effect summaries. If response encoding itself exceeds the transport budget, the
+listener returns a terminal `ResponseTooLarge` failure with the bounded receipt
+preserved, rather than suggesting retry. Debug/error surfaces redact output and
+authentication data.
+
+The listener is a local carrier, not a TLS implementation or process-isolation
+mechanism. TLS termination, OS ACLs, job/container policy, core-dump policy,
+secret injection, and durable distributed replay are deployment concerns. The
+runtime threat model records those partial/out-of-model guarantees explicitly.
 
 ## Real OpenAI Responses adapter — v0.1 non-streaming boundary
 
@@ -211,15 +242,15 @@ Metka, and Sled retain their documented roles. Repeated checks at Krosna,
 Ruslo, Gateway, and the provider boundary are intentional trust-boundary
 checks, not competing policy engines.
 
-`INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, and Sealed
-Agent deployment profiles. `PRUNING_METRICS.md` records the measured source
-and public-surface reduction. No SDK, configuration DSL, provider abstraction
-layer, streaming event model, MCP layer, or production transport was added.
+`INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, Sealed Agent,
+and Local Authenticated Runtime deployment profiles. `PRUNING_METRICS.md`
+records the measured source and public-surface reduction. No SDK,
+configuration DSL, provider abstraction layer, streaming event model, MCP
+layer, or internet gateway was added.
 
 ## Future, not implemented
 
 Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,
-production gateway orchestration, and generic executors are explicitly
-deferred until owner review of the provider phase. The narrow local effect
-boundary is implemented and tested, but this is not a claim of generic
-production readiness.
+production gateway orchestration, TLS/process supervisor integration, and
+generic executors are explicitly deferred. The runtime listener is a narrow
+local frame boundary, not a claim of generic production readiness.

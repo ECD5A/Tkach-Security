@@ -604,7 +604,39 @@
   Gateway/Krosna/Ruslo/Zaslon/Niti-Metka/Klyuchnik/parse observations.
   `INTEGRATION_PROOF_CHECKPOINT.md` is the Phase C acceptance record.
 
-## Autonomous Production Hardening — Part A
+## Production Runtime Hardening v0.1 - R0-R18 implementation in progress
+
+- R0/R1 committed `PRODUCTION_RUNTIME_THREAT_MODEL.md` and
+  `RUNTIME_ISOLATION_MODEL.md`. They separate MODEL SIDE, SECURITY RUNTIME,
+  EFFECT SIDE, and DEPLOYMENT CONTROL, and classify protected, partial, and
+  out-of-model guarantees without treating diagrams as process isolation.
+- R2-R4 hardened `RealEffectExecutor` file opens with an isolated safe adapter:
+  Unix uses `O_NOFOLLOW|O_CLOEXEC`; Windows uses
+  `FILE_FLAG_OPEN_REPARSE_POINT`, ordinary-handle checks, and post-open path
+  observations. A Windows unique handle-id and universal parent-relative
+  transaction remain unproven and explicitly scoped out.
+- R5/R6/R10-R16/R20/R22/R27 added the bounded `RuntimeService`: strict framed
+  JSON, trusted authentication before Gateway invocation, separate caller and
+  model authority, request/lifecycle replay ledger, sequential admission,
+  terminal cancellation/shutdown, bounded payload-free receipts, and explicit
+  `OutcomeUnknown` mapping with no retry instruction.
+- R7-R9 added the loopback-only `RuntimeListener` with four-byte length
+  framing, bounded body allocation, 500 ms read/write timeouts, no compression,
+  no redirects/proxy path, and one-connection-at-a-time ownership.
+- R17 zeroizes private Klyuchnik `SecretValue` storage on drop using `zeroize`;
+  no claim is made for host memory, core dumps, or caller copies retained before
+  broker registration.
+- Current implementation commits: `75ebde2` (R0/R1 docs), `84da829` (R2-R4
+  filesystem adapter), `3ab1cfb` (R17 zeroization), `a7417aa` (runtime
+  lifecycle), `e3d1e50` (loopback transport), and `8fd19a0` (unknown-outcome
+  regression). Follow-up hardening commits `2eeff91` (raw nested request
+  parsing and replay capacity), `5a4a7b7` (authenticated runtime real-effect
+  E2E), and `dc8ef8a` (oversized response receipt fallback).
+- Remaining R19-R37 work includes fault/concurrency/property/mutation and
+  hostile-runtime validation, full documentation reconciliation, final local
+  matrix, checkpoint, annotated tag, and no push. This phase is not complete.
+
+## Autonomous Production Hardening - Part A
 
 - Scope: close the offline fake-executor gap without adding OpenAI, Anthropic,
   MCP, SDK, UI, cloud, or production gateway transport integrations.

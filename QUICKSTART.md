@@ -19,6 +19,22 @@ The example performs these real steps:
 4. invoke a deterministic provider through the staging boundary;
 5. release output only from a successful `GatewayResult`.
 
+## Authenticated local runtime boundary
+
+For an application that needs a local transport boundary, construct a
+`RuntimeService` around the trusted `Gateway`, provider, and a deployment-held
+`RuntimeAuthenticator`, then bind `RuntimeListener` to `127.0.0.1` or `::1`.
+Frames are a four-byte big-endian length followed by bounded strict JSON with
+`request_id`, `lifecycle_id`, `auth`, and a nested Gateway request. The listener
+serves one connection at a time, authenticates before Gateway invocation, and
+returns only bounded output plus payload-free receipts.
+
+This is a local frame contract, not TLS or a public internet server. Use
+reviewed deployment TLS/IPC, OS identity and ACL separation, core-dump policy,
+and a durable replay store when those properties are required. The in-memory
+ledger rejects duplicates only for one runtime instance and deliberately makes
+an `OutcomeUnknown` lifecycle terminal.
+
 ## Deployment profile paths
 
 | Profile | Additional integration | Resulting boundary |

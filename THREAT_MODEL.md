@@ -11,6 +11,14 @@ tool arguments, and model claims are never security authority; Gateway-owned
 Krosna/Propusk, Niti/Metka, Ruslo, Zaslon, and Klyuchnik remain the enforcement
 planes.
 
+The production runtime extends the same invariant across a local caller:
+authentication proves a caller may enter the bounded Gateway lifecycle, but
+does not authorize an effect. The runtime ledger owns request/lifecycle
+identity, shutdown, cancellation, and per-instance replay state; Krosna still
+owns authorization and only Propusk reaches the effect side. The local carrier
+is loopback-only and length-prefixed, with deployment TLS/process isolation and
+durable replay explicitly outside the crate.
+
 | Attack | Asset | Trust boundary | Expected behavior | Failure mode to test |
 |---|---|---|---|---|
 | Direct/indirect prompt injection | Policy and capabilities | Gnezdo data/control lanes | Content remains data; no authority transition | Natural language creates privilege |
@@ -31,6 +39,14 @@ planes.
 | Originless derivation laundering | Classification and export controls | Gnezdo/Niti/Metka transforms | Unknown parent state remains Unknown | Empty parents become Public |
 | Secret-destination executor bypass | Broker-held secret | Propusk/ProtectedExecutor/Klyuchnik | Any direct SecretBroker execution is rejected | Non-secret action reaches broker destination |
 | Resource exhaustion | Core availability and bounded state | Wire and collection boundaries | Oversized rules, aggregate patterns, lineage, content, model input, trace, and broker state reject | Allocation or matching work grows without bound |
+
+Additional runtime rows are:
+
+| Attack | Asset | Trust boundary | Expected behavior | Failure mode to test |
+|---|---|---|---|---|
+| Unauthenticated/replayed runtime request | Gateway/effect admission | Runtime frame and identity ledger | Authentication precedes Gateway; request/lifecycle IDs are one-instance terminal markers | Caller enters provider/effect or repeats an uncertain lifecycle |
+| Transport peer stalls or sends oversized frame | Runtime availability | Loopback framed listener | Read/write timeouts, four-byte length bound, no compression, one connection at a time | Unbounded body allocation, queue, or worker growth |
+| Shutdown/cancellation race | Effect ordering and outcome truth | Runtime/Gateway lifecycle | Stop admission, check cancellation before effects, preserve unknown outcome | Effect runs after barrier or unknown is retried |
 
 The table is a living summary; each completed mandate adds executable coverage
 and records discovered weaknesses in `DEVELOPMENT.md`. Red-team coverage also

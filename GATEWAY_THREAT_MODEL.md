@@ -254,6 +254,25 @@ Phase 1 remains a synchronous in-process boundary. It does not claim
 transactional rollback for arbitrary external systems; instead it prevents
 premature irreversible execution and intentionally rejects multi-write batches.
 
+## Production Runtime Hardening extension
+
+The runtime layer keeps Phase 1's provider-independent Gateway as the sole
+orchestrator and adds a bounded local carrier around it. `RuntimeListener`
+accepts only loopback connections and a four-byte length-prefixed JSON frame;
+`RuntimeService` validates the trusted authentication proof, then consumes
+request/lifecycle IDs in a bounded per-instance ledger before invoking the
+Gateway. Authentication is a caller identity check, not an action grant.
+
+The listener has no compression, redirects, proxy semantics, generic headers,
+raw executor route, or unbounded worker queue. Its response contains only
+final Gateway output and payload-free runtime receipts. Duplicate IDs,
+malformed or oversized frames, shutdown, cancellation, authorization failure,
+and `OutcomeUnknown` are terminal; no automatic retry is provided. The
+synchronous provider/effect call cannot be forcefully interrupted by this API,
+and durable replay, TLS, OS/process isolation, and host compromise remain
+explicit deployment limitations. See `PRODUCTION_RUNTIME_THREAT_MODEL.md` and
+`RUNTIME_ISOLATION_MODEL.md` for the complete R0/R1 boundary contract.
+
 Repository: Tkach-Security
 Version: strong-core-v0.1 / 585bde22f7b39ee227c1b6e7876cb7999643ca6f
 Gateway implementation: `1e1d16c`, hardening: `36ce4f7`, packaging:

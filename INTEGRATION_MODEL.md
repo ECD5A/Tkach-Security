@@ -1,8 +1,8 @@
 # Tkach Security Integration Model
 
 This is the current developer-facing integration model. It describes the
-smallest safe composition available in v0.1; it is not an SDK and does not
-define a production transport.
+smallest safe composition available in v0.1. It is not an SDK or a public
+internet gateway.
 
 ## What an existing AI agent changes
 
@@ -18,6 +18,15 @@ The host constructs a `Gateway` with trusted `Krosna`, ingress/egress
 `Zaslon`, a valid release `Destination`, and an executor that accepts only
 `Propusk`. The application either calls `Gateway::run` with a validated
 `ExternalRequest` or `Gateway::run_json` with a bounded JSON body.
+
+For a local runtime boundary, the application may instead place the Gateway
+and provider behind `RuntimeService` and `RuntimeListener`. The listener uses
+loopback-only length-prefixed frames and trusted bearer-proof authentication;
+the proof identifies the caller but never becomes a Krosna capability. The
+service owns bounded request/lifecycle replay state and a sequential admission
+path. It is suitable as a local architecture proof and requires separately
+reviewed TLS/IPC, OS/process isolation, and durable replay for stronger
+deployment profiles.
 
 The provider receives only bounded `ProviderRequest` DATA and the fixed trusted
 tool vocabulary. It never receives the executor, broker, `Propusk`, `Decision`,
@@ -53,6 +62,11 @@ workflow permits that choice; this is a new lifecycle, not a continuation that
 inherits denied authority or staged state.
 
 ## Capability and destination model
+
+`RuntimeService` and `RuntimeListener` are orchestration/transport boundaries,
+not a new security primitive. They authenticate and bound a caller lifecycle;
+Krosna, Propusk, Ruslo, Zaslon, Gnezdo, Niti, Metka, Klyuchnik, and Sled keep
+their existing authority, flow, lineage, secret, and evidence roles.
 
 An integrator needs to understand four operational concepts:
 
@@ -142,6 +156,25 @@ are reported as unknown.
 rollback semantics, durable distributed replay, and elimination of every
 concurrent path-substitution race. This profile must not be presented as a
 general production gateway.
+
+### Local Authenticated Runtime
+
+**Use:** a loopback caller needs a bounded, authenticated entry point into a
+trusted Gateway lifecycle.
+
+**Setup:** `RuntimeAuthenticator` is constructed from trusted deployment
+configuration; `RuntimeListener` binds to loopback; the caller sends one
+bounded length-prefixed JSON frame with request and lifecycle identity.
+
+**Guarantees:** malformed/oversized frames, invalid authentication, duplicate
+identities, shutdown, and cancellation fail closed before a protected effect;
+valid authentication still requires ordinary Gateway/Krosna/Ruslo/Zaslon
+authorization. Runtime receipts are payload-free evidence and an unknown
+effect outcome is terminal.
+
+**Unavailable:** TLS, OS identity/process isolation, durable cross-restart or
+distributed replay, forceful interruption of synchronous calls, and protection
+from a same-privilege out-of-band executor.
 
 ## Secure defaults
 

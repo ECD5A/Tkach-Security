@@ -42,6 +42,9 @@
 - Zaslon pattern memory has an aggregate budget and streaming matching uses
   incremental bounded state rather than copying a rule-sized suffix per chunk.
 - Klyuchnik's fake broker has both per-secret and aggregate secret-byte budgets.
+- Klyuchnik broker-held values are zeroized on drop through the reviewed
+  `zeroize` dependency; this is a memory-cleanup property, not host-memory or
+  core-dump protection.
 - all bounded wire collections and identifiers are validated against fixed
   limits, and malformed provenance shapes cannot create a trusted root; input
   adapters must impose reader/token byte limits before generic deserializers
@@ -70,6 +73,19 @@
 - malformed, timeout, failure, cancellation, over-limit, denied, and invalid
   release-destination provider paths fail closed without returning staged
   output or executing staged actions.
+- the runtime frame boundary bounds encoded input before nested request parsing,
+  authenticates a trusted proof before Gateway invocation, separates the
+  authenticated caller from the model principal, and rejects duplicate request
+  or lifecycle identities in a bounded per-instance ledger;
+- the runtime listener binds only to loopback, uses bounded length-prefixed
+  frames and response writes, has no compression/redirect/proxy path, and
+  serves one connection at a time;
+- runtime shutdown, cancellation, `FAILED_BEFORE_EFFECT`, and
+  `OUTCOME_UNKNOWN` are explicit terminal states; unknown outcomes are not
+  retried or converted to success;
+- runtime receipts and diagnostics contain only bounded identities/categories,
+  execution IDs, outcome, and uncertainty, never authentication proofs,
+  prompts, protected payloads, network bodies, or raw secrets.
 - the OpenAI adapter keeps credentials in trusted configuration, rejects
   ambiguous endpoints, disables redirects, bounds HTTP bodies, and maps
   transport failures to payload-free provider errors;
@@ -98,6 +114,10 @@ executors that do not provide an out-of-band bypass.
   `RealEffectExecutor` is a reviewed local boundary for exact sandbox files
   and loopback HTTP only; it preserves the Propusk-only and bounded-result
   contracts but does not claim generic transaction or race-free semantics;
+- runtime authentication configuration is trusted deployment input; the
+  built-in listener is loopback-only, sequential, and in-memory, so TLS,
+  process/OS isolation, durable replay, and cluster coordination remain
+  deployment responsibilities;
 - `Serialize` on model-readable data is context construction, not an egress
   authorization decision; adapters must apply Ruslo/Zaslon before release.
 
@@ -126,6 +146,12 @@ Hardening Round 3 additionally closes diagnostic metadata injection and
 forgeable evidence construction, fixes Niti wire round-trips, rejects unknown
 declassification resources, bounds aggregate Klyuchnik memory, and replaces the
 quadratic streaming matcher state with incremental matching.
+The production runtime milestone additionally implements a bounded
+authentication-before-Gateway frame service, loopback-only length-prefixed
+listener, one-instance request/lifecycle replay ledger, explicit cancellation
+and shutdown admission, safe runtime receipts, and zeroize-on-drop broker
+storage. The listener is a local carrier rather than TLS or process isolation;
+its synchronous provider/effect calls are not forcefully interruptible.
 Zaslon's canonicalizer is intentionally strict and rejects ambiguous Unicode/
 escape representations; it does not detect every semantic paraphrase. Klyuchnik
 does not defend against a fully compromised

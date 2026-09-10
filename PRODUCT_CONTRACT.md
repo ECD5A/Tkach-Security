@@ -37,6 +37,9 @@ With a correctly integrated Gateway and protected executor:
 11. The supplied `RealEffectExecutor` has only the reviewed fixed local
     filesystem and loopback bindings documented in `REAL_EFFECT_CONTRACT.md`;
     it does not turn a model proposal into an arbitrary OS or network API.
+12. The local runtime frame boundary authenticates before Gateway/provider or
+    protected-effect admission, rejects duplicate request/lifecycle identities,
+    and reports uncertain outcomes without automatic retry.
 
 The OpenAI adapter adds a bounded, non-streaming Responses API boundary. It
 does not change these guarantees or create a second policy engine.
@@ -60,6 +63,12 @@ The integrator must ensure that:
   by an untrusted caller after authorization;
 - the host process, operating system, runtime, and dependency supply chain are
   maintained within the deployment's security requirements.
+- runtime authentication material is supplied only by trusted deployment code;
+  the transport is loopback-only unless a separately reviewed deployment
+  carrier adds authenticated IPC/TLS and preserves the same frame contract;
+- the caller treats runtime receipts as evidence, not as `Propusk` or a retry
+  instruction, and uses a durable replay design when restart/distributed
+  exactly-once semantics are required.
 
 ## Non-guarantees
 
@@ -75,10 +84,14 @@ Tkach Security does not:
   context outside Klyuchnik;
 - infer whether an allowed action is business-wise desirable;
 - provide durable distributed replay protection or transaction semantics;
+- provide durable replay protection across restart, cluster-wide exactly-once
+  effects, or forceful interruption of a blocking synchronous call;
 - make the current OpenAI adapter a production gateway;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
 - implement streaming, MCP, Anthropic, SDK, UI, or cloud orchestration.
+- provide TLS, OS/process isolation, core-dump prevention, or protection from
+  a same-privilege out-of-band application path.
 
 ## Integrator mental model
 
