@@ -15,6 +15,7 @@ use std::fmt::{Debug, Formatter};
 use std::time::Duration;
 use thiserror::Error;
 use url::Url;
+use zeroize::Zeroizing;
 
 const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -149,7 +150,7 @@ impl OpenAiConfig {
     }
 }
 
-struct ApiKey(String);
+struct ApiKey(Zeroizing<String>);
 
 impl ApiKey {
     fn new(value: String) -> Result<Self, ConfigError> {
@@ -159,7 +160,7 @@ impl ApiKey {
         {
             return Err(ConfigError::InvalidApiKey);
         }
-        Ok(Self(value))
+        Ok(Self(Zeroizing::new(value)))
     }
 
     fn as_str(&self) -> &str {
@@ -204,6 +205,15 @@ mod tests {
         assert!(!debug.contains("sk-test-only-not-real"));
         assert!(debug.contains("REDACTED"));
         assert_eq!(config.model(), "gpt-4.1-mini");
+    }
+
+    #[test]
+    fn credential_storage_has_zeroize_on_drop_contract() {
+        fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>(_: &T) {}
+
+        let config = OpenAiConfig::new("sk-test-only", "gpt-4.1-mini").unwrap();
+        assert_zeroize_on_drop(&config.api_key.0);
+        drop(config);
     }
 
     #[test]

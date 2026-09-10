@@ -936,6 +936,7 @@ dependencies = [
  "tkach-core",
  "tkach-gateway",
  "url",
+ "zeroize",
 ]
 
 [[package]]

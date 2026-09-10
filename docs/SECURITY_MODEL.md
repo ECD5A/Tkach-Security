@@ -41,9 +41,10 @@ contract is the shorter integrator-facing version.
   bounded. Shutdown, cancellation, `FAILED_BEFORE_EFFECT`, and
   `OUTCOME_UNKNOWN` are explicit terminal states.
 - The OpenAI adapter keeps its credential in trusted configuration, validates
-  its HTTPS endpoint, disables redirects, bounds response bodies, rejects
-  ambiguous/unknown wire forms, and maps only fixed provider function names to
-  raw proposals.
+  its HTTPS endpoint, zeroizes the configuration-owned credential on drop,
+  disables redirects, bounds response bodies, rejects ambiguous/unknown wire
+  forms, and maps only fixed provider function names to raw proposals. HTTP
+  client/header copies and caller-owned buffers are outside this guarantee.
 
 These guarantees apply only to validated inputs reaching the boundary and to
 integrations that do not provide an out-of-band executor, broker, release, or

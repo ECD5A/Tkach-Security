@@ -2,8 +2,8 @@
 
 Status: authoritative current-state summary. The production-runtime baseline
 is tagged `production-runtime-v0.1` at `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`;
-the current source also includes the reviewed runtime-proof hardening commit
-`756d695`.
+the current source also includes reviewed runtime-proof and OpenAI credential
+ownership hardening.
 
 This file describes what is implemented now. It is not a replacement for the
 permanent constitution, source code, or executable tests.
@@ -85,6 +85,9 @@ PROVEN by local evidence:
   storage;
 - private, bounded, redacted runtime authentication proof storage that is
   zeroized when its authenticator is dropped;
+- private, redacted OpenAI adapter credential storage that is zeroized when its
+  trusted configuration is dropped; transient HTTP-client/header and
+  caller-owned buffers remain outside this ownership guarantee;
 - bounded hostile-provider Gateway workflows and real fixed filesystem/
   loopback effects;
 - authentication-before-Gateway admission, replay rejection, cancellation,
@@ -122,7 +125,7 @@ The final production-runtime local evidence passed:
 - locked metadata, offline `cargo audit --no-fetch`, `cargo deny check`,
   offline fuzz-binary compilation, offline packaging, and Quickstart execution;
 - 113 core, 9 composition, 9 independent-oracle, 49 Gateway unit, 25 Gateway
-  boundary, 14 product-proof, 13 real-effect, 33 provider, and 1 opt-in live
+  boundary, 14 product-proof, 13 real-effect, 34 provider, and 1 opt-in live
   guard tests in the debug/release matrix;
 - targeted runtime mutation: 110 mutants, 85 caught, 24 unviable, and one
   diagnostic-only `Visitor::expecting` survivor; no security-path survivor;

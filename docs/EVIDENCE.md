@@ -21,6 +21,12 @@ portable test cannot inspect freed memory, so this is not reported as a
 memory-forensics proof. Caller-owned frame buffers, host memory, and core dumps
 remain outside the claim.
 
+The OpenAI adapter now applies the same ownership rule to its trusted
+configuration credential with `zeroize::Zeroizing<String>`. The compile-time
+zeroize-on-drop regression test, redaction test, and source review establish
+the configuration-owned contract. HTTP-client/header copies, caller-owned
+inputs, and host memory remain outside the claim.
+
 ## Local validation matrix
 
 The required local commands are:
@@ -40,7 +46,7 @@ cargo package --workspace --allow-dirty --no-verify --offline
 cargo run -p tkach-gateway --example quickstart --locked
 ```
 
-The current debug/release workspace matrix contains 266 passing tests:
+The current debug/release workspace matrix contains 267 passing tests:
 
 | Suite | Tests |
 | --- | ---: |
@@ -51,7 +57,7 @@ The current debug/release workspace matrix contains 266 passing tests:
 | Gateway boundary | 25 |
 | Product proof | 14 |
 | Real effects | 13 |
-| OpenAI provider | 33 |
+| OpenAI provider | 34 |
 | Opt-in live guard | 1 |
 
 The same suites pass in both debug and release profiles. The docs, packaging,

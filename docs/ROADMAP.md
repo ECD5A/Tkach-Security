@@ -6,8 +6,9 @@ and security evidence is in `EVIDENCE.md`.
 
 ## CURRENT
 
-Compact documentation tree after the local `production-runtime-v0.1` baseline.
-The runtime source is stable; the next product decision is not assumed.
+Compact documentation tree after the local `production-runtime-v0.1` baseline
+and trusted credential-ownership hardening. The runtime source is stable; the
+next product decision is not assumed.
 
 ## DONE
 
@@ -20,6 +21,8 @@ The runtime source is stable; the next product decision is not assumed.
 - Narrow real filesystem/loopback effect boundary with explicit residuals.
 - Bounded authenticated loopback runtime with lifecycle replay, cancellation,
   shutdown, safe receipts, and explicit uncertain-effect semantics.
+- Zeroize-on-drop ownership for runtime authentication proof and OpenAI adapter
+  configuration credentials, with redaction and compile-time regression proof.
 - Local validation, dependency checks, fuzz compilation, packaging, and
   Quickstart execution documented in `EVIDENCE.md`.
 

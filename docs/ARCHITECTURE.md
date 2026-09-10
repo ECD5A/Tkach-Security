@@ -200,8 +200,9 @@ runtime threat model records those partial/out-of-model guarantees explicitly.
 ## Real OpenAI Responses adapter — v0.1 non-streaming boundary
 
 `crates/tkach-provider-openai` is a thin provider adapter, not a second policy
-kernel. `OpenAiConfig` is trusted host configuration: the API key is private
-and redacted, the endpoint is HTTPS-only with no embedded credentials, query,
+kernel. `OpenAiConfig` is trusted host configuration: the API key is private,
+redacted, and zeroized when configuration-owned storage is dropped; the
+endpoint is HTTPS-only with no embedded credentials, query,
 or fragment, and the model label is a bounded token. `ReqwestTransport` uses
 rustls, a finite timeout, bounded response reads, and no redirects. Transport
 errors are static and do not expose provider error bodies.
