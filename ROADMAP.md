@@ -43,5 +43,9 @@ repository, not future product marketing.
   contract, primitive review, safe API pruning, integration profiles,
   dependency/complexity review, hostile simplification review, and checkpoint
   evidence are complete at the final local head.
+- DONE — Product Proof B0-B22 (2026-09-10): executable offline benchmark,
+  paired legitimate/hostile workloads, attack matrix, Basic/Controlled/Sealed
+  evidence, Quickstart, performance observation, security review, checkpoint,
+  and local tag `product-proof-v0.1`.
 - DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway
   transport.

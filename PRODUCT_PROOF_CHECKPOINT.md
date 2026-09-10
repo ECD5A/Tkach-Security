@@ -1,6 +1,6 @@
 # Product Proof Checkpoint
 
-Status: pending final full validation and security review.
+Status: PASS — Product Proof B0-B22 completed locally on 2026-09-10.
 
 | # | Requirement | Evidence |
 | ---: | --- | --- |
@@ -21,9 +21,30 @@ Status: pending final full validation and security review.
 | 15 | Live OpenAI is optional | Env/key absent; no live request made |
 | 16 | Utility did not weaken security | No production security code changed in proof phase |
 | 17 | Defects have regression coverage | Harness oracle/lint fixes and existing regressions |
-| 18 | Baseline suites remain green | Final matrix required below |
+| 18 | Baseline suites remain green | Debug/release workspace matrix, clippy, audit, deny, and fuzz compile passed |
 | 19 | Changes committed locally | Commit list in final report |
 | 20 | No remote publication | No `git push` |
 
-The checkpoint may become PASS only after the full workspace matrix, audit,
-deny, fuzz compile, diff review, and security review succeed.
+## Final evidence
+
+- Product Proof harness: 10 tests passed with `--nocapture`; W01-W05 passed,
+  all defined hostile variants contained unauthorized effects, and the attack
+  matrix recorded zero false allows.
+- Workspace validation: debug and release all-target tests passed (216 tests
+  in the debug aggregate), format and clippy with warnings denied passed,
+  `cargo audit --no-fetch` reported no advisories, `cargo deny check` passed
+  advisories/bans/licenses/sources, and the fuzz crate compiled offline.
+- Quickstart: `cargo run -p tkach-gateway --example quickstart --locked`
+  compiled and executed successfully.
+- Standard Codex Security scan `b8d05e0d-45ea-4d7d-8d86-74b3162f506d`
+  completed with zero reportable findings and partial coverage. The partial
+  status records unavailable delegated workers and excluded generated target
+  trees.
+- The automated diff runner repeatedly rejected the valid non-bare worktree as
+  lacking a resolvable HEAD. A source-backed review of the complete range
+  `2e622ffc..deb28b8` therefore supplied the diff evidence; this is recorded as
+  a tooling limitation, not an automated diff-scan PASS.
+- No production security code or primitive semantics changed in Product Proof;
+  the harness and Quickstart are test/example surfaces only. No live OpenAI
+  request was made because the opt-in environment variables were absent.
+- Worktree was clean after validation. No remote publication was performed.

@@ -81,13 +81,14 @@ behind convenience APIs.
 
 ## Performance observation
 
-One local Windows run measured 32 iterations of the small read/write workflow:
+The latest local Windows run measured 32 iterations of the small read/write
+workflow:
 
 | Measurement | Observed |
 | --- | ---: |
-| Tkach total | 4,749,900 ns |
-| Minimal reference total | 1,500 ns |
-| Absolute difference | 4,748,400 ns |
+| Tkach total | 5,171,800 ns |
+| Minimal reference total | 1,600 ns |
+| Absolute difference | 5,170,200 ns |
 
 This includes Gateway construction, typed policy/flow checks, fake execution,
 and test setup. It is an order-of-magnitude orientation only; it is not a
@@ -116,3 +117,14 @@ architecture value map.
 Skipped. `TKACH_LIVE_OPENAI_TESTS` and `OPENAI_API_KEY` were not set. Offline
 typed providers remain authoritative for security; live model output would
 only measure protocol/utility behaviour.
+
+## Security review and limitations
+
+Standard Codex Security scan `b8d05e0d-45ea-4d7d-8d86-74b3162f506d` completed
+with zero reportable findings and partial coverage. The automated diff runner
+could not resolve the valid non-bare repository HEAD for the range from
+`2e622ffc` to the Product Proof commits, so the range received a manual
+source-backed review instead of an overstated automated PASS. Delegated
+workers were unavailable. Generated build trees were excluded from semantic
+review. These limitations do not change the offline harness result, but they
+mean this report is not a production deployment or live-model security claim.

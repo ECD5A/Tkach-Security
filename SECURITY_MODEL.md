@@ -158,3 +158,16 @@ the final report preserves that limitation rather than overstating the result.
 The pruning-range diff review and the complete validation gate are reported
 with their exact results in `PRODUCT_CONTRACT_CHECKPOINT.md` and
 `DEVELOPMENT.md`.
+
+## Product Proof evidence boundary
+
+The Product Proof B0-B22 harness exercises the same typed Gateway boundary
+with deterministic providers, a fake protected executor, and fake broker-held
+secret material. It measures useful bounded workflows and structured effects;
+it does not infer security from model prose, replace Krosna/Diode/Zaslon
+decisions, or prove semantic prompt-injection detection. The completed local
+checkpoint recorded zero defined false allows and zero false denies for the
+explicit legitimate workload rows. Its Standard Codex Security review found
+no reportable findings with partial coverage; generated artifacts, live
+provider behavior, production transport, and delegated independent review
+remain outside the evidence boundary.

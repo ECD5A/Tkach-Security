@@ -540,3 +540,47 @@
   pruning-range diff runner remained unavailable
   despite a valid clean non-bare HEAD and is recorded as a limitation rather
   than a false PASS.
+
+## Product Proof B0-B22
+
+- Scope: prove utility and security value of the frozen Strong Core, Gateway,
+  and OpenAI boundary in an offline bounded environment. No new primitive,
+  provider, MCP, Anthropic, streaming, SDK, UI, cloud, or production
+  transport work was introduced.
+- Design: `SECURITY_UTILITY_BENCHMARK.md` defines typed workload contracts and
+  metrics. `crates/tkach-gateway/tests/product_proof.rs` supplies deterministic
+  providers, an independent minimal unsafe reference, paired legitimate and
+  hostile cases, a ten-category attack matrix, minimum-authority checks,
+  profile coverage, secret-surface checks, and repeated overhead measurement.
+- Utility evidence: W01-W05 passed across Controlled, Sealed, and Basic. The
+  fully hostile path still completed one permitted harmless read before the
+  secret-reveal request was denied. The baseline reference applied a protected
+  read plus external send; Tkach allowed only the read.
+- Security evidence: defined false allows were zero; protected public export,
+  scope widening, secret reveal, replay, malformed output, timeout/failure/
+  cancellation, and premature egress were contained. DATA remained useful
+  data in the authority-forgery and DATA-to-CONTROL cases. Removing write or
+  secret authority produced zero effects while approved read remained useful.
+- Integration: `QUICKSTART.md` and the compiling/running
+  `examples/quickstart.rs` document the actual Basic path. Controlled and
+  Sealed paths remain explicit typed test fixtures, not an SDK or DSL.
+- Self-review hardening: the oracle was strengthened to scan output, errors,
+  traces, and broker diagnostics for the fake secret; the attack matrix was
+  made explicit about useful authority-forgery/data-control cases; lint and
+  compile issues were fixed before the final validation rerun. No production
+  security code changed in this phase.
+- Validation: debug/release workspace tests, fmt, clippy, audit, deny, fuzz
+  compile, Product Proof tests, and Quickstart execution passed. The measured
+  performance result is host-specific and has no threshold. Live OpenAI was
+  skipped because opt-in credentials were absent.
+- Security review: Standard Codex Security scan
+  `b8d05e0d-45ea-4d7d-8d86-74b3162f506d` completed with zero reportable
+  findings and partial coverage. The automated diff runner again rejected the
+  valid non-bare repository as lacking a resolvable HEAD; a full manual
+  source-backed range review was completed and the limitation is retained.
+- Commits: `629d6a2`, `b0e343b`, `d56b55a`, `deb28b8`, followed by the final
+  Product Proof documentation/checkpoint commit. Local tag: `product-proof-v0.1`.
+- Status: Product Proof Checkpoint PASS. Worktree clean; no push. Product
+  limitations remain the fake offline environment, no transaction/production
+  executor semantics, no semantic prompt-injection solution, partial scan
+  coverage, and unavailable Windows libFuzzer execution.

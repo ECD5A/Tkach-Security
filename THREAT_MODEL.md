@@ -48,3 +48,16 @@ provider: hostile typed proposals are evaluated by Krosna, every decision is
 recorded in bounded Sled evidence, and only a kernel-issued `Propusk` can reach
 the fake executor. Secret-destination proposals require an explicit Pechat
 broker; an absent broker does not fall back to executor execution.
+
+## Product Proof adversarial evidence
+
+The B0-B22 offline harness turns this threat table into paired deterministic
+workloads. It covers prompt injection, authority forgery, DATA-to-CONTROL
+attempts, scope escalation, protected export, secret reveal, replay, malformed
+provider output, timeout/failure/cancellation, and premature release. The
+oracle counts typed effects, reads, external sends, decisions, provider turns,
+and secret-surface occurrences; it does not trust provider text. The latest
+checkpoint reports zero defined false allows and no raw fake secret in result,
+error, trace, or broker-debug surfaces. This is bounded evidence for the
+offline fake environment, not a claim that semantic model compromise or a
+host-level bypass is solved.
