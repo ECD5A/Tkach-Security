@@ -1,6 +1,8 @@
 # Product Contract Checkpoint
 
-Status: PASS on `a64dad07e15dce4536fdcdabc5bdf1fde292763d`.
+Status: PASS. Validation completed on the unchanged pruning code at
+`a64dad07e15dce4536fdcdabc5bdf1fde292763d`; subsequent commits in this phase
+are documentation-only.
 
 This is the A20 evidence checklist for the Architecture Pruning & Product
 Contract Review. A check is considered passing only when the implementation,
