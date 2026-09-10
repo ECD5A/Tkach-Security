@@ -238,4 +238,4 @@ premature irreversible execution and intentionally rejects multi-write batches.
 Repository: Tkach-Security
 Version: strong-core-v0.1 / 585bde22f7b39ee227c1b6e7876cb7999643ca6f
 Gateway implementation: `1e1d16c`, hardening: `36ce4f7`, packaging:
-`9026605`; Gateway Hardening 1.5: `203d7e9`, tag `gateway-v0.1`.
+`9026605`; Gateway Hardening 1.5 is tagged locally as `gateway-v0.1`.

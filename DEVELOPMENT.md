@@ -415,5 +415,5 @@
   `UNREACHABLE_BY_PUBLIC_API` or equivalent defense-in-depth route guards,
   and one `EQUIVALENT` dispatch guard. There are no unexplained
   security-relevant survivors.
-- Commit/tag: `203d7e9` (`gateway: harden lifecycle and staged effects`),
-  local tag `gateway-v0.1`.
+- Commit/tag: `gateway: harden lifecycle and staged effects`; local tag
+  `gateway-v0.1`.
