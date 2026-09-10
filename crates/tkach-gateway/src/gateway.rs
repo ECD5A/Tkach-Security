@@ -93,6 +93,12 @@ pub enum GatewayErrorKind {
     /// A protected executor rejected a kernel-issued action.
     #[error("protected tool rejected the authorized action")]
     ToolRejected,
+    /// A real executor failed before attempting the effect.
+    #[error("protected effect failed before execution")]
+    ExecutorFailedBeforeEffect,
+    /// A real executor cannot prove whether the effect committed.
+    #[error("protected effect outcome is unknown")]
+    EffectOutcomeUnknown,
     /// Sled could not record a decision without exceeding its fixed budget.
     #[error("gateway decision trace is full")]
     TraceCapacityExceeded,
@@ -443,9 +449,10 @@ impl Gateway {
     ) -> Result<Vec<ModelInput>, GatewayError> {
         let mut tool_inputs = Vec::new();
         for permit in permits {
-            let result = self.executor.execute(permit).map_err(|_: ExecutionError| {
-                Self::failure(GatewayErrorKind::ToolRejected, trace.clone())
-            })?;
+            let result = self
+                .executor
+                .execute(permit)
+                .map_err(|error| Self::failure(map_execution_error(error), trace.clone()))?;
             match result {
                 ToolResult::Data(data) => {
                     if data.value().len() > MAX_TOOL_RESULT_BYTES {
@@ -520,6 +527,14 @@ impl Gateway {
 
     fn failure(kind: GatewayErrorKind, trace: SledTrace) -> GatewayError {
         GatewayError::with_trace(kind, trace)
+    }
+}
+
+fn map_execution_error(error: ExecutionError) -> GatewayErrorKind {
+    match error {
+        ExecutionError::Rejected => GatewayErrorKind::ToolRejected,
+        ExecutionError::FailedBeforeEffect => GatewayErrorKind::ExecutorFailedBeforeEffect,
+        ExecutionError::OutcomeUnknown => GatewayErrorKind::EffectOutcomeUnknown,
     }
 }
 

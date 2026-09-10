@@ -135,11 +135,17 @@ pub trait ProtectedExecutor {
 }
 
 /// Non-policy execution failures. They carry no protected payload.
-#[derive(Debug, PartialEq, Eq, Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum ExecutionError {
     /// The protected executor rejected the authorized effect.
     #[error("protected executor rejected action")]
     Rejected,
+    /// Validation failed before the real effect was attempted.
+    #[error("protected effect failed before execution")]
+    FailedBeforeEffect,
+    /// The executor cannot determine whether the real effect committed.
+    #[error("protected effect outcome is unknown")]
+    OutcomeUnknown,
 }
 
 #[cfg(test)]
