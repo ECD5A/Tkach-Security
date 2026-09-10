@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["crates/tkach-core", "crates/tkach-gateway"]
+members = [
+    "crates/tkach-core",
+    "crates/tkach-gateway",
+    "crates/tkach-provider-openai",
+]
 exclude = ["fuzz"]
 
 [workspace.package]

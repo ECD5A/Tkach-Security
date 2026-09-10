@@ -1,0 +1,12 @@
+{
+  "id": "resp_fixture_unknown",
+  "object": "response",
+  "status": "completed",
+  "output": [
+    {
+      "type": "web_search_call",
+      "id": "search_fixture_1",
+      "status": "completed"
+    }
+  ]
+}

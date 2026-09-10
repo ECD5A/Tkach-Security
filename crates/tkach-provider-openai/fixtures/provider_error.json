@@ -1,0 +1,10 @@
+{
+  "id": "resp_fixture_error",
+  "object": "response",
+  "status": "failed",
+  "error": {
+    "code": "fixture_error",
+    "message": "provider failure"
+  },
+  "output": []
+}

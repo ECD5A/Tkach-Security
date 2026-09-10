@@ -122,7 +122,14 @@ impl Debug for ProviderRequest {
 }
 
 impl ProviderRequest {
-    pub(crate) fn new(inputs: Vec<ModelInput>, metadata: Vec<MetadataEntry>, turn: usize) -> Self {
+    /// Construct a provider request from already-bounded model inputs.
+    ///
+    /// This constructor creates only model DATA and a fixed tool vocabulary;
+    /// it cannot mint a Propusk, Decision, executor, broker, or trusted
+    /// security metadata. Gateway lifecycle code remains the only code that
+    /// can append tool results for a later turn.
+    #[must_use]
+    pub fn new(inputs: Vec<ModelInput>, metadata: Vec<MetadataEntry>, turn: usize) -> Self {
         Self {
             inputs,
             metadata,

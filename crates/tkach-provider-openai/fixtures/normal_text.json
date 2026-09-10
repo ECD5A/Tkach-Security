@@ -1,0 +1,21 @@
+{
+  "id": "resp_fixture_text",
+  "object": "response",
+  "status": "completed",
+  "output": [
+    {
+      "type": "message",
+      "id": "msg_fixture_text",
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "bounded fixture response",
+          "annotations": [],
+          "logprobs": []
+        }
+      ]
+    }
+  ]
+}

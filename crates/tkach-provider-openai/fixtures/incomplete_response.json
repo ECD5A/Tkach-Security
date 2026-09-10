@@ -1,0 +1,6 @@
+{
+  "id": "resp_fixture_incomplete",
+  "object": "response",
+  "status": "incomplete",
+  "output": []
+}

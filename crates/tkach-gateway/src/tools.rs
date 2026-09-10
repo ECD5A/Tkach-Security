@@ -354,6 +354,28 @@ pub fn secret_reveal_request() -> ActionRequest {
     )
 }
 
+/// Build the fixed Pechat-backed secret-use proposal.
+///
+/// The opaque handle identifies a broker operation; it never contains the
+/// broker-held secret value and is still only an untrusted `ActionRequest` until
+/// Krosna authorizes it.
+///
+/// # Panics
+///
+/// Panics only if the source-controlled fixed broker handle becomes invalid.
+#[must_use]
+pub fn secret_use_request() -> ActionRequest {
+    ActionRequest::new(
+        tkach_core::domain::Principal::Model,
+        Operation::Execute,
+        SecretHandle::new("github-prod")
+            .expect("static secret handle is valid")
+            .resource(),
+        Destination::SecretBroker,
+        CapabilityName::new("secret.use").expect("static capability is valid"),
+    )
+}
+
 /// Build a protected write proposal for lifecycle tests.
 ///
 /// # Panics

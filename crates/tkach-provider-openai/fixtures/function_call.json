@@ -1,0 +1,15 @@
+{
+  "id": "resp_fixture_call",
+  "object": "response",
+  "status": "completed",
+  "output": [
+    {
+      "type": "function_call",
+      "id": "fc_fixture_1",
+      "call_id": "call_fixture_1",
+      "name": "harmless_read",
+      "arguments": "{}",
+      "status": "completed"
+    }
+  ]
+}
