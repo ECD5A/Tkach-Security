@@ -56,7 +56,7 @@ bounded authenticated frame
 ```
 
 The workspace contains three provider-independent Rust boundary crates and
-three thin local adapters:
+four thin local adapters:
 
 - `tkach-core` — Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka,
   Klyuchnik, and Sled;
@@ -72,10 +72,13 @@ three thin local adapters:
   authority.
 - tkach-client - the bounded Rust client for the reviewed loopback HTTP
   contract; it adds no policy, authority, retry, or executor logic.
+- tkach-mcp - the bounded MCP stdio adapter exposing one delegated tkach_run
+  tool; it adds no Core policy or execution logic.
 
-There is no MCP adapter, streaming release API, public internet gateway, UI,
-cloud control plane, generic executor, or multi-language SDK in the current
-source surface. The Rust client is intentionally only a local HTTP adapter.
+There is no Streamable HTTP transport, streaming release API, public internet
+gateway, UI, cloud control plane, generic executor, or multi-language SDK in
+the current source surface. The MCP adapter is stdio-only and the Rust client
+is intentionally only a local HTTP adapter.
 These are current scope facts, not permanent constitutional prohibitions.
 
 ## Validation

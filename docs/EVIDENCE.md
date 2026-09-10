@@ -53,9 +53,10 @@ cargo run -p tkach-cli --offline -- --version
 cargo run -p tkach-cli --offline -- run --demo
 cargo test -p tkach-http --all-targets --all-features --locked --offline
 cargo test -p tkach-client --all-targets --all-features --locked --offline
+cargo test -p tkach-mcp --all-targets --all-features --locked --offline
 ```
 
-The current Windows MSVC debug/release workspace matrix contains 288 passing
+The current Windows MSVC debug/release workspace matrix contains 293 passing
 tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 
 | Suite | Tests |
@@ -69,6 +70,7 @@ tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 | CLI unit | 4 |
 | HTTP adapter | 10 |
 | Rust client | 6 |
+| MCP adapter | 5 |
 | Product proof | 14 |
 | Real effects | 13 |
 | OpenAI provider | 34 |
@@ -76,7 +78,7 @@ tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 
 The same suites pass in both debug and release profiles. The docs, packaging,
 Quickstart, CLI command smoke, HTTP adapter exchange tests, Rust client
-exchange tests, audit, deny,
+exchange tests, MCP lifecycle/tool tests, audit, deny,
 metadata, formatting, and clippy gates pass locally.
 The checked-in CI workflow now invokes the same metadata, debug/release test,
 documentation, package, and Quickstart gates; dependency audit and deny remain
@@ -154,6 +156,22 @@ This checkpoint does not claim a published crate, a multi-language SDK, TLS,
 process/OS isolation, public HTTP service, MCP server, signed artifact, or
 distribution release. Caller-owned request buffers and host memory remain
 outside the token-ownership claim.
+
+## Productization MCP checkpoint
+
+Status: PASS for the local stdio adapter. The tkach-mcp package implements the
+officially defined newline-delimited JSON-RPC stdio transport subset with
+initialize/initialized lifecycle, capability negotiation, ping, tools/list,
+and tools/call. It exposes exactly one bounded tkach_run tool and delegates
+execution to tkach-client; model/provider data remains subject to the
+existing HTTP, Gateway, and Core gates. IDs, messages, arguments, and emitted
+responses are bounded; malformed state, unknown fields, oversized lines,
+invalid IDs, and unsupported tools fail closed. Tool failures stay inside
+MCP tool results and no diagnostics are written to stdout.
+
+This checkpoint does not claim Streamable HTTP, TLS, process/OS isolation,
+human-consent enforcement inside the host, a public MCP service, Official MCP
+Registry publication, signed artifacts, or distribution release.
 
 ## Adversarial and mutation evidence
 

@@ -92,9 +92,9 @@ Tkach Security does not:
 - make the current OpenAI adapter a production gateway;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
-- provide streaming, MCP, Anthropic, multi-language SDK, UI, or cloud
-  orchestration in the current source surface; the Rust client is only a
-  local HTTP carrier.
+- provide streaming, Streamable HTTP, Anthropic, multi-language SDK, UI, or
+  cloud orchestration in the current source surface; the MCP implementation is
+  stdio-only and the Rust client is only a local HTTP carrier.
 - provide TLS, OS/process isolation, core-dump prevention, or protection from
   a same-privilege out-of-band application path.
 

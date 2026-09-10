@@ -117,6 +117,39 @@ model/provider output as trusted. The client is local-only: it is not TLS,
 process isolation, a public service, or an SDK for other languages. Those
 languages can use the same strict HTTP contract directly.
 
+## MCP stdio adapter — v0.1
+
+tkach-mcp is a separate protocol adapter over tkach-client. It implements the
+official [MCP 2025-06-18 stdio shape](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports):
+newline-delimited UTF-8 JSON-RPC,
+initialize/initialized lifecycle, ping, tools/list, and tools/call. It exposes
+one tool named tkach_run. The tool accepts request_id, lifecycle_id, and a
+strict Tkach Gateway request object; the adapter delegates the call exactly
+once to the configured local HTTP client.
+
+The adapter keeps MCP protocol data outside Core. It does not accept authority,
+Propusk, executor, broker, provider, or raw credentials as tool arguments.
+JSON-RPC IDs, input lines, arguments, and emitted responses are bounded;
+malformed messages and unknown fields fail closed; tool failures are returned
+inside an MCP tool result with a static diagnostic. stdout contains only
+newline-delimited JSON-RPC messages; diagnostics belong on stderr.
+
+The binary reads TKACH_HTTP_ADDR (default 127.0.0.1:8080) and the required
+TKACH_BEARER_TOKEN environment variable. Tokens are never accepted on command
+line arguments. The process must be paired with a separately configured local
+tkach-http listener:
+
+~~~text
+TKACH_HTTP_ADDR=127.0.0.1:8080
+TKACH_BEARER_TOKEN=trusted-runtime-token
+tkach-mcp
+~~~
+
+This is stdio only. It is not Streamable HTTP, TLS, process isolation, a
+public service, a replacement for human consent in the MCP host, or an Official
+MCP Registry publication. The host remains responsible for consent and for
+protecting its environment and subprocess.
+
 ## Public API contract — v0.1
 
 The supported Rust integration points are deliberately split by trust boundary:

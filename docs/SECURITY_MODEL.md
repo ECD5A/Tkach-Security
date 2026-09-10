@@ -98,9 +98,10 @@ bypassed Gateway, a fully compromised host/OS, or same-privilege out-of-band
 effects. It does not provide durable distributed exactly-once effects,
 forceful interruption of blocking synchronous calls, universal concurrent
 filesystem race prevention, TLS/process isolation, or host-memory zeroization.
-The current source has no MCP, multi-language SDK, streaming release, UI, cloud
-control plane, or public internet gateway. The Rust client is only a local
-HTTP carrier.
+The current source has no Streamable HTTP transport, multi-language SDK,
+streaming release, UI, cloud control plane, or public internet gateway. The
+MCP implementation is stdio-only and the Rust client is only a local HTTP
+carrier.
 
 ## Evidence boundary
 

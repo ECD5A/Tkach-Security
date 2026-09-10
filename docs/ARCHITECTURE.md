@@ -163,9 +163,9 @@ secret use. The narrow `RealEffectExecutor` additionally proves exact local
 filesystem and loopback effects; it has no model-controlled OS path, endpoint,
 HTTP path, or payload. Raw fake secret material stays in the broker;
 provider-visible results preserve Niti/Metka or are payload-free receipts. No
-generic executor, multi-language SDK, MCP, cloud control plane, or internet
-gateway exists in the current source surface; the Rust client remains a local
-HTTP carrier.
+generic executor, multi-language SDK, Streamable HTTP, cloud control plane, or
+internet gateway exists in the current source surface; the Rust client and MCP
+stdio adapter remain local carriers.
 
 ## Production runtime boundary
 
@@ -226,8 +226,8 @@ but cannot construct Decision/Propusk, call an executor, access Klyuchnik, or
 release output. The real provider path is therefore still subject to the same
 Krosna, Ruslo, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
 
-Responses streaming, provider-side tools, MCP, automatic retry, multi-language
-SDKs, and
+Responses streaming, provider-side tools, automatic retry, multi-language
+SDKs, Streamable HTTP, and
 production transport orchestration are not implemented in the current source
 surface. The Gateway contract is synchronous and buffers security-relevant
 output before release; no token-by-token release API exists in this baseline.
@@ -249,14 +249,14 @@ Ruslo, Gateway, and the provider boundary are intentional trust-boundary
 checks, not competing policy engines.
 
 `INTEGRATION.md` defines Basic Gateway, Controlled Agent, Sealed Agent, Local
-Authenticated Runtime, the narrow RealEffectExecutor profile, and the local
-Rust client carrier. The current source surface has no configuration DSL,
-provider abstraction layer, streaming event model, MCP layer, or internet
-gateway.
+Authenticated Runtime, the narrow RealEffectExecutor profile, the local Rust
+client carrier, and the MCP stdio carrier. The current source surface has no
+configuration DSL, provider abstraction layer, streaming event model,
+Streamable HTTP, or internet gateway.
 
 ## Current non-implemented surfaces
 
-Anthropic, MCP, cloud services, multi-language SDKs, dashboards, human approval services,
+Anthropic, Streamable HTTP, cloud services, multi-language SDKs, dashboards, human approval services,
 production gateway orchestration, TLS/process supervisor integration, and
 generic executors are not part of this baseline. The runtime listener is a
 narrow local frame boundary, not a claim of generic production readiness.
@@ -265,9 +265,10 @@ bans.
 
 ## Shape and dependency review
 
-The repository keeps six production crates with explicit ownership boundaries:
+The repository keeps seven production crates with explicit ownership boundaries:
 provider-independent core, Gateway orchestration/effects, the OpenAI provider
-adapter, CLI onboarding, loopback HTTP transport, and the bounded Rust client.
+adapter, CLI onboarding, loopback HTTP transport, bounded Rust client, and MCP
+stdio transport.
 The excluded `fuzz` package is tooling, not a product crate. No policy
 DSL, generic executor, multi-language provider SDK, or second policy engine is
 needed by the current contract.

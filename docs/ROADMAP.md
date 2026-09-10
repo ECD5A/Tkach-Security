@@ -8,9 +8,9 @@ and security evidence is in `EVIDENCE.md`.
 
 Compact documentation tree after the local `production-runtime-v0.1` baseline,
 trusted credential-ownership hardening, Strong Core checkpoint, v0.1 public API
-contract, bounded CLI onboarding adapter, local HTTP adapter, and thin Rust
-client. Productization is now active by owner direction; the Core remains
-frozen.
+contract, bounded CLI onboarding adapter, local HTTP adapter, thin Rust client,
+and MCP stdio adapter. Productization is now active by owner direction; the
+Core remains frozen.
 
 ## DONE
 
@@ -34,15 +34,18 @@ frozen.
 - Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
   including zeroizing token/header storage and response-framing regression
   tests.
+- Separate bounded tkach-mcp stdio adapter with lifecycle negotiation, one
+  explicit tkach_run tool, strict JSON-RPC limits, and no stdout diagnostics.
 - Loopback-only bounded HTTP/1.1 adapter over `RuntimeService`, with strict
   `/v1/run` and static `/healthz` contracts plus transport regression tests.
 
 ## NEXT
 
-The next productization cycle is a separately reviewed MCP adapter over the
-HTTP/runtime contract. It must not duplicate policy, authority, or execution
-logic. Distribution and external publication remain behind that contract and
-an owner decision.
+The next productization cycle is distribution and developer-experience
+hardening: package metadata, reproducible artifacts, CI release checks, and
+configuration diagnostics. It must not duplicate policy, authority, or
+execution logic. External publication remains behind that contract and an
+owner decision.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -51,8 +54,9 @@ complete the local validation matrix, update `CURRENT_BASELINE.md` and
 
 ## CURRENT SCOPE, NOT PERMANENT BANS
 
-The source currently has no MCP adapter, multi-language SDK, streaming release
-API, generic executor, public internet gateway, UI, cloud control plane,
+The source currently has no Streamable HTTP transport, multi-language SDK,
+streaming release API, generic executor, public internet gateway, UI, cloud
+control plane,
 TLS/process supervisor integration, durable distributed replay, or universal
 handle-relative filesystem transaction. A future boundary may be added only
 if it remains a thin adapter over the existing authority model and passes its
@@ -73,8 +77,8 @@ this order:
   notes, licensing, supply-chain and reproducible-build checks;
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing;
-- a separate MCP server/adapter and, only after current requirements are
-  researched and met, Official MCP Registry publication;
+- MCP stdio adapter (done); Streamable HTTP and, only after current
+  requirements are researched and met, Official MCP Registry publication;
 - production configuration, safe defaults, structured diagnostics, logging,
   health checks, integration examples, and final reliability/performance/
   security regression audit.
