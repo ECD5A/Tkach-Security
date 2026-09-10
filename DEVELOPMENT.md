@@ -489,4 +489,9 @@
   remains.
 - Fuzz hook is covered under `--all-features`; the OpenAI response target
   returns only parser acceptance and cannot create a network client.
+- Dependency gates: `cargo audit --no-fetch` reports no advisories. `cargo
+  deny check` passes advisories, bans, licenses, and sources after explicitly
+  allowing the ISC, BSD-3-Clause, and CDLA-Permissive-2.0 licenses required by
+  the selected rustls dependency chain; duplicate `syn`/`windows-sys`
+  versions remain warnings only.
 - Hardening commit: recorded after this validation cycle.
