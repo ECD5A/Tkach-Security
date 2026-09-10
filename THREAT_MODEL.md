@@ -8,6 +8,7 @@ the deterministic authority boundary, not the model's reasoning process.
 | Direct/indirect prompt injection | Policy and capabilities | Gnezdo data/control lanes | Content remains data; no authority transition | Natural language creates privilege |
 | Malicious web/RAG/document/email/tool/MCP data | Authority | Untrusted ingress to domain | Provenance and lane remain untrusted | Authority laundering |
 | Compromised model/agent | Protected actions/data | Action request to Krosna | Request alone is not Propusk | Raw request executes |
+| Model-controlled write/execute effect | Internal and protected destinations | Action-to-Diode source mapping | Non-read effects are model-originated | Model-to-Internal deny bypassed by resource-source confusion |
 | Capability escalation/scope widening | Resources | Propusk scope check | Deny outside exact scope | Parent/child confusion |
 | Exfiltration | Protected data | Diode/Zaslon egress | Directional flow denied | Read implies export |
 | Provenance/Metka stripping | Lineage/classification | Transformations | Conservative state retained | Originless or public output |
@@ -15,10 +16,12 @@ the deterministic authority boundary, not the model's reasoning process.
 | Malformed/ambiguous input | Policy state | Boundary validation | Reject or deny | Fail-open parse/evaluation |
 | Unicode/chunk/encoding bypass | Formal Zaslon rules | Canonicalization/matcher | Equivalent forms behave consistently | Representation bypass |
 | Intermediate stream release | Egress content | Zaslon stream lifecycle | `NeedMoreData` is not releasable; only explicit finish can clear | Partial scan treated as allow |
+| Post-finish stream extension | Finalized content decision | Zaslon stream lifecycle | Finished streams reject later input | Content appended after `Clear` |
 | Policy conflict/evaluation failure | Authorization | Krosna | Deterministic deny/restricted result | Failure becomes allow |
 | Logging leakage | Secret material | Sled/logging | Identifiers only | Payload in evidence |
 | Principal/provenance spoofing | Authority and flow decisions | Public context/wire boundary | Untrusted identity is model/data only; trusted provenance is not forgeable | Metadata changes policy or Diode route |
 | Originless derivation laundering | Classification and export controls | Gnezdo/Niti/Metka transforms | Unknown parent state remains Unknown | Empty parents become Public |
+| Secret-destination executor bypass | Broker-held secret | Propusk/ProtectedExecutor/Pechat | Any direct SecretBroker execution is rejected | Non-secret action reaches broker destination |
 | Resource exhaustion | Core availability and bounded state | Wire and collection boundaries | Oversized rules, lineage, content, model input, trace, and broker state reject | Allocation or indexing grows without bound |
 
 The table is a living summary; each completed mandate adds executable coverage
@@ -27,7 +30,8 @@ asserts that diagnostic formatting does not echo untrusted or broker-held
 payloads and that streaming normalization cannot be bypassed at chunk seams or
 released before finalization. Public metadata constructors are also exercised
 to ensure a caller cannot relabel model data as trusted or protected source
-material.
+material. Sled identifiers remain bounded metadata rather than raw payload, but
+their exposure to a hostile model is a documented residual side-channel risk.
 
 The enforcement testbed exercises this table without a real model, network, or
 provider: hostile typed proposals are evaluated by Krosna, every decision is

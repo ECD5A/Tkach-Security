@@ -252,6 +252,7 @@ impl Zaslon {
             direction,
             matchers,
             blocked: None,
+            finished: false,
             has_content: false,
             pending_space: false,
             input_bytes: 0,
@@ -323,6 +324,7 @@ pub struct ZaslonStream {
     direction: FlowDirection,
     matchers: Vec<ContentMatcher>,
     blocked: Option<ContentVerdict>,
+    finished: bool,
     has_content: bool,
     pending_space: bool,
     input_bytes: usize,
@@ -345,6 +347,14 @@ impl ZaslonStream {
     pub fn push_chunk(&mut self, chunk: &str) -> ContentVerdict {
         if let Some(verdict) = &self.blocked {
             return verdict.clone();
+        }
+        if self.finished {
+            let verdict = ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            };
+            self.blocked = Some(verdict.clone());
+            return verdict;
         }
         if chunk.is_empty() {
             return ContentVerdict::NeedMoreData;
@@ -410,6 +420,7 @@ impl ZaslonStream {
             self.blocked = Some(verdict.clone());
             return verdict;
         }
+        self.finished = true;
         ContentVerdict::Clear
     }
 
@@ -559,7 +570,7 @@ mod tests {
             &format!("forbidden {sensitive_marker}"),
         )
         .unwrap();
-        let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
+        let zaslon = Zaslon::new(Vec::new(), vec![rule.clone()]).unwrap();
         let mut stream = zaslon.stream(FlowDirection::Egress);
         assert_eq!(
             stream.push_chunk(&format!("prefix {sensitive_marker}")),
@@ -571,6 +582,11 @@ mod tests {
             !format!("{:?}", CanonicalText::new(sensitive_marker).unwrap())
                 .contains(sensitive_marker)
         );
+        let matcher = ContentMatcher::from_rule(&rule);
+        let matcher_debug = format!("{matcher:?}");
+        assert!(matcher_debug.contains("ContentMatcher"));
+        assert!(matcher_debug.contains("REDACTED"));
+        assert!(!matcher_debug.contains(sensitive_marker));
     }
 
     #[test]

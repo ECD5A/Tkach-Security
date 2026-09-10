@@ -11,8 +11,10 @@ Zaslon provides sorted, unique action hard-deny rules and formal content rules.
 Its canonicalizer uses only ASCII lowercase and ASCII-space folding; controls,
 non-ASCII (including zero-width and bidi), backslash escapes, and empty/oversize
 values are rejected. Its streaming matcher retains a suffix so a forbidden
-sequence cannot be bypassed by chunking. Zaslon reports ingress and egress
-separately and can be installed ahead of Krosna policy.
+sequence cannot be bypassed by chunking. A stream is non-releasable until
+explicit `finish()` and becomes terminal after a clear result; post-finish
+input is denied. Zaslon reports ingress and egress separately and can be
+installed ahead of Krosna policy.
 
 Krosna applies these gates in a fixed order: invalid principal/context,
 unknown operation or destination, trusted-control requirements, protected
@@ -95,8 +97,11 @@ destination, flow operation, provenance, and classification. It has fixed effect
 precedence and default denial; unknown endpoints/operations and protected
 export to `PublicExternal` are denied. Public tagged-data mapping fixes the
 source as `Model` and copies Niti/Metka, while Krosna's context mapper is
-crate-private. Thus `READ` into model context is not an inferred `EXPORT`, and
-reverse/onward edges require their own rules.
+crate-private. Action mapping treats a resource read/reveal as resource-origin
+and every model-controlled write, execute, network, declassification, or policy
+effect as model-origin; a model-to-internal deny therefore cannot be bypassed by
+a write mislabeled as resource-origin. Thus `READ` into model context is not an
+inferred `EXPORT`, and reverse/onward edges require their own rules.
 
 Pechat exposes only validated `SecretHandle` values to model-facing code. The
 fake broker stores raw bytes in a private non-serializable `SecretValue`, bounds
@@ -108,12 +113,18 @@ Sled records bounded, trace-local decision IDs alongside the existing typed
 evidence and serializes only those payload-free records. The enforcement
 testbed models hostile proposals, sends allowed non-secret effects through a
 `ProtectedExecutor`, and routes an authorized secret-use effect through Pechat;
-missing broker or token conversion fails closed.
+missing broker or token conversion fails closed. The fake executor also rejects
+any direct `SecretBroker` destination, even if a malformed or non-secret
+authorized action reaches that defense-in-depth boundary.
 
 Independent composition tests exercise Gnezdo, Zaslon, Propusk, Diode,
 Niti/Metka, Pechat, and Sled together. They include detection-independent and
 multiple-defense-failure scenarios; no heuristic result is treated as an
-authority input.
+authority input. In-crate and integration oracle suites independently enumerate
+authority/lane, capability/scope, classification/destination, flow direction,
+secret-handle, unknown-state, and public-API combinations. Serialization of
+model-readable data is not itself an egress permit; release adapters remain
+responsible for applying the directional and content gates.
 
 ## Future, not implemented
 

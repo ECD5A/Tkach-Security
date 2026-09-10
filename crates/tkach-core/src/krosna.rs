@@ -563,7 +563,8 @@ mod tests {
     use super::*;
     use crate::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
     use crate::domain::{
-        Classification, Identity, Provenance, ProvenanceSource, Resource, ResourceId, ResourceKind,
+        CapabilityName, Classification, Identity, Provenance, ProvenanceSource, Resource,
+        ResourceId, ResourceKind,
     };
     use crate::zaslon::{ActionRule, Zaslon};
     use proptest::prelude::*;
@@ -914,6 +915,156 @@ mod tests {
             Krosna::new(policy).evaluate(&fixture_context(Classification::Public), &request);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::UnknownDenied);
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn known_capability_table_is_exact_for_each_operation() {
+        let cases = [
+            (
+                Operation::Read,
+                ResourceKind::File,
+                "file.read",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Read,
+                ResourceKind::Database,
+                "database.read",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Read,
+                ResourceKind::File,
+                "database.read",
+                Destination::Model,
+                false,
+            ),
+            (
+                Operation::Write,
+                ResourceKind::File,
+                "file.write",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Write,
+                ResourceKind::Database,
+                "database.write",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Write,
+                ResourceKind::File,
+                "database.write",
+                Destination::Model,
+                false,
+            ),
+            (
+                Operation::Execute,
+                ResourceKind::Tool,
+                "tool.execute",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Execute,
+                ResourceKind::Secret,
+                "secret.use",
+                Destination::SecretBroker,
+                true,
+            ),
+            (
+                Operation::Execute,
+                ResourceKind::Secret,
+                "secret.use",
+                Destination::Model,
+                false,
+            ),
+            (
+                Operation::Execute,
+                ResourceKind::Tool,
+                "secret.use",
+                Destination::SecretBroker,
+                false,
+            ),
+            (
+                Operation::NetworkSend,
+                ResourceKind::Network,
+                "network.send",
+                Destination::PublicExternal,
+                true,
+            ),
+            (
+                Operation::NetworkSend,
+                ResourceKind::File,
+                "network.send",
+                Destination::PublicExternal,
+                false,
+            ),
+            (
+                Operation::RevealSecret,
+                ResourceKind::Secret,
+                "secret.reveal",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::RevealSecret,
+                ResourceKind::Secret,
+                "secret.use",
+                Destination::Model,
+                false,
+            ),
+            (
+                Operation::Declassify,
+                ResourceKind::File,
+                "data.declassify",
+                Destination::Model,
+                true,
+            ),
+            (
+                Operation::Declassify,
+                ResourceKind::File,
+                "file.read",
+                Destination::Model,
+                false,
+            ),
+            (
+                Operation::MutatePolicy,
+                ResourceKind::Policy,
+                "policy.mutate",
+                Destination::Internal(Identity::new("control").unwrap()),
+                true,
+            ),
+            (
+                Operation::MutatePolicy,
+                ResourceKind::File,
+                "policy.mutate",
+                Destination::Internal(Identity::new("control").unwrap()),
+                false,
+            ),
+            (
+                Operation::Unknown(CapabilityName::new("future.op").unwrap()),
+                ResourceKind::Unknown,
+                "future.op",
+                Destination::Model,
+                false,
+            ),
+        ];
+        for (operation, kind, capability, destination, expected) in cases {
+            let request = ActionRequest::new(
+                Principal::Model,
+                operation,
+                Resource::new(kind, ResourceId::new("oracle-resource").unwrap()),
+                destination,
+                CapabilityName::new(capability).unwrap(),
+            );
+            assert_eq!(is_known_capability(&request), expected, "{request:?}");
+        }
     }
 
     #[test]

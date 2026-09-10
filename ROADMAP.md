@@ -16,7 +16,9 @@ repository, not future product marketing.
 - DONE — Mandate 10: composition testing.
 - DONE — Mandate 11: core red team and adversarial parser/authority review.
 - DONE — Mandate 12: production-oriented core hardening.
-- DONE — Strong Core Checkpoint (2026-09-10; 60 conditions reviewed).
+- DONE — Strong Core Hardening Round 2 (2026-09-10; mutation, oracle, and
+  cross-primitive review completed).
+- DONE — Strong Core Checkpoint re-run (2026-09-10; 60 conditions reviewed).
 - CURRENT — Owner review of the completed Strong Core.
 - DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
   post-checkpoint product work.

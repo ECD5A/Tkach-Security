@@ -224,7 +224,9 @@ impl ProtectedExecutor for FakeProtectedExecutor {
             return Err(ExecutionError::Rejected);
         }
         let request = action.request();
-        if request.capability().as_str() == "secret.use" {
+        if request.destination() == &Destination::SecretBroker
+            || request.capability().as_str() == "secret.use"
+        {
             return Err(ExecutionError::Rejected);
         }
         let receipt = ExecutionReceipt {
@@ -499,10 +501,7 @@ impl EnforcementTestbed {
                 })?;
 
             if request.destination() == &Destination::SecretBroker {
-                if request.operation() != &Operation::Execute
-                    || request.resource().kind() != ResourceKind::Secret
-                    || request.capability().as_str() != "secret.use"
-                {
+                if !is_valid_broker_route(request) {
                     return Err(TestbedError::InvalidBrokerRoute);
                 }
                 let broker = broker.ok_or(TestbedError::BrokerRequired)?;
@@ -524,6 +523,12 @@ fn resource(kind: ResourceKind, id: &str) -> Resource {
         kind,
         ResourceId::new(id).expect("static testbed resource is valid"),
     )
+}
+
+pub(crate) fn is_valid_broker_route(request: &ActionRequest) -> bool {
+    request.operation() == &Operation::Execute
+        && request.resource().kind() == ResourceKind::Secret
+        && request.capability().as_str() == "secret.use"
 }
 
 fn action(

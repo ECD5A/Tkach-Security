@@ -452,20 +452,29 @@ pub(crate) fn flow_from_action(
         Operation::Read if request.destination() == &Destination::PublicExternal => {
             FlowOperation::Export
         }
-        Operation::Read => FlowOperation::Read,
+        Operation::Read | Operation::RevealSecret => FlowOperation::Read,
         Operation::NetworkSend => FlowOperation::Export,
         Operation::Unknown(_) => FlowOperation::Unknown,
-        Operation::Write
-        | Operation::Execute
-        | Operation::RevealSecret
-        | Operation::Declassify
-        | Operation::MutatePolicy => FlowOperation::Transfer,
+        Operation::Write | Operation::Execute | Operation::Declassify | Operation::MutatePolicy => {
+            FlowOperation::Transfer
+        }
     };
     FlowRequest::from_context(
         context,
         match request.operation() {
-            Operation::NetworkSend => FlowSource::Model,
-            _ => FlowSource::Resource(request.resource().clone()),
+            // Reads model a resource-to-destination edge. Every other
+            // model-controlled effect starts at the model side of the
+            // boundary; treating a write/execute as resource-originated would
+            // let a Model->Internal deny rule miss it.
+            Operation::Read | Operation::RevealSecret => {
+                FlowSource::Resource(request.resource().clone())
+            }
+            Operation::NetworkSend
+            | Operation::Write
+            | Operation::Execute
+            | Operation::Declassify
+            | Operation::MutatePolicy
+            | Operation::Unknown(_) => FlowSource::Model,
         },
         request.destination().clone(),
         operation,

@@ -230,11 +230,10 @@
   tool versions and an immutable checkout action reference in CI.
 - Commit: `a59f693` (`hardening: bound inputs and close public metadata routes`).
 
-## Strong Core Checkpoint
+## Strong Core Checkpoint — Candidate #1 historical
 
-- Result: passed on 2026-09-10 after the M12 hardening cycle. All 60 checkpoint
-  conditions are substantially satisfied for the implemented provider-
-  independent core; owner review is now required before product expansion.
+- Result: Candidate #1 passed on 2026-09-10 after the M12 hardening cycle. The
+  checkpoint was intentionally re-opened for Strong Core Hardening Round 2.
 - Validation: `cargo fmt --all -- --check`, clippy with warnings denied,
   `cargo test --all --locked`, `cargo test --all --release --locked`, fuzz
   binary compile-check, `cargo audit`, and `cargo deny check` all pass.
@@ -246,3 +245,38 @@
   `LNK1561` missing entry point; the binaries compile and Linux CI runs the
   100-run smoke target.
 - Final state: local commits only; no remote push was performed.
+
+## Strong Core Hardening Round 2
+
+- Scope: local hardening on the frozen `strong-core-candidate-1` tag at
+  `7d555cb`; no provider, MCP, SDK, gateway, UI, cloud, or integration work.
+- Design and fixes: action-to-Diode mapping now treats every model-controlled
+  non-read effect as model-originated; the fake protected executor rejects any
+  direct `SecretBroker` destination; and `ZaslonStream` is terminal after a
+  successful finish. A misleading composition helper was corrected so its
+  oracle no longer pretended to vary classification.
+- Independent tests: the crate now has 104 unit tests, 9 composition tests,
+  and 9 independent integration-oracle tests. In-crate truth tables cover
+  authority/lane, capability/scope, classification/destination, direction,
+  secret handles, unknown states, public APIs, exact bounds, and malformed wire
+  values. Integration tests independently exercise public construction paths.
+- Mutation testing: `cargo mutants --package tkach-core --jobs 1 --no-times`
+  completed 426 mutants with 293 caught, 132 unviable, and one equivalent
+  survivor. The survivor replaces `Zaslon::empty()` with `Default::default()`;
+  `Zaslon` derives `Default`, so the behavior is identical. Earlier semantic
+  survivors for bounded strings, capability recognition, secret redaction, and
+  route conditions were closed with direct tests and rerun successfully.
+- Public API review: no public constructor mints trusted authority, a
+  `Propusk`, a secret value, or an arbitrary flow source. Public model roots
+  normalize to conservative metadata; tagged-data flows fix source to Model;
+  broker values remain private and non-serializable.
+- Residual risks: model-readable generic serialization is not an egress permit;
+  adapters must run Diode/Zaslon before external release. Sled evidence is
+  bounded typed metadata, not raw payload, but hostile-model trace exposure can
+  remain a metadata side channel. Windows MSVC cannot execute the libFuzzer
+  binary because of the known linker entry-point limitation; Linux CI retains
+  the smoke target.
+- Security scan: the Round 2 Standard Security Scan was launched with id
+  `9f1895db-2b61-466c-b1c2-fb898567643e`; its last observed state was still
+  preflight with zero findings, so it is not represented as a completed scan.
+- Commit: recorded after the complete validation gate for this round.

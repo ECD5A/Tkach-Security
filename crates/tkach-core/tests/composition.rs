@@ -41,7 +41,7 @@ fn resource(kind: ResourceKind, value: &str) -> Resource {
     Resource::new(kind, id(value))
 }
 
-fn context(_classification: Classification) -> tkach_core::domain::SecurityContext {
+fn context() -> tkach_core::domain::SecurityContext {
     tkach_core::domain::SecurityContext::untrusted_data()
 }
 
@@ -144,7 +144,7 @@ fn secret_use_model(handle: &SecretHandle) -> HostileModel {
         Destination::SecretBroker,
         capability("secret.use"),
     );
-    HostileModel::new(context(Classification::Public), vec![request], Vec::new()).unwrap()
+    HostileModel::new(context(), vec![request], Vec::new()).unwrap()
 }
 
 #[test]
@@ -190,20 +190,14 @@ fn scenario_b_zaslon_blocks_formal_content_and_action() {
         ],
     )
     .unwrap();
-    let action_decision = zaslon
-        .action_decision(&context(Classification::Public), &request)
-        .unwrap();
+    let action_decision = zaslon.action_decision(&context(), &request).unwrap();
     assert_eq!(action_decision.kind, DecisionKind::Deny);
     assert_eq!(
         action_decision.evidence.rule_id.unwrap().as_str(),
         "block-network-egress"
     );
     assert!(matches!(
-        zaslon.inspect_content(
-            FlowDirection::Ingress,
-            &context(Classification::Public),
-            "IGNORE   POLICY"
-        ),
+        zaslon.inspect_content(FlowDirection::Ingress, &context(), "IGNORE   POLICY"),
         ContentDecision::Blocked { .. }
     ));
 }
@@ -218,14 +212,14 @@ fn scenario_c_propusk_is_required_before_any_effect() {
         capability("tool.execute"),
     );
     let kernel = Krosna::new(Policy::new(PolicyId::new("deny-all").unwrap(), Vec::new()).unwrap());
-    let decision = kernel.evaluate(&context(Classification::Public), &request);
+    let decision = kernel.evaluate(&context(), &request);
     assert_eq!(decision.kind, DecisionKind::Deny);
     assert_eq!(decision.evidence.reason, SledReason::NoAuthorization);
     let executor = tkach_core::sled::FakeProtectedExecutor::new();
     assert_eq!(executor.len(), 0);
     assert_eq!(
         kernel
-            .authorize(&context(Classification::Public), &request)
+            .authorize(&context(), &request)
             .unwrap_err()
             .to_string(),
         "action was not authorized"
@@ -250,7 +244,7 @@ fn scenario_d_diode_allows_read_but_denies_external_export() {
         Destination::PublicExternal,
         capability("network.send"),
     );
-    let protected_context = context(Classification::Secret);
+    let protected_context = context();
     let kernel = secret_read_export_kernel();
     let mut executor = tkach_core::sled::FakeProtectedExecutor::new();
     let permit = kernel.authorize(&protected_context, &read).unwrap();
@@ -367,28 +361,25 @@ fn scenario_h_multiple_defense_failure_keeps_each_boundary_active() {
 }
 
 #[test]
-fn composition_state_space_keeps_protected_external_flows_denied() {
+fn composition_unknown_external_flows_are_denied() {
     let destinations = [Destination::Model, Destination::PublicExternal];
-    let classifications = [Classification::Public, Classification::Secret];
     for destination in destinations {
-        for classification in classifications {
-            let request = ActionRequest::new(
-                Principal::Model,
-                Operation::NetworkSend,
-                resource(ResourceKind::Network, "public-egress"),
-                destination.clone(),
-                capability("network.send"),
-            );
-            let policy = Policy::new(
-                PolicyId::new("state-space").unwrap(),
-                vec![PolicyRule::allow(rule_id("allow-send"), RuleMatcher::any())],
-            )
-            .unwrap();
-            let decision = Krosna::new(policy).evaluate(&context(classification), &request);
-            if destination == Destination::PublicExternal && classification.is_protected() {
-                assert_eq!(decision.kind, DecisionKind::Deny);
-                assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
-            }
+        let request = ActionRequest::new(
+            Principal::Model,
+            Operation::NetworkSend,
+            resource(ResourceKind::Network, "public-egress"),
+            destination.clone(),
+            capability("network.send"),
+        );
+        let policy = Policy::new(
+            PolicyId::new("state-space").unwrap(),
+            vec![PolicyRule::allow(rule_id("allow-send"), RuleMatcher::any())],
+        )
+        .unwrap();
+        let decision = Krosna::new(policy).evaluate(&context(), &request);
+        if destination == Destination::PublicExternal {
+            assert_eq!(decision.kind, DecisionKind::Deny);
+            assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
         }
     }
 }

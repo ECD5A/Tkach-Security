@@ -44,3 +44,6 @@ pub mod sled;
 
 /// Deterministic ingress/egress hard-deny boundary and formal matcher.
 pub mod zaslon;
+
+#[cfg(test)]
+mod independent_oracles;

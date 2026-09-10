@@ -285,6 +285,10 @@ mod tests {
     #[test]
     fn model_sees_only_opaque_handle_and_broker_debug_is_redacted() {
         let handle = handle();
+        assert_eq!(
+            format!("{:?}", SecretValue(b"actual-secret-value".to_vec())),
+            "SecretValue(REDACTED)"
+        );
         let mut broker = FakeBroker::new();
         broker
             .register(handle.clone(), b"actual-secret-value".to_vec())
