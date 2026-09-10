@@ -148,8 +148,9 @@ is started and no existing scan is canceled.
 The current phase is the local Strong Core / bounded Gateway release
 checkpoint after runtime and credential-ownership hardening. The next
 engineering boundary is selected from residual risks and integration evidence
-in `ROADMAP.md`; no speculative provider, SDK, UI, cloud, or MCP implementation
-is implied by this baseline.
+in `ROADMAP.md`. Productization / Distribution / DX is recorded there as a
+reserved post-Strong-Release phase, not active work in this baseline; no
+speculative provider, SDK, UI, cloud, or MCP implementation is implied here.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering
