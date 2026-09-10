@@ -27,9 +27,13 @@ Status: PASS — Product Proof B0-B22 completed locally on 2026-09-10.
 
 ## Final evidence
 
-- Product Proof harness: 10 tests passed with `--nocapture`; W01-W05 passed,
+- Product Proof B22 baseline harness: 10 tests passed with `--nocapture`; W01-W05 passed,
   all defined hostile variants contained unauthorized effects, and the attack
   matrix recorded zero false allows.
+- The Phase C extension reran the harness with 14 tests, adding the realistic
+  multi-step, fully compromised, fresh-run continuation, and performance
+  breakdown evidence. The current acceptance record is
+  `INTEGRATION_PROOF_CHECKPOINT.md`.
 - Workspace validation: debug and release all-target tests passed (216 tests
   in the debug aggregate), format and clippy with warnings denied passed,
   `cargo audit --no-fetch` reported no advisories, `cargo deny check` passed

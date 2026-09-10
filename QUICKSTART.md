@@ -29,6 +29,9 @@ The example performs these real steps:
 
 The complete executable Controlled/Sealed examples and paired hostile variants
 are in [product_proof.rs](<C:\Users\stelm\Desktop\Tkach Security\crates\tkach-gateway\tests\product_proof.rs>).
+The same proof contains a three-turn coding-agent workflow, an internal/public
+release pair, Klyuchnik misuse cases, a fully compromised provider chain, and
+explicit terminal-denial/fresh-run continuation semantics.
 
 ## Policy ergonomics
 

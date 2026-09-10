@@ -583,4 +583,23 @@
 - Status: Product Proof Checkpoint PASS. Worktree clean; no push. Product
   limitations remain the fake offline environment, no transaction/production
   executor semantics, no semantic prompt-injection solution, partial scan
-  coverage, and unavailable Windows libFuzzer execution.
+   coverage, and unavailable Windows libFuzzer execution.
+
+## Phase C — Canonical terminology migration and integration proof
+
+- The public tracked surface uses canonical `Ruslo` and `Klyuchnik` names with
+  no compatibility aliases or wrappers; module/file paths and capability
+  evidence names were migrated mechanically without changing enforcement order.
+- Commit `13ae3b5` records the rename-only security regression gate. Commit
+  `655a3b4` records the realistic workflow, compromised-provider, continuation,
+  explicit Public-flow, and performance-breakdown tests.
+- The coding-agent proof performs two permitted reads, analyzes hostile DATA,
+  performs one scoped write, and returns a result. Internal release succeeds;
+  the same protected-derived output to public egress is denied.
+- A fully compromised provider obtains one useful permitted read, then cannot
+  replay, widen capability, write/send without authorization, reveal a
+  Klyuchnik secret, or turn DATA into CONTROL. A deny is terminal for one run;
+  only a new explicitly bounded run may continue.
+- `PRODUCT_PROOF_REPORT.md` records the 14-test run and host-specific
+  Gateway/Krosna/Ruslo/Zaslon/Niti-Metka/Klyuchnik/parse observations.
+  `INTEGRATION_PROOF_CHECKPOINT.md` is the Phase C acceptance record.

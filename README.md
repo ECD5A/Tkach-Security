@@ -57,6 +57,11 @@ integration surface is typed Rust, not a stable SDK.
 - `DEVELOPMENT.md` — concise engineering continuity record.
 - `Tkach Security — MASTER_MANDATE.md` — permanent engineering constitution.
 
+The current integration proof uses only the canonical primitive names `Ruslo`
+and `Klyuchnik`; the former names are intentionally absent from the tracked
+source and documentation surface. See `INTEGRATION_PROOF_CHECKPOINT.md` for
+the Phase C evidence.
+
 ## Validation
 
 ```text

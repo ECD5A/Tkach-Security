@@ -43,6 +43,15 @@ or release function.
    reason surface. Do not turn model text into an authorization explanation.
 8. Release `GatewayResult::output()` only after the Gateway returns success.
 
+### Denial and continuation semantics
+
+A denied action, failed final gate, malformed provider turn, timeout, or
+cancellation is terminal for that `Gateway::run` lifecycle. The provider is not
+silently resumed and staged output/effects are not released. An application may
+start a new explicitly bounded run with a new request and provider if its own
+workflow permits that choice; this is a new lifecycle, not a continuation that
+inherits denied authority or staged state.
+
 ## Capability and destination model
 
 An integrator needs to understand four operational concepts:

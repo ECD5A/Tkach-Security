@@ -6,6 +6,10 @@ probabilistic or compromised models.
 > Assume the model is compromised. Tkach limits what the compromised model can
 > actually do.
 
+> Tkach Security assumes the model may be compromised and deterministically
+> limits unauthorized actions, protected information flows, and brokered-secret
+> access when protected effects are routed through its enforcement boundary.
+
 This contract describes guarantees only when the deployment conditions below
 hold. It is intentionally shorter than the implementation and threat-model
 documents.

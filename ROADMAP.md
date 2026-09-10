@@ -47,5 +47,9 @@ repository, not future product marketing.
   paired legitimate/hostile workloads, attack matrix, Basic/Controlled/Sealed
   evidence, Quickstart, performance observation, security review, checkpoint,
   and local tag `product-proof-v0.1`.
-- DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway
-  transport.
+- DONE — Phase C Canonical Terminology Migration + Integration Proof
+  (2026-09-10): canonical naming migration completed without aliases, realistic
+  multi-step workflows, compromised-provider utility proof, misuse/continuation
+  checks, canonical value map, performance breakdown, and integration
+  checkpoint at local tag `integration-proof-v0.1`.
+- DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway transport.

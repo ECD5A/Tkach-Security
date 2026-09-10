@@ -1,30 +1,30 @@
 # Security Value Map
 
-This map distinguishes real enforcement from supporting state, diagnostics,
-and integration infrastructure. It is the A12 architectural evidence table.
+This is the canonical value map for the nine Tkach security primitives. Each
+row names the threat, the invariant that must hold, a realistic workload that
+exercises it, and the concrete security consequence of removing it. Gateway
+and provider adapters are integration boundaries, not substitute primitives.
 
-| Component | Threat | Invariant | Enforcement point | Failure if removed | Category |
+| Primitive | Threat | Invariant | Realistic workload | What breaks if removed | Classification |
 | --- | --- | --- | --- | --- | --- |
-| Krosna | Model or caller requests an unauthorized effect | Only deterministic policy can authorize a typed action | `Krosna::evaluate` / `authorize`; hard-deny and default-deny ordering | Unauthorized action can become a `Propusk` | Required enforcement |
-| Propusk | Raw request reaches an executor or scope is widened | Execution requires a kernel-issued exact-scope authority | Private `AuthorizedAction` construction and `ProtectedExecutor::execute` | Caller can invoke protected effects without proof of authorization | Required enforcement |
-| Ruslo | Protected data is exported or a direction is confused | READ, EXPORT, and TRANSFER are separate directed decisions | `Ruslo::evaluate` plus Gateway final flow gate | Protected-derived output can cross an allowed-looking public route | Required enforcement |
-| Zaslon | Formal blocked content/action is smuggled through normalization or chunks | Configured formal representation is denied consistently and streams finish explicitly | Canonical matcher, action rules, `ZaslonStream` | Rule bypass or premature/partial release becomes possible | Required enforcement |
-| Klyuchnik broker | Model sees or reveals raw credential material | Secrets stay broker-side; use requires exact route and reveal is denied | `SecretHandle`, `SecretBroker`, exact `secret.use` Krosna route | Raw secret disclosure or uncontrolled secret use | Required enforcement |
-| Gnezdo | Instructions/data impersonate trusted control | Untrusted content is DATA/None/Untrusted and cannot promote itself | `Gnezdo::contain`, validated `SecurityContext`, absent public promotion | Prompt injection can become authority by representation change | Required security state |
-| Niti | Derived output loses source lineage | Every supported derivation retains bounded parent provenance | `Provenance::derived_from`, `Niti`, `TaggedData` | Ruslo and diagnostics can no longer distinguish protected origin | Supporting security state |
-| Metka | Model or transformation lowers sensitivity | Classification join is monotonic; declassification needs trusted permit | `Metka::join`, `TaggedData`, private permit issuance | Protected data can be relabeled public | Supporting security state |
-| Sled | Denials/effects become unauditable or logs leak payloads | Evidence is bounded, typed, payload-free, and not authority | `SledTrace` records kernel `Decision` only | Integration failures lose explainability or developers add unsafe logging | Diagnostic |
-| Gateway | Provider failure, batch ordering, or output path bypasses Core | Stage first, authorize all, execute in order, release last | `Gateway::run`, lifecycle state, staging and final gates | Partial protected effects or unvetted output can escape | Required integration infrastructure |
-| OpenAI adapter | Hostile provider wire data or credential routing bypasses Gateway | Provider data maps only to bounded proposals and trusted transport config | Strict wire parser, bounded transport, fixed tools, replay checks | Unknown provider objects or credentials can cross the adapter boundary | Supporting integration infrastructure |
+| Krosna | A model proposal or caller requests an unauthorized effect | Only deterministic policy with fixed hard-deny precedence can authorize a typed action | Coding-agent read plus exact project write; hostile scope/public-write proposal | Unauthorized proposals can become authority or policy order can be bypassed | Required enforcement |
+| Propusk | A raw request reaches an executor or widens its scope | Execution accepts only kernel-issued authority bound to principal, operation, capability, resource, and destination | Approved file write and Klyuchnik use reach a fake executor only as scoped tokens | An executor or adapter can invoke protected effects from an untrusted request | Required enforcement |
+| Ruslo | Protected information is exported or direction is confused | READ, EXPORT, and TRANSFER are separate directed decisions carrying provenance and classification | Internal protected summary succeeds; public export is denied; explicit Public export is independently allowed | Read can imply export, reverse routes can be inferred, or protected data can cross egress | Required enforcement |
+| Zaslon | Formal blocked content/action is smuggled through normalization or chunk seams | Canonical hard-deny rules and terminal stream decisions are deterministic | Cross-chunk egress block prevents a staged write/release | A formal deny pattern or action block can be bypassed at representation/lifecycle seams | Required enforcement |
+| Gnezdo | Instructions or imported documents impersonate trusted control | Untrusted content remains bounded DATA with no public promotion path to authority | Hostile issue text is analyzed while authority-forgery/DATA-to-CONTROL text creates no effect | Prompt injection can change representation and enter a control path | Required security state |
+| Niti | Derived output loses its source lineage | Supported derivations retain bounded parent provenance and unknown state is conservative | Protected read and follow-up tool result retain origin through model/provider turns | Ruslo, Metka, and evidence can no longer distinguish protected origin | Supporting security state |
+| Metka | A model or transformation relabels protected data as public | Classification joins monotonically; lowering needs a trusted opaque permit | Protected summary remains protected at the public-release gate | Protected data can be relabeled and exported by a model claim | Supporting security state |
+| Klyuchnik | A model sees or reveals raw credential material | Secrets stay broker-side; exact `secret.use` is the only usable route and reveal is denied | Sealed agent uses an opaque handle, receives a receipt, and cannot reveal/export raw bytes | Credentials can enter model context, diagnostics, or an uncontrolled executor | Required enforcement |
+| Sled | Denials/effects are unauditable or diagnostics leak payloads | Evidence is bounded, typed, payload-free, and never an authority input | Attack matrix reports denial reason/effect counts without fake secret or hostile payload | Operators lose safe diagnosis or add unsafe logging that becomes an exfiltration path | Diagnostic security state |
 
 ## Composition conclusion
 
 The minimum physical enforcement core is Krosna + Propusk + Ruslo + Zaslon +
 Klyuchnik's broker boundary. Gnezdo, Niti, and Metka are not redundant labels:
-they carry different state consumed by those gates. Sled is not an enforcement
-primitive, but removing it would make safe integration and deny diagnosis
-meaningfully weaker. Gateway and the OpenAI adapter are integration boundaries,
-not alternate policy engines.
+they carry different data/control, lineage, and sensitivity state consumed by
+those gates. Sled is not an authorization primitive, but removing it weakens
+safe integration and deny diagnosis. Gateway owns lifecycle ordering and final
+release; it does not replace any primitive or create a second policy engine.
 
-The map supports the three API-pruning removals in
-`PRIMITIVE_REVIEW.md`; none of those removals deletes a row above.
+The workload column is evidence from the offline Product Proof harness, not a
+claim that a fake executor models production transactions or a live provider.
