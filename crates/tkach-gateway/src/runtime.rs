@@ -1232,6 +1232,28 @@ mod tests {
     }
 
     #[test]
+    fn outcome_unknown_is_a_terminal_uncertain_receipt_not_a_retry_instruction() {
+        let error = GatewayError::new(GatewayErrorKind::EffectOutcomeUnknown);
+        let request_id = RequestId::new("request-unknown").unwrap();
+        let lifecycle_id = LifecycleId::new("lifecycle-unknown").unwrap();
+        let response = failure_from_gateway(&request_id, &lifecycle_id, &error);
+        match response {
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::EffectOutcomeUnknown,
+                receipt: Some(receipt),
+                ..
+            } => {
+                assert_eq!(receipt.outcome(), RuntimeOutcome::OutcomeUnknown);
+                assert!(receipt.uncertain());
+                assert!(receipt.effects().is_empty());
+            }
+            RuntimeResponse::Success { .. } | RuntimeResponse::Failure { .. } => {
+                panic!("unknown outcome must be represented explicitly")
+            }
+        }
+    }
+
+    #[test]
     fn loopback_listener_uses_authenticated_bounded_framing() {
         let service = service(complete_provider());
         let mut listener = RuntimeListener::bind("127.0.0.1:0".parse().unwrap(), service).unwrap();
