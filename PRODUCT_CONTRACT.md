@@ -34,6 +34,9 @@ With a correctly integrated Gateway and protected executor:
    tool-result handoffs.
 10. `Sled` evidence is structured and payload-free; it is not an authority
     input.
+11. The supplied `RealEffectExecutor` has only the reviewed fixed local
+    filesystem and loopback bindings documented in `REAL_EFFECT_CONTRACT.md`;
+    it does not turn a model proposal into an arbitrary OS or network API.
 
 The OpenAI adapter adds a bounded, non-streaming Responses API boundary. It
 does not change these guarantees or create a second policy engine.
@@ -73,8 +76,9 @@ Tkach Security does not:
 - infer whether an allowed action is business-wise desirable;
 - provide durable distributed replay protection or transaction semantics;
 - make the current OpenAI adapter a production gateway;
-- implement streaming, MCP, Anthropic, SDK, UI, cloud, or real executor
-  orchestration.
+- provide generic production-executor, transaction, or concurrent filesystem
+  race guarantees;
+- implement streaming, MCP, Anthropic, SDK, UI, or cloud orchestration.
 
 ## Integrator mental model
 

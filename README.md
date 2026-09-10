@@ -22,7 +22,9 @@ security semantics.
 Tkach does not make an LLM truthful or trusted, detect every prompt injection,
 protect a deliberately bypassed Gateway, or protect a fully compromised host
 or operating system. It is not production-ready transport, an SDK, MCP,
-streaming, UI, cloud orchestration, or a real executor.
+streaming, UI, or cloud orchestration. The repository does include a narrow
+trusted `RealEffectExecutor` for exact sandbox files and loopback HTTP; it is
+not a general production executor.
 
 ## How does it work?
 
@@ -61,6 +63,9 @@ The current integration proof uses only the canonical primitive names `Ruslo`
 and `Klyuchnik`; the former names are intentionally absent from the tracked
 source and documentation surface. See `INTEGRATION_PROOF_CHECKPOINT.md` for
 the Phase C evidence.
+
+`REAL_EFFECT_CONTRACT.md` documents the narrow trusted local filesystem and
+loopback effect boundary. It is not a general production executor.
 
 ## Validation
 

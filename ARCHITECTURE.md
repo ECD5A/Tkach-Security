@@ -155,9 +155,12 @@ request lifecycle.
 Tool execution is a gateway-owned `ProtectedExecutor` boundary receiving only
 core-issued Propusk values. Phase 1's fake broker supports protected reads,
 harmless reads, a bounded write, external-send attempts, and Klyuchnik-backed
-secret use. Raw fake secret material stays in the broker; provider-visible
-results preserve Niti/Metka or are payload-free receipts. No real provider,
-transport, SDK, MCP, cloud, or production executor is implemented.
+secret use. The narrow `RealEffectExecutor` additionally proves exact local
+filesystem and loopback effects; it has no model-controlled OS path, endpoint,
+HTTP path, or payload. Raw fake secret material stays in the broker;
+provider-visible results preserve Niti/Metka or are payload-free receipts. No
+generic production transport, SDK, MCP, cloud, or arbitrary executor is
+implemented.
 
 ## Real OpenAI Responses adapter — v0.1 non-streaming boundary
 
@@ -216,7 +219,7 @@ layer, streaming event model, MCP layer, or production transport was added.
 ## Future, not implemented
 
 Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,
-production gateway orchestration, and real executors are explicitly deferred
-until owner review of the provider phase. The provider-independent core and
-the bounded OpenAI adapter boundary are implemented, but this is not a claim
-of production readiness.
+production gateway orchestration, and generic executors are explicitly
+deferred until owner review of the provider phase. The narrow local effect
+boundary is implemented and tested, but this is not a claim of generic
+production readiness.

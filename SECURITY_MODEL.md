@@ -94,9 +94,10 @@ executors that do not provide an out-of-band bypass.
 - the Gateway's trusted constructor inputs (Krosna, Zaslon instances, release
   destination, and executor implementation) are supplied by trusted host code;
   the host must not give the provider an out-of-band executor or broker path;
-- Phase 1 fake tools are deterministic test doubles, not production transport
-  or transaction semantics; a real executor must preserve the Propusk-only
-  boundary and bounded result contract;
+- the Phase 1 fake tools remain deterministic test doubles, while the narrow
+  `RealEffectExecutor` is a reviewed local boundary for exact sandbox files
+  and loopback HTTP only; it preserves the Propusk-only and bounded-result
+  contracts but does not claim generic transaction or race-free semantics;
 - `Serialize` on model-readable data is context construction, not an egress
   authorization decision; adapters must apply Ruslo/Zaslon before release.
 
@@ -115,8 +116,9 @@ and this review does not claim constant-time behavior.
 ## Current implementation status
 
 The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Ruslo, Klyuchnik,
-Sled, the enforcement testbed, and the provider-independent Gateway Phase 1
-boundary are implemented and tested. The first real-provider milestone adds a
+Sled, the enforcement testbed, the provider-independent Gateway Phase 1
+boundary, and the narrow local `RealEffectExecutor` boundary are implemented
+and tested. The first real-provider milestone adds a
 non-streaming OpenAI Responses adapter with an offline fake transport, strict
 wire fixtures, an actual Gateway integration test, and an opt-in live smoke
 test that is skipped unless explicitly enabled. Strong Core
@@ -134,7 +136,10 @@ and the final adversarial hardening checkpoint is complete only after the
 validation matrix and freeze commit recorded in `DEVELOPMENT.md`; provider
 streaming, MCP, SDK, cloud, UI, and production gateway orchestration are not
 part of this status. The OpenAI adapter's HTTPS transport is a bounded
-provider boundary, not a production gateway or deployment integration.
+provider boundary, not a production gateway or deployment integration. The
+local effect boundary is not a generic OS/network executor: it is exact,
+create-only, loopback-only, and retains an explicit concurrent
+path-substitution residual.
 
 Public `UntrustedContent` and `TaggedData<T>` serialization remains
 intentionally model-context serialization: it does not mint authority or
@@ -170,4 +175,6 @@ checkpoint recorded zero defined false allows and zero false denies for the
 explicit legitimate workload rows. Its Standard Codex Security review found
 no reportable findings with partial coverage; generated artifacts, live
 provider behavior, production transport, and delegated independent review
-remain outside the evidence boundary.
+remain outside the evidence boundary. The separate real-effect test suite
+proves actual isolated filesystem effects, exact loopback requests, deny-before-
+connect behavior, and post-send unknown/timeout semantics.

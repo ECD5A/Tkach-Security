@@ -63,7 +63,7 @@ pub enum EffectOutcome {
     Committed,
 }
 
-/// A payload-free summary of one authorized fake effect.
+/// A payload-free summary of one authorized effect.
 #[derive(Clone, PartialEq, Eq)]
 pub struct EffectReceipt {
     operation: Operation,
@@ -458,7 +458,14 @@ impl ProtectedExecutor for RealEffectExecutor {
 }
 
 fn is_safe_relative_path(path: &Path) -> bool {
-    if path.is_absolute() {
+    let raw = path.to_string_lossy();
+    if path.is_absolute()
+        || raw.is_empty()
+        || raw.contains('\\')
+        || raw
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
         return false;
     }
     path.components().all(|component| {
@@ -980,6 +987,39 @@ mod tests {
                     .authorize(&SecurityContext::untrusted_data(), &action)
                     .is_err()
             );
+        }
+    }
+
+    #[test]
+    fn real_path_parser_rejects_escape_and_normalization_syntax() {
+        for value in [
+            "../output.txt",
+            "workspace/../output.txt",
+            "/output.txt",
+            "C:/output.txt",
+            "workspace\\output.txt",
+            "workspace/./output.txt",
+        ] {
+            assert!(!is_safe_relative_path(Path::new(value)), "{value}");
+        }
+        assert!(is_safe_relative_path(Path::new("workspace/output.txt")));
+    }
+
+    #[test]
+    fn real_http_response_gate_accepts_only_bounded_success_statuses() {
+        assert!(is_successful_http_response(
+            b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n"
+        ));
+        assert!(is_successful_http_response(
+            b"HTTP/1.0 299 Test\r\nContent-Length: 0\r\n\r\n"
+        ));
+        for response in [
+            b"HTTP/1.1 500 Error\r\n\r\n".as_slice(),
+            b"HTTP/2 200 OK\r\n\r\n".as_slice(),
+            b"not-http".as_slice(),
+            b"HTTP/1.1 nope\r\n\r\n".as_slice(),
+        ] {
+            assert!(!is_successful_http_response(response));
         }
     }
 }

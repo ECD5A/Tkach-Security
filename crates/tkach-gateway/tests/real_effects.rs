@@ -15,9 +15,10 @@ use tkach_core::niti_metka::TaggedData;
 use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_gateway::{
-    EffectOutcome, EffectReceipt, REAL_FILE_WRITE_CONTENT, REAL_NETWORK_PATH, REAL_NETWORK_PAYLOAD,
-    RealEffectExecutor, RealExecutorConfigError, ToolResult, external_send_request,
-    protected_write_request,
+    DeterministicProvider, EffectOutcome, EffectReceipt, ExternalMessage, ExternalRequest,
+    ExternalRole, Gateway, GatewayErrorKind, ProviderStep, REAL_FILE_WRITE_CONTENT,
+    REAL_NETWORK_PATH, REAL_NETWORK_PAYLOAD, RealEffectExecutor, RealExecutorConfigError,
+    ScriptedStep, ToolResult, external_send_request, protected_write_request,
 };
 
 static NEXT_SANDBOX_ID: AtomicU64 = AtomicU64::new(1);
@@ -205,6 +206,45 @@ fn public_network_kernel(action: &ActionRequest) -> Krosna {
     Krosna::with_ruslo(policy, ruslo)
 }
 
+fn gateway_write_kernel(action: &ActionRequest) -> Krosna {
+    let policy = Policy::new(
+        tkach_core::domain::PolicyId::new("real-gateway-write-policy").unwrap(),
+        vec![PolicyRule::allow(
+            RuleId::new("allow-gateway-write").unwrap(),
+            RuleMatcher::any()
+                .principal(tkach_core::domain::Principal::Model)
+                .operation(action.operation().clone())
+                .capability(action.capability().clone())
+                .resource(ResourceScope::exact(action.resource()))
+                .destination(action.destination().clone())
+                .classification(Classification::Unknown),
+        )],
+    )
+    .unwrap();
+    let storage = Destination::Internal(Identity::new("storage").unwrap());
+    let client = Destination::Internal(Identity::new("client").unwrap());
+    let ruslo = Ruslo::new(vec![
+        FlowRule::allow(
+            RuleId::new("allow-gateway-storage-transfer").unwrap(),
+            FlowMatcher::any()
+                .principal(tkach_core::domain::Principal::Model)
+                .source(FlowSource::Model)
+                .destination(storage)
+                .operation(FlowOperation::Transfer),
+        ),
+        FlowRule::allow(
+            RuleId::new("allow-gateway-client-export").unwrap(),
+            FlowMatcher::any()
+                .principal(tkach_core::domain::Principal::Model)
+                .source(FlowSource::Model)
+                .destination(client)
+                .operation(FlowOperation::Export),
+        ),
+    ])
+    .unwrap();
+    Krosna::with_ruslo(policy, ruslo)
+}
+
 fn trusted_public_data() -> TaggedData<&'static str> {
     TaggedData::from_trusted_ingress(
         "public-local-effect",
@@ -282,6 +322,39 @@ fn real_filesystem_write_is_create_only_and_cannot_widen_scope() {
         );
     }
     assert_eq!(executor.unknown_effect_count(), 0);
+}
+
+#[test]
+fn gateway_dispatches_an_authorized_write_to_the_real_filesystem() {
+    let sandbox = Sandbox::new();
+    let action = protected_write_request();
+    let kernel = gateway_write_kernel(&action);
+    let mut gateway = Gateway::new(
+        kernel,
+        tkach_core::zaslon::Zaslon::empty(),
+        tkach_core::zaslon::Zaslon::empty(),
+        Destination::Internal(Identity::new("client").unwrap()),
+        RealEffectExecutor::new(sandbox.path(), SocketAddr::from(([127, 0, 0, 1], 1))).unwrap(),
+    );
+    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: vec!["gateway-committed".to_owned()],
+        actions: vec![action],
+        continuation: ProviderStep::Complete,
+    }]);
+    let request = ExternalRequest::new(
+        vec![ExternalMessage::new(ExternalRole::User, "write".to_owned()).unwrap()],
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let result = gateway.run(&mut provider, &request).unwrap();
+    assert_eq!(result.output(), Some("gateway-committed"));
+    assert_eq!(result.effects().len(), 1);
+    assert_eq!(result.effects()[0].outcome(), EffectOutcome::Committed);
+    assert_eq!(
+        fs::read(sandbox.path().join("workspace/output.txt")).unwrap(),
+        REAL_FILE_WRITE_CONTENT
+    );
 }
 
 #[test]
@@ -419,6 +492,59 @@ fn denied_or_mutated_network_requests_never_connect_to_the_receiver() {
     let report = receiver.finish();
     assert_eq!(report.requests_received, 0);
     assert_eq!(wrong_executor.attempt_count(), 1);
+}
+
+#[test]
+fn gateway_untrusted_network_proposal_is_denied_before_real_connect() {
+    let sandbox = Sandbox::new();
+    let receiver = Receiver::start(200, Duration::ZERO);
+    let action = external_send_request();
+    let policy = Policy::new(
+        tkach_core::domain::PolicyId::new("real-gateway-network-policy").unwrap(),
+        vec![PolicyRule::allow(
+            RuleId::new("allow-network-shape-only").unwrap(),
+            RuleMatcher::any()
+                .principal(tkach_core::domain::Principal::Model)
+                .operation(Operation::NetworkSend)
+                .capability(CapabilityName::new("network.send").unwrap())
+                .resource(ResourceScope::exact(action.resource()))
+                .destination(Destination::PublicExternal)
+                .classification(Classification::Unknown),
+        )],
+    )
+    .unwrap();
+    let client = Destination::Internal(Identity::new("client").unwrap());
+    let ruslo = Ruslo::new(vec![FlowRule::allow(
+        RuleId::new("allow-internal-release").unwrap(),
+        FlowMatcher::any()
+            .principal(tkach_core::domain::Principal::Model)
+            .source(FlowSource::Model)
+            .destination(client.clone())
+            .operation(FlowOperation::Export),
+    )])
+    .unwrap();
+    let mut gateway = Gateway::new(
+        Krosna::with_ruslo(policy, ruslo),
+        tkach_core::zaslon::Zaslon::empty(),
+        tkach_core::zaslon::Zaslon::empty(),
+        client,
+        RealEffectExecutor::new(sandbox.path(), receiver.address).unwrap(),
+    );
+    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: vec!["attempt".to_owned()],
+        actions: vec![action],
+        continuation: ProviderStep::Complete,
+    }]);
+    let request = ExternalRequest::new(
+        vec![ExternalMessage::new(ExternalRole::User, "network".to_owned()).unwrap()],
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let error = gateway.run(&mut provider, &request).unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::ActionDenied(_)));
+    let report = receiver.finish();
+    assert_eq!(report.requests_received, 0);
 }
 
 #[test]

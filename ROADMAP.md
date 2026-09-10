@@ -52,4 +52,8 @@ repository, not future product marketing.
   multi-step workflows, compromised-provider utility proof, misuse/continuation
   checks, canonical value map, performance breakdown, and integration
   checkpoint at local tag `integration-proof-v0.1`.
+- DONE — Autonomous Production Hardening Part A: narrow real filesystem and
+  loopback effect boundary, exact create-only semantics, public-flow binding,
+  failure/timeout classification, receipt hardening, and isolated adversarial
+  tests. Checkpoint/tag follows only after the full final matrix.
 - DEFERRED — Anthropic, MCP, SDKs, UI, cloud, and production gateway transport.

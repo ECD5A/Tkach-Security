@@ -603,3 +603,38 @@
 - `PRODUCT_PROOF_REPORT.md` records the 14-test run and host-specific
   Gateway/Krosna/Ruslo/Zaslon/Niti-Metka/Klyuchnik/parse observations.
   `INTEGRATION_PROOF_CHECKPOINT.md` is the Phase C acceptance record.
+
+## Autonomous Production Hardening — Part A
+
+- Scope: close the offline fake-executor gap without adding OpenAI, Anthropic,
+  MCP, SDK, UI, cloud, or production gateway transport integrations.
+- Architecture: `RealEffectExecutor` is the existing Propusk-only
+  `ProtectedExecutor` boundary with three fixed bindings: bounded read of
+  `workspace/input.txt`, create-only write of `workspace/output.txt`, and a
+  fixed HTTP request to an explicitly configured loopback endpoint. The model
+  cannot choose an OS path, endpoint, HTTP path, or payload.
+- Public flow: `Krosna::authorize_tagged_public_send` is a narrow trusted-
+  ingress bridge requiring `Public` tagged data, an explicit Ruslo Export
+  allow, and the ordinary action policy. The normal untrusted Gateway path
+  still denies public network proposals.
+- Failure contract: pre-effect validation/connect failures return
+  `FailedBeforeEffect`; failures after bytes may have been written/sent return
+  `OutcomeUnknown`; only verified create/2xx results produce `Committed`
+  payload-free receipts with bounded executor sequence IDs.
+- Filesystem contract: canonical root/parent/target checks reject links,
+  reparse points, absolute/drive/backslash/dot/parent paths, missing parents,
+  outside-root targets, sibling lookalikes, and overwrite attempts. The
+  create-only write intentionally makes no rollback claim.
+- TOCTOU: safe portable Rust checks and post-use rechecks reduce path races,
+  but no universal handle-relative/no-follow transaction exists in the
+  standard library. This residual is documented in
+  `REAL_EFFECT_CONTRACT.md`; deployments requiring hostile concurrent mutation
+  must use an OS-specific reviewed adapter or deny this profile.
+- Verification: `real_effects.rs` proves actual isolated filesystem writes,
+  exact loopback request delivery, Gateway dispatch, deny-before-connect,
+  symlink/parent/path mutation cases, non-2xx failure, and timeout unknown
+  outcomes. The suite contains 9 tests.
+- Implementation commits: `ef0f185` classifies effect outcomes;
+  `e72619e` adds the real local boundary and first adversarial suite. The
+  follow-up Gateway integration tests and contract documentation are pending
+  the final checkpoint commit/tag.

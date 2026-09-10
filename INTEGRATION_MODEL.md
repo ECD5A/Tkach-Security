@@ -104,8 +104,9 @@ preflighted action batches, protected lifecycle/effect ordering, directional
 export control, and typed tool-result lineage.
 
 **Unavailable:** raw credentials may still leak if the host bypasses Klyuchnik;
-the executor's external side effects and transaction semantics remain the
-integrator's responsibility.
+generic executor side effects, transaction semantics, and concurrent path-race
+guarantees remain the integrator's responsibility. The repository's narrow
+`RealEffectExecutor` is described separately in `REAL_EFFECT_CONTRACT.md`.
 
 ### Sealed Agent
 
@@ -121,6 +122,26 @@ reveal denial, exact secret-use routing, and payload-free receipts.
 **Unavailable:** protection from a fully compromised host/OS, deliberate
 application bypasses, semantic prompt injection, durable distributed replay,
 or production transaction guarantees.
+
+### Local Effect Boundary
+
+**Use:** the reviewed local reference executor for integration tests and
+single-host deployments that accept its narrow contract.
+
+**Setup:** trusted `RealEffectExecutor` configuration with an existing ordinary
+sandbox root and an explicit loopback endpoint, plus the same Krosna/Ruslo/
+Gateway wiring as Controlled Agent.
+
+**Guarantees:** only exact `workspace/input.txt` read,
+create-only `workspace/output.txt` write, and fixed-payload loopback HTTP are
+reachable; model-selected paths, destinations, endpoints, and payloads are not
+interpreted. Successful effects return bounded receipts; post-attempt failures
+are reported as unknown.
+
+**Unavailable:** arbitrary filesystem/network operations, overwrite or
+rollback semantics, durable distributed replay, and elimination of every
+concurrent path-substitution race. This profile must not be presented as a
+general production gateway.
 
 ## Secure defaults
 
