@@ -12,8 +12,8 @@
 //! Krosna, the synchronous deterministic policy kernel.
 //!
 //! Krosna answers authorization questions from validated structured state. It
-//! never asks a model to authorize itself. Every result is a [`Decision`] with
-//! payload-free [`SledEvidence`].
+//! never asks a model to authorize itself. Every result is a
+//! [`crate::domain::Decision`] with payload-free [`crate::domain::SledEvidence`].
 
 use crate::domain::{
     ActionRequest, Authority, Classification, Decision, DecisionKind, Destination, Operation,

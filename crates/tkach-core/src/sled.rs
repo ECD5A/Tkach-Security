@@ -12,10 +12,10 @@
 //! Sled evidence and the provider-independent enforcement testbed.
 //!
 //! Sled is an explanation trace, not an authority source or a claim of formal
-//! verification. It stores only typed [`Decision`] values and bounded metadata.
-//! The testbed models a hostile caller and routes successful actions through a
-//! [`ProtectedExecutor`], so tests prove actual effect containment rather than
-//! only inspecting booleans.
+//! verification. It stores only typed [`crate::domain::Decision`] values and
+//! bounded metadata. The testbed models a hostile caller and routes successful
+//! actions through a [`crate::propusk::ProtectedExecutor`], so tests prove
+//! actual effect containment rather than only inspecting booleans.
 
 use crate::domain::{
     ActionRequest, CapabilityName, Classification, Decision, Destination, Identity, Operation,

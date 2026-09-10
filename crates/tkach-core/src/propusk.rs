@@ -11,7 +11,8 @@
 
 //! Propusk, the scoped capability and execution-authority boundary.
 //!
-//! The only production constructor for [`AuthorizedAction`] is crate-private.
+//! The only production constructor for [`crate::propusk::AuthorizedAction`] is
+//! crate-private.
 //! Krosna issues it only after an explicit deterministic allow and binds it to
 //! the exact principal, operation, capability, and resource being authorized.
 

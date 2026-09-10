@@ -5,6 +5,7 @@ description = "Provider-independent bounded execution boundary for Tkach Securit
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -13,8 +13,8 @@
 //!
 //! Klyuchnik protects the model-context boundary under the documented assumption
 //! that the host process and operating system are not fully compromised. The
-//! model receives a [`SecretHandle`], while the fake broker keeps the raw value
-//! in a non-serializable, redacted type and never returns it.
+//! model receives a [`crate::klyuchnik::SecretHandle`], while the fake broker
+//! keeps the raw value in a non-serializable, redacted type and never returns it.
 
 use crate::domain::{Destination, Operation, Resource, ResourceId, ResourceKind};
 use crate::propusk::Propusk;

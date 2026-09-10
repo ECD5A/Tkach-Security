@@ -13,8 +13,8 @@
 //!
 //! The types in this module deliberately keep authority, trust, provenance,
 //! classification, capability, identity, and destination separate. A raw
-//! [`ActionRequest`] is data describing a proposed operation; it is never an
-//! execution permit.
+//! [`crate::domain::ActionRequest`] is data describing a proposed operation; it
+//! is never an execution permit.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

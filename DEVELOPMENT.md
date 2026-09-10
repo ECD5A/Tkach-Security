@@ -633,8 +633,10 @@
 - Verification: `real_effects.rs` proves actual isolated filesystem writes,
   exact loopback request delivery, Gateway dispatch, deny-before-connect,
   symlink/parent/path mutation cases, non-2xx failure, and timeout unknown
-  outcomes. The suite contains 9 tests.
+  outcomes. The suite contains 13 tests, including bounded-response,
+  exact-dispatch, Windows junction, redaction, and failure-injection cases.
 - Implementation commits: `ef0f185` classifies effect outcomes;
-  `e72619e` adds the real local boundary and first adversarial suite. The
-  follow-up Gateway integration tests and contract documentation are pending
-  the final checkpoint commit/tag.
+  `e72619e` adds the real local boundary and first adversarial suite;
+  `5054e76` documents and hardens the boundary; `6d66259` closes the
+  reparse-platform and fault-injection hardening cycle. The final checkpoint
+  and local tag follow the complete verification matrix.
