@@ -307,3 +307,22 @@
   observable to an already-authorized caller. No constant-time claim is made.
 - The final validation matrix, mutation result, freeze commit, and freeze tag
   are recorded below when the round is complete. Local history only; no push.
+
+## Gateway Phase 1 — Mandate G0
+
+- Scope: separate threat model for an in-process, synchronous, provider-
+  independent gateway around the frozen Strong Core. No OpenAI, Anthropic, MCP,
+  SDK, HTTP, cloud, or production provider integration.
+- Architecture: the gateway will own bounded ingress, request lifecycle,
+  provider orchestration, output staging, and tool dispatch. Krosna, Diode,
+  Zaslon, Gnezdo, Propusk, Pechat, Niti, Metka, and Sled remain the authority
+  and evidence boundaries; the gateway must not duplicate their semantics.
+- Invariant: `NO PROTECTED EFFECT OR PROTECTED EGRESS MAY BYPASS TKACH
+  ENFORCEMENT`.
+- Threat model: `GATEWAY_THREAT_MODEL.md` records source-backed boundaries,
+  hostile-provider assumptions, planned budgets, attack paths, and unresolved
+  deployment questions. It explicitly distinguishes planned controls from
+  implemented Strong Core controls.
+- Review limitation: independent delegated architecture review was unavailable;
+  the threat model was reviewed sequentially against the current source.
+- Commit: recorded below after the G0 documentation diff review.

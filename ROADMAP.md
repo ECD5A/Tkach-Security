@@ -21,5 +21,8 @@ repository, not future product marketing.
 - DONE — Strong Core Checkpoint re-run (2026-09-10; 60 conditions reviewed).
 - DONE — Strong Core Final Hardening Round 3 and freeze validation; gateway work
   remains intentionally out of scope.
-- DEFERRED — provider integrations, MCP, gateways, SDKs, UI, cloud, and all
-  post-checkpoint product work.
+- DONE — Gateway Phase 1 G0 threat model (provider-independent boundary).
+- CURRENT — Gateway Phase 1 G1 bounded in-process gateway and fake provider
+  boundary.
+- DEFERRED — real provider integrations, MCP, SDKs, UI, cloud, and production
+  transport.
