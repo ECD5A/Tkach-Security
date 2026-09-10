@@ -1,8 +1,23 @@
-# Tkach Security Integration Model
+# Tkach Security Integration Guide
 
-This is the current developer-facing integration model. It describes the
-smallest safe composition available in v0.1. It is not an SDK or a public
-internet gateway.
+This is the current developer-facing integration model and Quickstart. It
+describes the smallest safe composition available in v0.1. It is not an SDK
+or a public internet gateway.
+
+## Quickstart
+
+Run the compilable Basic example offline:
+
+```text
+cargo run -p tkach-gateway --example quickstart --locked
+```
+
+The example at
+[`crates/tkach-gateway/examples/quickstart.rs`](../crates/tkach-gateway/examples/quickstart.rs)
+constructs typed `Destination`, `FlowRule`, `Ruslo`, `Policy`, `Krosna`, and
+bounded `Zaslon` values; wires a `Gateway` to a protected executor; submits a
+bounded `ExternalRequest`; runs a deterministic provider; and releases output
+only from a successful `GatewayResult`.
 
 ## What an existing AI agent changes
 
@@ -120,7 +135,8 @@ export control, and typed tool-result lineage.
 **Unavailable:** raw credentials may still leak if the host bypasses Klyuchnik;
 generic executor side effects, transaction semantics, and concurrent path-race
 guarantees remain the integrator's responsibility. The repository's narrow
-`RealEffectExecutor` is described separately in `REAL_EFFECT_CONTRACT.md`.
+`RealEffectExecutor` contract is included in the Local Effect Boundary section
+below; this file is the single integration reference.
 
 ### Sealed Agent
 

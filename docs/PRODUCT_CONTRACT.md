@@ -35,7 +35,7 @@ With a correctly integrated Gateway and protected executor:
 10. `Sled` evidence is structured and payload-free; it is not an authority
     input.
 11. The supplied `RealEffectExecutor` has only the reviewed fixed local
-    filesystem and loopback bindings documented in `REAL_EFFECT_CONTRACT.md`;
+    filesystem and loopback bindings documented in `INTEGRATION.md`;
     it does not turn a model proposal into an arbitrary OS or network API.
 12. The local runtime frame boundary authenticates before Gateway/provider or
     protected-effect admission, rejects duplicate request/lifecycle identities,
@@ -66,6 +66,9 @@ The integrator must ensure that:
 - runtime authentication material is supplied only by trusted deployment code;
   the transport is loopback-only unless a separately reviewed deployment
   carrier adds authenticated IPC/TLS and preserves the same frame contract;
+- the trusted runtime authenticator's stored proof is treated as sensitive
+  configuration and is zeroized on drop; caller-owned transport buffers and
+  host memory remain outside that guarantee;
 - the caller treats runtime receipts as evidence, not as `Propusk` or a retry
   instruction, and uses a durable replay design when restart/distributed
   exactly-once semantics are required.

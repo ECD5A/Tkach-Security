@@ -1,7 +1,9 @@
 # Tkach Security — Current Baseline
 
-Status: authoritative current-state summary. Updated for the local
-`production-runtime-v0.1` baseline at commit `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`.
+Status: authoritative current-state summary. The production-runtime baseline
+is tagged `production-runtime-v0.1` at `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`;
+the current source also includes the reviewed runtime-proof hardening commit
+`756d695`.
 
 This file describes what is implemented now. It is not a replacement for the
 permanent constitution, source code, or executable tests.
@@ -13,12 +15,12 @@ For a conflict, use this order:
 1. the current owner mandate;
 2. current source code and executable tests;
 3. this file;
-4. `Tkach Security — MASTER_MANDATE.md`;
+4. `../Tkach Security — MASTER_MANDATE.md`;
 5. current product, architecture, security, and threat-model documents;
-6. the active development plan;
-7. historical reports and checkpoints as evidence only.
+6. `ROADMAP.md`;
+7. `EVIDENCE.md` and `DEVELOPMENT.md` as evidence/history only.
 
-`Tkach Security — MASTER_MANDATE.md` is the only permanent project
+`../Tkach Security — MASTER_MANDATE.md` is the only permanent project
 constitution. Phase instructions, temporary deferrals, old stop conditions,
 and historical acceptance records do not become permanent bans.
 
@@ -81,6 +83,8 @@ PROVEN by local evidence:
 - conservative Niti/Metka propagation and denied self-declassification;
 - opaque broker handles, payload-free evidence, and zeroize-on-drop broker
   storage;
+- private, bounded, redacted runtime authentication proof storage that is
+  zeroized when its authenticator is dropped;
 - bounded hostile-provider Gateway workflows and real fixed filesystem/
   loopback effects;
 - authentication-before-Gateway admission, replay rejection, cancellation,
@@ -138,11 +142,11 @@ is started and no existing scan is canceled.
 
 ## Current phase
 
-The current phase is Strong Release Candidate v0.1, entering boundary/product
-risk review after documentation/state consolidation. The next engineering
-boundary is selected from the residual risks and integration evidence in
-`RELEASE_CANDIDATE_PLAN.md`; no speculative provider, SDK, UI, cloud, or MCP
-implementation is implied by this baseline.
+The current phase is repository/documentation shape cleanup after the local
+production-runtime baseline. The next engineering boundary is selected from
+residual risks and integration evidence in `ROADMAP.md`; no speculative
+provider, SDK, UI, cloud, or MCP implementation is implied by this baseline.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
-active mandates. `DEVELOPMENT.md` is the chronological engineering record.
+active mandates. `DEVELOPMENT.md` is the concise chronological engineering
+record and `EVIDENCE.md` is the consolidated validation record.

@@ -1,9 +1,8 @@
 # Architecture
 
 This document describes the current implemented architecture. For the single
-short state summary and active phase, see `CURRENT_BASELINE.md` and
-`RELEASE_CANDIDATE_PLAN.md`. Historical checkpoint instructions are evidence,
-not active mandates.
+short state summary and active phase, see `CURRENT_BASELINE.md` and `ROADMAP.md`.
+Historical checkpoint instructions are evidence, not active mandates.
 
 ## Implemented baseline
 
@@ -37,8 +36,8 @@ context-to-Ruslo mapper is crate-private; public tagged-data flow mapping fixes
 the source to the model. These restrictions prevent caller-controlled identity
 or provenance metadata from becoming authority.
 
-M12 adds explicit resource budgets before allocation or indexing: policy,
-Zaslon, and Ruslo rules are bounded; provenance lineage and derivation parents
+The resource-boundary pass adds explicit budgets before allocation or indexing:
+Zaslon and Ruslo rules are bounded; provenance lineage and derivation parents
 are bounded and canonicalized; model fixtures, Sled traces, Klyuchnik entries,
 secret values, and Zaslon stream input are bounded. A streaming Zaslon scan
 returns `NeedMoreData` until explicitly finished, so an intermediate result is
@@ -246,11 +245,10 @@ Metka, and Sled retain their documented roles. Repeated checks at Krosna,
 Ruslo, Gateway, and the provider boundary are intentional trust-boundary
 checks, not competing policy engines.
 
-`INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, Sealed Agent,
-and Local Authenticated Runtime deployment profiles. `PRUNING_METRICS.md`
-records the measured source and public-surface reduction. The current source
-surface has no SDK, configuration DSL, provider abstraction layer, streaming
-event model, MCP layer, or internet gateway.
+`INTEGRATION.md` defines Basic Gateway, Controlled Agent, Sealed Agent, Local
+Authenticated Runtime, and the narrow RealEffectExecutor profile. The current
+source surface has no SDK, configuration DSL, provider abstraction layer,
+streaming event model, MCP layer, or internet gateway.
 
 ## Current non-implemented surfaces
 
@@ -258,5 +256,23 @@ Anthropic, MCP, cloud services, SDKs, dashboards, human approval services,
 production gateway orchestration, TLS/process supervisor integration, and
 generic executors are not part of this baseline. The runtime listener is a
 narrow local frame boundary, not a claim of generic production readiness.
-Future selection is governed by `RELEASE_CANDIDATE_PLAN.md`; these facts are
-not permanent bans.
+Future selection is governed by `ROADMAP.md`; these facts are not permanent
+bans.
+
+## Shape and dependency review
+
+The repository keeps three production crates because each has a stable
+security ownership boundary: provider-independent core, Gateway orchestration
+and effects, and the OpenAI adapter. The excluded `fuzz` package is tooling,
+not a product crate. No policy DSL, generic executor, provider SDK, or second
+policy engine is needed by the current contract.
+
+The earlier pruning review removed only vocabulary-only surface: the
+zero-sized `DataLane` marker, empty `Klyuchnik` facade, and
+`ScriptedProvider` alias. The real Gnezdo context, Klyuchnik broker,
+`DeterministicProvider`, and all enforcement checks remain. The direct
+`zeroize` dependency is retained where secret-bearing values are owned; its
+use for broker storage and the runtime authenticator is a security boundary,
+not convenience duplication. Transitive duplicate `syn` and `windows-sys`
+versions remain because their upstream requirements differ; unsupported
+convergence would increase supply-chain risk.

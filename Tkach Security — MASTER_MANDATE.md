@@ -1485,7 +1485,7 @@ Turn these into executable tests where technically meaningful.
 
 # 43. THREAT MODEL
 
-Maintain `THREAT_MODEL.md`.
+Maintain `docs/THREAT_MODEL.md`.
 
 At minimum analyze:
 
@@ -1887,13 +1887,19 @@ Tkach-Security/
 ├── Cargo.toml
 ├── LICENSE
 ├── README.md
-├── MASTER_MANDATE.md
-├── ARCHITECTURE.md
-├── THREAT_MODEL.md
-├── SECURITY_MODEL.md
 ├── SECURITY.md
-├── ROADMAP.md
-├── DEVELOPMENT.md
+├── Tkach Security — MASTER_MANDATE.md
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── CURRENT_BASELINE.md
+│   ├── DEVELOPMENT.md
+│   ├── EVIDENCE.md
+│   ├── INTEGRATION.md
+│   ├── PRODUCT_CONTRACT.md
+│   ├── ROADMAP.md
+│   ├── SECURITY_MODEL.md
+│   ├── TERMINOLOGY.md
+│   └── THREAT_MODEL.md
 └── crates/
     └── tkach-core/
 ```
@@ -1946,7 +1952,7 @@ Brand identity and engineering clarity must coexist.
 
 # 62. SECURITY CLAIM DISCIPLINE
 
-Maintain `SECURITY_MODEL.md`.
+Maintain `docs/SECURITY_MODEL.md`.
 
 Explicitly separate:
 
@@ -2057,7 +2063,7 @@ Do not fabricate Git author identity if the environment has none.
 
 # 66. DEVELOPMENT RECORD
 
-Maintain `DEVELOPMENT.md`.
+Maintain `docs/DEVELOPMENT.md`.
 
 After each mandate record concisely:
 
@@ -2078,7 +2084,7 @@ The purpose is architectural continuity.
 
 # 67. ROADMAP STATE
 
-Maintain `ROADMAP.md` using clear states:
+Maintain `docs/ROADMAP.md` using clear states:
 
 - DONE
 - CURRENT
@@ -2181,8 +2187,9 @@ This file is the permanent engineering and security constitution of Tkach
 Security. It defines the mission, trust model, vocabulary, invariants,
 security boundaries, and engineering quality bar.
 
-The active owner mandate, `CURRENT_BASELINE.md`, and the active development
-plan define the current phase and its deliverables. Completed phase plans,
+The active owner mandate, `docs/CURRENT_BASELINE.md`, and the active
+development plan in `docs/ROADMAP.md` define the current phase and its
+deliverables. Completed phase plans,
 temporary integration deferrals, historical checkpoints, and old stop
 conditions are not instructions in this constitution.
 
