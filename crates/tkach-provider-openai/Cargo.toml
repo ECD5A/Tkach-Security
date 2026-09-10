@@ -16,9 +16,6 @@ serde_json = "1"
 thiserror = "2"
 url = "2"
 
-[dev-dependencies]
-serde_json = "1"
-
 [dependencies.tkach-gateway]
 package = "tkach-gateway"
 path = "../tkach-gateway"
