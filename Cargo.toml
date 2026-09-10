@@ -16,6 +16,9 @@ edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.85"
 repository = "https://github.com/ECD5A/Tkach-Security"
+homepage = "https://github.com/ECD5A/Tkach-Security"
+readme = "README.md"
+keywords = ["security", "authorization", "ai", "sandbox"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

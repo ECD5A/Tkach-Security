@@ -43,6 +43,9 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - current Productization cycle: added the separate tkach-mcp stdio adapter with
   bounded JSON-RPC lifecycle/tool handling, exactly one delegated tool, and no
   protocol or authority logic in Core.
+- current Productization cycle: added shared crate metadata, an honest
+  unreleased changelog, and the local distribution/release contract; no crate,
+  binary, container, or registry was published.
 - current checkpoint cycle: reran the local Strong Core matrix and recorded
   the bounded release decision and residual claims in `EVIDENCE.md`.
 

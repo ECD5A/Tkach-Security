@@ -3,15 +3,17 @@
 ## Scope
 
 This repository contains the Tkach Security Strong Core, bounded Gateway,
-narrow real local-effect boundary, and non-streaming OpenAI Responses adapter.
+narrow real local-effect boundary, non-streaming OpenAI Responses adapter, and
+thin local CLI, HTTP, Rust client, and MCP stdio adapters.
 Reports should target bypasses of deterministic authorization, information
 flow, DATA/CONTROL separation, provenance/classification, secret isolation,
 payload-free evidence, lifecycle, parser, credential, or egress invariants.
 
-The current source has no SDK, MCP adapter, Anthropic adapter, streaming
-release API, hosted service, UI, cloud control plane, or public internet
-gateway. Deployment assumptions in [the product contract](docs/PRODUCT_CONTRACT.md)
-remain in scope when a defect crosses a documented Tkach boundary.
+The current source has no multi-language SDK, Streamable HTTP adapter,
+Anthropic adapter, streaming release API, hosted service, UI, cloud control
+plane, or public internet gateway. Deployment assumptions in [the product
+contract](docs/PRODUCT_CONTRACT.md) remain in scope when a defect crosses a
+documented Tkach boundary.
 
 ## Reporting
 

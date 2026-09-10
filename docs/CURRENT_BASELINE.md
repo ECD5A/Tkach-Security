@@ -162,8 +162,9 @@ is started and no existing scan is canceled.
 The current phase is Productization / Distribution / DX, with the stable API
 contract, bounded CLI onboarding, local HTTP adapter, thin Rust client, and
 MCP stdio adapter complete. The Core and Gateway authority model remain frozen;
-the next boundary is distribution artifacts. No speculative provider, UI,
-cloud, or public gateway implementation is implied by these adapters.
+the distribution metadata contract is now prepared and the next boundary is
+reproducible release artifacts. No speculative provider, UI, cloud, or public
+gateway implementation is implied by these adapters.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering

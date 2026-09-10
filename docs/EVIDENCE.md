@@ -173,6 +173,16 @@ This checkpoint does not claim Streamable HTTP, TLS, process/OS isolation,
 human-consent enforcement inside the host, a public MCP service, Official MCP
 Registry publication, signed artifacts, or distribution release.
 
+## Productization distribution contract checkpoint
+
+Status: PASS for the local package/release contract. All seven workspace
+packages now inherit the same repository, homepage, README, keyword, license,
+and MSRV metadata; `cargo package --workspace` succeeds locally, and the
+unreleased changelog and release-order/runbook are checked in. This is package
+metadata and preflight evidence only: no crate, binary, container, GitHub
+Release, or MCP Registry entry has been published, and no external publishing
+credentials or actions were used.
+
 ## Adversarial and mutation evidence
 
 - Core composition and independent-oracle tests cover authority laundering,

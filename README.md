@@ -19,6 +19,11 @@ compromised models. The model proposes; Tkach authorizes.
   results, historical tags, and known tooling limits.
 - [Roadmap](docs/ROADMAP.md) — current release state and next decisions.
 
+- [Distribution](docs/DISTRIBUTION.md) - package, artifact, and release contract.
+
+The [distribution contract](docs/DISTRIBUTION.md) records package, artifact,
+and release preflight status.
+
 The permanent project constitution is
 [Tkach Security — MASTER_MANDATE.md](Tkach%20Security%20%E2%80%94%20MASTER_MANDATE.md).
 The reporting policy is [SECURITY.md](SECURITY.md).
@@ -40,7 +45,9 @@ credentials or overwrites an existing starter. `check` applies the same strict
 bounded request parser used by the Gateway. `run --demo` exercises the local
 deterministic Gateway path without a provider network call or real effect; it
 is an onboarding proof, not a general-purpose agent runner. Publication to a
-package registry and prebuilt binaries are later distribution steps.
+  package registry and prebuilt binaries are later distribution steps. Crate
+  metadata and release preflight are prepared locally; external publication
+  and signed artifacts remain release-owner actions.
 
 ## Implemented boundary
 
