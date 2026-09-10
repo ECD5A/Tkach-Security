@@ -66,9 +66,10 @@
 
 ## Mandate 4 — Gnezdo data/control containment
 
-- Architecture: `UntrustedContent` is a model-readable DATA-lane value;
-  `DataLane` exposes no authority or direction; `TrustedControl` is opaque and
-  has no public constructor. Derived data is explicit and lineage-preserving.
+- Architecture: `UntrustedContent` is a model-readable DATA-lane value whose
+  validated context exposes no authority or direction; `TrustedControl` is
+  opaque and has no public constructor. Derived data is explicit and
+  lineage-preserving.
 - Security: web/document-like imperative text remains data, cannot promote
   itself, cannot mint control, and cannot be reconstructed from arbitrary wire
   state; content is bounded without echoing payloads in errors.

@@ -31,7 +31,7 @@ pub use input::{
 pub use provider::{
     CancelledProvider, DeterministicProvider, FailureProvider, HostileProvider, MalformedProvider,
     ModelInput, Provider, ProviderError, ProviderRequest, ProviderSink, ProviderSinkError,
-    ProviderStep, ScriptedProvider, ScriptedStep, TimeoutProvider, ToolDescription,
+    ProviderStep, ScriptedStep, TimeoutProvider, ToolDescription,
 };
 pub use tools::{
     EffectReceipt, FakeToolBroker, ToolResult, external_send_request, harmless_read_request,

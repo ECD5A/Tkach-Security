@@ -406,9 +406,6 @@ impl Debug for ScriptedStep {
     }
 }
 
-/// Alias emphasizing that the scripted provider is a fake provider boundary.
-pub type ScriptedProvider = DeterministicProvider;
-
 /// A hostile provider that requests a protected read and then attempts export.
 pub struct HostileProvider {
     turn: usize,

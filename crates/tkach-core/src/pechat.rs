@@ -258,18 +258,6 @@ impl SecretBroker for FakeBroker {
     }
 }
 
-/// Branded Pechat facade for documentation and future broker implementations.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Pechat;
-
-impl Pechat {
-    /// Construct a stateless Pechat facade.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -427,10 +415,5 @@ mod tests {
             broker.register(SecretHandle::new("aggregate-overflow").unwrap(), vec![0],),
             Err(PechatError::TotalSecretBytesExceeded)
         );
-    }
-
-    #[test]
-    fn pechat_facade_is_provider_independent() {
-        assert_eq!(Pechat::new(), Pechat);
     }
 }

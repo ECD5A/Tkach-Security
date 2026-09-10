@@ -16,10 +16,7 @@
 //! content a DATA lane with no authority and provides no public data-to-control
 //! conversion.
 
-use crate::domain::{
-    Authority, Classification, FlowDirection, Lane, Principal, Provenance, ProvenanceSource,
-    SecurityContext, Trust,
-};
+use crate::domain::{Classification, Principal, Provenance, ProvenanceSource, SecurityContext};
 use serde::Serialize;
 use std::fmt::{Debug, Formatter};
 use thiserror::Error;
@@ -190,41 +187,10 @@ impl Gnezdo {
     }
 }
 
-/// Type-level statement used by tests and documentation: a data lane can only
-/// be read/analyzed as data and has no control authority.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DataLane;
-
-impl DataLane {
-    /// Return the only authority state this lane can carry.
-    #[must_use]
-    pub const fn authority() -> Authority {
-        Authority::None
-    }
-
-    /// Return the lane marker.
-    #[must_use]
-    pub const fn lane() -> Lane {
-        Lane::Data
-    }
-
-    /// Return the trust marker.
-    #[must_use]
-    pub const fn trust() -> Trust {
-        Trust::Untrusted
-    }
-
-    /// Return that data has no flow direction authority by itself.
-    #[must_use]
-    pub const fn direction() -> Option<FlowDirection> {
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{Identity, ResourceId};
+    use crate::domain::{Authority, Identity, Lane, ResourceId, Trust};
 
     fn web_source() -> ProvenanceSource {
         ProvenanceSource::Web(Identity::new("example.test").unwrap())
@@ -289,14 +255,6 @@ mod tests {
                     ResourceId::new("customer.db").unwrap()
                 ))
         );
-    }
-
-    #[test]
-    fn data_lane_has_no_control_authority_or_direction() {
-        assert_eq!(DataLane::authority(), Authority::None);
-        assert_eq!(DataLane::lane(), Lane::Data);
-        assert_eq!(DataLane::trust(), Trust::Untrusted);
-        assert_eq!(DataLane::direction(), None);
     }
 
     #[test]

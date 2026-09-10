@@ -21,7 +21,7 @@ use tkach_core::domain::{
     FlowDirection, Identity, Lane, Operation, PolicyId, Principal, Resource, ResourceId,
     ResourceKind, ResourceScope, RuleId, SledReason, Trust,
 };
-use tkach_core::gnezdo::{DataLane, Gnezdo};
+use tkach_core::gnezdo::Gnezdo;
 use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::niti_metka::TaggedData;
 use tkach_core::pechat::{FakeBroker, PechatError, SecretBroker, SecretHandle};
@@ -70,11 +70,6 @@ fn authority_lane_truth_table_accepts_only_canonical_public_data() {
             Classification::Unknown
         )
     );
-    assert_eq!(DataLane::authority(), Authority::None);
-    assert_eq!(DataLane::lane(), Lane::Data);
-    assert_eq!(DataLane::trust(), Trust::Untrusted);
-    assert_eq!(DataLane::direction(), None);
-
     let table = [
         ("Model", "None", "Untrusted", "Data", "Unknown", true),
         (
