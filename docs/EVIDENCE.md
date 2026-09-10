@@ -1,6 +1,7 @@
 # Security and Validation Evidence
 
-This is the single evidence record for the current repository. Source code and
+This is the single evidence record for the current repository. The current
+hardening evidence was rerun against HEAD `823d0f0`. Source code and
 executable tests remain authoritative; this document records what was run,
 what it establishes, and what it does not establish. Older phase reports were
 consolidated here and removed from the active tree.

@@ -2,8 +2,8 @@
 
 Status: authoritative current-state summary. The production-runtime baseline
 is tagged `production-runtime-v0.1` at `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`;
-the current source also includes reviewed runtime-proof and OpenAI credential
-ownership hardening.
+the current source also includes reviewed runtime-proof hardening `756d695`
+and OpenAI credential ownership hardening `823d0f0`.
 
 This file describes what is implemented now. It is not a replacement for the
 permanent constitution, source code, or executable tests.

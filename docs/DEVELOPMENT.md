@@ -23,9 +23,9 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - `756d695`: stored the trusted runtime authentication proof in
   `zeroize::Zeroizing<Vec<u8>>`; redaction, constant-time comparison, and
   authentication-before-Gateway behavior remained unchanged.
-- current hardening cycle: store the OpenAI adapter's trusted configuration
-  credential in `zeroize::Zeroizing<String>`; HTTP-client/header and caller
-  buffers remain explicitly outside the ownership claim.
+- `823d0f0`: stored the OpenAI adapter's trusted configuration credential in
+  `zeroize::Zeroizing<String>`; HTTP-client/header and caller buffers remain
+  explicitly outside the ownership claim.
 
 ## Security review rules applied
 
