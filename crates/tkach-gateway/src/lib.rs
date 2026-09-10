@@ -38,8 +38,8 @@ pub use runtime::{
     CancellationToken, DEFAULT_MAX_ACTIVE_REQUESTS, LifecycleId, MAX_RUNTIME_AUTH_BYTES,
     MAX_RUNTIME_FRAME_BYTES, MAX_RUNTIME_ID_BYTES, MAX_RUNTIME_REPLAY_ENTRIES,
     MAX_RUNTIME_RESPONSE_BYTES, RequestId, RuntimeAuthenticator, RuntimeConfigError, RuntimeEffect,
-    RuntimeEffectOutcome, RuntimeFailure, RuntimeLimits, RuntimeOutcome, RuntimeReceipt,
-    RuntimeResponse, RuntimeService,
+    RuntimeEffectOutcome, RuntimeFailure, RuntimeLimits, RuntimeListener, RuntimeOutcome,
+    RuntimeReceipt, RuntimeResponse, RuntimeService, RuntimeTransportError,
 };
 pub use tools::{
     EffectOutcome, EffectReceipt, FakeToolBroker, REAL_FILE_WRITE_CONTENT, REAL_NETWORK_PATH,

@@ -24,8 +24,11 @@ use serde::de::{Deserializer, Error as DeError, Visitor};
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use thiserror::Error;
 use tkach_core::domain::{Destination, Operation, ResourceKind};
 
@@ -41,6 +44,7 @@ pub const MAX_RUNTIME_ID_BYTES: usize = 128;
 pub const MAX_RUNTIME_REPLAY_ENTRIES: usize = 1_024;
 /// The runtime default is deliberately serialized: no unbounded worker queue.
 pub const DEFAULT_MAX_ACTIVE_REQUESTS: usize = 1;
+const RUNTIME_TRANSPORT_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// Errors in trusted runtime configuration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
@@ -206,6 +210,21 @@ pub enum RuntimeFailure {
     /// The effect outcome cannot be determined.
     EffectOutcomeUnknown,
     /// The safe response itself exceeded its transport bound.
+    ResponseTooLarge,
+}
+
+/// Static transport errors. OS/socket details are intentionally not returned
+/// to the untrusted caller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
+pub enum RuntimeTransportError {
+    /// The listener address is not loopback-only.
+    #[error("runtime transport must bind to a loopback address")]
+    NonLoopbackBind,
+    /// A listener or stream operation failed.
+    #[error("runtime transport I/O failed")]
+    Io,
+    /// A response could not be represented within the response frame bound.
+    #[error("runtime transport response is too large")]
     ResponseTooLarge,
 }
 
@@ -629,6 +648,138 @@ impl<P: Provider> RuntimeService<P> {
             Err(error) => failure_from_gateway(&request_id, &lifecycle_id, &error),
         }
     }
+}
+
+/// A sequential loopback transport adapter for [`RuntimeService`].
+///
+/// The wire format is a four-byte big-endian length followed by one strict
+/// JSON runtime frame. It has no compression, redirects, proxy semantics, or
+/// internet binding. The adapter intentionally serves one connection at a
+/// time; this gives a concrete concurrency ceiling while keeping provider and
+/// executor ownership in the Tkach process. A future process split can keep
+/// this frame contract and replace the carrier with reviewed authenticated
+/// IPC/TLS termination.
+pub struct RuntimeListener<P> {
+    listener: TcpListener,
+    service: RuntimeService<P>,
+}
+
+impl<P> Debug for RuntimeListener<P> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RuntimeListener")
+            .field("local_addr", &self.listener.local_addr().ok())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<P: Provider> RuntimeListener<P> {
+    /// Bind a runtime service to a loopback address.
+    ///
+    /// Port zero is accepted for tests and asks the OS to allocate an
+    /// ephemeral loopback port. No DNS name or non-loopback address is
+    /// accepted.
+    ///
+    /// # Errors
+    ///
+    /// Returns a static error without exposing the requested address.
+    pub fn bind(
+        address: SocketAddr,
+        service: RuntimeService<P>,
+    ) -> Result<Self, RuntimeTransportError> {
+        if !address.ip().is_loopback() {
+            return Err(RuntimeTransportError::NonLoopbackBind);
+        }
+        let listener = TcpListener::bind(address).map_err(|_| RuntimeTransportError::Io)?;
+        listener
+            .set_nonblocking(false)
+            .map_err(|_| RuntimeTransportError::Io)?;
+        Ok(Self { listener, service })
+    }
+
+    /// Return the concrete loopback address selected by the OS.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeTransportError::Io`] if the listener address cannot be
+    /// read.
+    pub fn local_addr(&self) -> Result<SocketAddr, RuntimeTransportError> {
+        self.listener
+            .local_addr()
+            .map_err(|_| RuntimeTransportError::Io)
+    }
+
+    /// Return mutable access to lifecycle controls without exposing the
+    /// Gateway, provider, executor, or authenticator internals.
+    pub fn service_mut(&mut self) -> &mut RuntimeService<P> {
+        &mut self.service
+    }
+
+    /// Accept, authenticate, handle, and reply to one framed loopback request.
+    ///
+    /// The listener reads at most the configured frame bound. A claimed length
+    /// above that bound receives a safe invalid-frame response without body
+    /// allocation. There is no implicit retry after a stream reset, timeout,
+    /// malformed response, or `OutcomeUnknown` result.
+    ///
+    /// # Errors
+    ///
+    /// Returns a static transport error when the carrier cannot accept/read/
+    /// write the connection. A successfully read application frame always
+    /// returns a [`RuntimeResponse`], including authentication and Gateway
+    /// denials.
+    pub fn serve_one(
+        &mut self,
+        cancellation: &CancellationToken,
+    ) -> Result<RuntimeResponse, RuntimeTransportError> {
+        let (mut stream, _) = self
+            .listener
+            .accept()
+            .map_err(|_| RuntimeTransportError::Io)?;
+        stream
+            .set_read_timeout(Some(RUNTIME_TRANSPORT_TIMEOUT))
+            .map_err(|_| RuntimeTransportError::Io)?;
+        stream
+            .set_write_timeout(Some(RUNTIME_TRANSPORT_TIMEOUT))
+            .map_err(|_| RuntimeTransportError::Io)?;
+
+        let mut header = [0_u8; 4];
+        stream
+            .read_exact(&mut header)
+            .map_err(|_| RuntimeTransportError::Io)?;
+        let frame_len = u32::from_be_bytes(header) as usize;
+        let response = if frame_len > self.service.limits.max_frame_bytes {
+            failure_response(None, None, RuntimeFailure::InvalidFrame, None)
+        } else {
+            let mut frame = vec![0_u8; frame_len];
+            stream
+                .read_exact(&mut frame)
+                .map_err(|_| RuntimeTransportError::Io)?;
+            self.service.handle_frame(&frame, cancellation)
+        };
+        write_response_frame(&mut stream, &response)?;
+        Ok(response)
+    }
+}
+
+fn write_response_frame(
+    stream: &mut TcpStream,
+    response: &RuntimeResponse,
+) -> Result<(), RuntimeTransportError> {
+    let bytes = if let Ok(bytes) = response.to_json() {
+        bytes
+    } else {
+        let fallback = failure_response(None, None, RuntimeFailure::ResponseTooLarge, None);
+        fallback
+            .to_json()
+            .map_err(|_| RuntimeTransportError::ResponseTooLarge)?
+    };
+    let length = u32::try_from(bytes.len()).map_err(|_| RuntimeTransportError::ResponseTooLarge)?;
+    stream
+        .write_all(&length.to_be_bytes())
+        .and_then(|()| stream.write_all(&bytes))
+        .and_then(|()| stream.flush())
+        .map_err(|_| RuntimeTransportError::Io)
 }
 
 #[derive(Deserialize)]
@@ -1078,5 +1229,56 @@ mod tests {
             Err(RuntimeFailure::ConcurrencyLimit)
         );
         ledger.finish();
+    }
+
+    #[test]
+    fn loopback_listener_uses_authenticated_bounded_framing() {
+        let service = service(complete_provider());
+        let mut listener = RuntimeListener::bind("127.0.0.1:0".parse().unwrap(), service).unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut client = TcpStream::connect(address).unwrap();
+        let frame = frame("request-1", "lifecycle-1", "runtime-secret");
+        client
+            .write_all(&(u32::try_from(frame.len()).unwrap()).to_be_bytes())
+            .unwrap();
+        client.write_all(&frame).unwrap();
+        client.flush().unwrap();
+        let response = listener.serve_one(&CancellationToken::new()).unwrap();
+        assert!(matches!(response, RuntimeResponse::Success { .. }));
+        let mut header = [0_u8; 4];
+        client.read_exact(&mut header).unwrap();
+        let response_len = u32::from_be_bytes(header) as usize;
+        assert!(response_len <= MAX_RUNTIME_RESPONSE_BYTES);
+        let mut response_body = vec![0_u8; response_len];
+        client.read_exact(&mut response_body).unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&response_body).unwrap();
+        assert_eq!(json["Success"]["output"], "safe response");
+        assert!(String::from_utf8_lossy(&response_body).contains("request-1"));
+        assert!(!String::from_utf8_lossy(&response_body).contains("runtime-secret"));
+    }
+
+    #[test]
+    fn loopback_listener_rejects_non_loopback_and_oversized_lengths() {
+        let service_for_non_loopback = service(complete_provider());
+        assert!(matches!(
+            RuntimeListener::bind("192.0.2.1:1234".parse().unwrap(), service_for_non_loopback),
+            Err(RuntimeTransportError::NonLoopbackBind)
+        ));
+
+        let mut listener =
+            RuntimeListener::bind("127.0.0.1:0".parse().unwrap(), service(complete_provider()))
+                .unwrap();
+        let address = listener.local_addr().unwrap();
+        let mut client = TcpStream::connect(address).unwrap();
+        let too_large = (u32::try_from(MAX_RUNTIME_FRAME_BYTES).unwrap() + 1).to_be_bytes();
+        client.write_all(&too_large).unwrap();
+        let response = listener.serve_one(&CancellationToken::new()).unwrap();
+        assert!(matches!(
+            response,
+            RuntimeResponse::Failure {
+                failure: RuntimeFailure::InvalidFrame,
+                ..
+            }
+        ));
     }
 }
