@@ -8,9 +8,9 @@ and security evidence is in `EVIDENCE.md`.
 
 Compact documentation tree after the local `production-runtime-v0.1` baseline,
 trusted credential-ownership hardening, Strong Core checkpoint, v0.1 public API
-contract, and the bounded CLI onboarding adapter. Productization is now active
-by owner direction; the public API, CLI, and local HTTP adapter are complete;
-the Core remains frozen.
+contract, bounded CLI onboarding adapter, local HTTP adapter, and thin Rust
+client. Productization is now active by owner direction; the Core remains
+frozen.
 
 ## DONE
 
@@ -31,15 +31,18 @@ the Core remains frozen.
 - Minimal `tkach` CLI with bounded `init`, strict `check`, and deterministic
   `run --demo` onboarding path, including no-overwrite and symlink/reparse
   boundary tests.
+- Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
+  including zeroizing token/header storage and response-framing regression
+  tests.
 - Loopback-only bounded HTTP/1.1 adapter over `RuntimeService`, with strict
   `/v1/run` and static `/healthz` contracts plus transport regression tests.
 
 ## NEXT
 
-The next productization cycle is a thin SDK or MCP adapter over the reviewed
-HTTP/runtime contract, one adapter at a time. It must not duplicate policy,
-authority, or execution logic. Distribution and external publication remain
-behind that contract and an owner decision.
+The next productization cycle is a separately reviewed MCP adapter over the
+HTTP/runtime contract. It must not duplicate policy, authority, or execution
+logic. Distribution and external publication remain behind that contract and
+an owner decision.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -48,8 +51,8 @@ complete the local validation matrix, update `CURRENT_BASELINE.md` and
 
 ## CURRENT SCOPE, NOT PERMANENT BANS
 
-The source currently has no MCP adapter, provider SDK, streaming release API,
-generic executor, public internet gateway, UI, cloud control plane,
+The source currently has no MCP adapter, multi-language SDK, streaming release
+API, generic executor, public internet gateway, UI, cloud control plane,
 TLS/process supervisor integration, durable distributed replay, or universal
 handle-relative filesystem transaction. A future boundary may be added only
 if it remains a thin adapter over the existing authority model and passes its
@@ -65,7 +68,7 @@ this order:
 - language-neutral HTTP/API adapter with bounded schemas and health/diagnostic
   behavior (done for the local library boundary);
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
-  reviewed;
+  reviewed; the first Rust client is done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks;
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,

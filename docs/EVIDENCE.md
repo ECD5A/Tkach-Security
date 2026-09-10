@@ -5,7 +5,8 @@ frozen Strong Core/Gateway boundary and the thin productization adapters. The
 provider hardening evidence was rerun after source commit `823d0f0`; the public
 API smoke test, CLI, and HTTP adapter are recorded separately below. Source code and
 executable tests remain authoritative; this document records what was run,
-what it establishes, and what it does not establish. Older phase reports were
+what it establishes, and what it does not establish. The thin Rust client
+checkpoint is included with the other productization adapters. Older phase reports were
 consolidated here and removed from the active tree.
 
 ## Current result
@@ -51,9 +52,10 @@ cargo run -p tkach-cli --offline -- --help
 cargo run -p tkach-cli --offline -- --version
 cargo run -p tkach-cli --offline -- run --demo
 cargo test -p tkach-http --all-targets --all-features --locked --offline
+cargo test -p tkach-client --all-targets --all-features --locked --offline
 ```
 
-The current Windows MSVC debug/release workspace matrix contains 282 passing
+The current Windows MSVC debug/release workspace matrix contains 288 passing
 tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 
 | Suite | Tests |
@@ -66,13 +68,15 @@ tests (the Unix-only CLI symlink regression adds one test on Unix hosts):
 | Public API smoke | 1 |
 | CLI unit | 4 |
 | HTTP adapter | 10 |
+| Rust client | 6 |
 | Product proof | 14 |
 | Real effects | 13 |
 | OpenAI provider | 34 |
 | Opt-in live guard | 1 |
 
 The same suites pass in both debug and release profiles. The docs, packaging,
-Quickstart, CLI command smoke, HTTP adapter exchange tests, audit, deny,
+Quickstart, CLI command smoke, HTTP adapter exchange tests, Rust client
+exchange tests, audit, deny,
 metadata, formatting, and clippy gates pass locally.
 The checked-in CI workflow now invokes the same metadata, debug/release test,
 documentation, package, and Quickstart gates; dependency audit and deny remain
@@ -135,6 +139,21 @@ This checkpoint does not claim TLS, public binding, process/OS isolation,
 durable replay, cancellation-on-disconnect, a published HTTP service binary,
 or any SDK/MCP/distribution release. The documented host and concurrent path
 substitution residuals remain unchanged.
+
+## Productization Rust client checkpoint
+
+Status: PASS for the thin local Rust client adapter. The tkach-client package
+accepts only loopback addresses, validates identifiers and Gateway JSON before
+connection, bounds the request envelope and response body, rejects chunked or
+ambiguous response framing, returns status without retry or authority
+semantics, and keeps its owned bearer token plus request-header buffer in
+zeroizing storage. Focused client tests, clippy, and the workspace gates
+passed.
+
+This checkpoint does not claim a published crate, a multi-language SDK, TLS,
+process/OS isolation, public HTTP service, MCP server, signed artifact, or
+distribution release. Caller-owned request buffers and host memory remain
+outside the token-ownership claim.
 
 ## Adversarial and mutation evidence
 

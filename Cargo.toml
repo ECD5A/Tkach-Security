@@ -6,6 +6,7 @@ members = [
     "crates/tkach-provider-openai",
     "crates/tkach-cli",
     "crates/tkach-http",
+    "crates/tkach-client",
 ]
 exclude = ["fuzz"]
 

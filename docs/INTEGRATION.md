@@ -73,8 +73,49 @@ The v0.1 listener is intentionally local and sequential:
 This contract is suitable for a local trusted host and language clients that
 can issue ordinary HTTP/1.1 requests. It is not TLS, process/OS isolation,
 durable replay, cancellation-on-disconnect, a public gateway, or a replacement
-for the Core/Gateway authority model. SDKs, MCP, and a distributable server
-binary must build on this contract only after separate review.
+for the Core/Gateway authority model. The Rust client below is a thin reviewed
+carrier; MCP, other-language SDKs, and a distributable server binary require
+separate review.
+
+## Rust client adapter — v0.1
+
+tkach-client is an optional typed Rust client for the HTTP contract. It
+accepts only a loopback SocketAddr, validates the bearer token before any
+connection, validates the inner request with ExternalRequest, bounds the HTTP
+envelope and response, rejects ambiguous response framing, and zeroizes its
+owned token and request-header buffer. It does not retry, interpret policy,
+create authority, or expose a non-loopback transport.
+
+Add the local crate while the project is still using the workspace:
+
+~~~text
+tkach-client = { path = "../tkach-client", version = "0.1.0" }
+~~~
+
+The smallest call path is:
+
+~~~rust
+use std::net::SocketAddr;
+use tkach_client::{RunRequest, TkachClient};
+
+let client = TkachClient::new(
+    "127.0.0.1:8080".parse::<SocketAddr>()?,
+    "trusted-runtime-token",
+)?;
+client.health()?;
+let request = RunRequest::new(
+    "request-1",
+    "lifecycle-1",
+    br#"{"messages":[{"role":"user","content":"hello"}]}"#.to_vec(),
+)?;
+let response = client.run(&request)?;
+~~~
+
+ClientResponse status_code, body, and is_success are transport observations
+only. A non-2xx response is not a reason to retry an effect or to treat
+model/provider output as trusted. The client is local-only: it is not TLS,
+process isolation, a public service, or an SDK for other languages. Those
+languages can use the same strict HTTP contract directly.
 
 ## Public API contract — v0.1
 
@@ -140,8 +181,8 @@ or release function.
 ## Minimum integration steps
 
 1. Install/use the `tkach-core` and `tkach-gateway` Rust crates in the host
-   process. The current source surface has no SDK or package-manager facade;
-   this is an integration fact, not a permanent ban.
+   process, or use `tkach-client` against a separately configured local HTTP
+   listener. The client is an adapter, not a package-wide facade.
 2. Convert external messages into `ExternalRequest`; use `ExternalRole::Data`
    for imported documents, web text, and other attacker-influenced material.
 3. Define capabilities as typed `ActionRequest` shapes and Krosna policy rules;

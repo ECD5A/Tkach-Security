@@ -50,6 +50,11 @@ These guarantees apply only to validated inputs reaching the boundary and to
 integrations that do not provide an out-of-band executor, broker, release, or
 raw-credential path.
 
+The tkach-client adapter accepts only loopback addresses, validates and bounds
+request/response framing, does not retry or mint authority, and zeroizes its
+owned bearer token and request-header buffer on drop. Caller request buffers
+and host memory remain outside that ownership guarantee.
+
 ## Primitive roles and necessity
 
 | Primitive | Security role | What fails if removed |
@@ -93,8 +98,9 @@ bypassed Gateway, a fully compromised host/OS, or same-privilege out-of-band
 effects. It does not provide durable distributed exactly-once effects,
 forceful interruption of blocking synchronous calls, universal concurrent
 filesystem race prevention, TLS/process isolation, or host-memory zeroization.
-The current source has no SDK, MCP, streaming release, UI, cloud control
-plane, or public internet gateway.
+The current source has no MCP, multi-language SDK, streaming release, UI, cloud
+control plane, or public internet gateway. The Rust client is only a local
+HTTP carrier.
 
 ## Evidence boundary
 

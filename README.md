@@ -25,7 +25,8 @@ The reporting policy is [SECURITY.md](SECURITY.md).
 
 ## Five-minute local start
 
-The local CLI onboarding adapter is available from the workspace:
+The local CLI onboarding adapter and the optional Rust HTTP client are
+available from the workspace:
 
 ```text
 cargo install --path crates/tkach-cli --locked
@@ -54,8 +55,8 @@ bounded authenticated frame
   -> bounded receipt and release
 ```
 
-The workspace contains three provider-independent Rust boundary crates and two
-thin local adapters:
+The workspace contains three provider-independent Rust boundary crates and
+three thin local adapters:
 
 - `tkach-core` — Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka,
   Klyuchnik, and Sled;
@@ -69,9 +70,12 @@ thin local adapters:
 - `tkach-http` - the loopback-only HTTP/1.1 carrier for an existing
   `RuntimeService`; it adds transport validation, not policy or execution
   authority.
+- tkach-client - the bounded Rust client for the reviewed loopback HTTP
+  contract; it adds no policy, authority, retry, or executor logic.
 
-There is no SDK, MCP adapter, streaming release API, public internet gateway,
-UI, cloud control plane, or generic executor in the current source surface.
+There is no MCP adapter, streaming release API, public internet gateway, UI,
+cloud control plane, generic executor, or multi-language SDK in the current
+source surface. The Rust client is intentionally only a local HTTP adapter.
 These are current scope facts, not permanent constitutional prohibitions.
 
 ## Validation

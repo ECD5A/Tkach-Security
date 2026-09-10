@@ -1065,6 +1065,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tkach-client"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tkach-core",
+ "tkach-gateway",
+ "tkach-http",
+ "zeroize",
+]
+
+[[package]]
 name = "tkach-core"
 version = "0.1.0"
 dependencies = [

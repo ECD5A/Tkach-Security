@@ -4,7 +4,7 @@ Status: authoritative current-state summary. The production-runtime baseline
 is tagged `production-runtime-v0.1` at `41e9ca0a374cfb95ac1a1ed3a5b22ce6445d9283`;
 the current source also includes reviewed runtime-proof hardening `756d695`,
 OpenAI credential ownership hardening `823d0f0`, the v0.1 public API boundary,
-and the thin productization CLI.
+the thin productization CLI, HTTP adapter, and Rust client.
 
 This file describes what is implemented now. It is not a replacement for the
 permanent constitution, source code, or executable tests.
@@ -27,7 +27,7 @@ and historical acceptance records do not become permanent bans.
 
 ## Implemented product boundary
 
-The workspace contains five Rust packages:
+The workspace contains six Rust packages:
 
 - `tkach-core`: provider-independent typed security domain, Krosna policy
   evaluation, Zaslon hard-deny rules, Gnezdo data/control containment,
@@ -44,16 +44,19 @@ The workspace contains five Rust packages:
 - `tkach-http`: a loopback-only bounded HTTP/1.1 adapter over
   `RuntimeService`; it is a library carrier, not a public gateway or server
   binary.
+- tkach-client: an optional bounded Rust client for the reviewed loopback
+  HTTP contract; it validates requests/responses and owns a zeroizing bearer
+  token, but adds no policy, authority, retry, or executor logic.
 
 The canonical product vocabulary is:
 
 `Krosna` · `Propusk` · `Ruslo` · `Zaslon` · `Gnezdo` · `Niti` · `Metka` ·
 `Klyuchnik` · `Sled`.
 
-No deprecated primitive name, provider SDK, MCP adapter, streaming release
-API, generic executor, public internet gateway, UI, or cloud control plane is
-implemented at this baseline. The CLI is local onboarding only and is not a
-general-purpose agent runner.
+No deprecated primitive name, MCP adapter, streaming release API, generic
+executor, public internet gateway, UI, cloud control plane, or multi-language
+SDK is implemented at this baseline. The Rust client is local-only, and the
+CLI is local onboarding only; neither is a general-purpose agent runner.
 
 ## Security boundary that exists
 
@@ -132,8 +135,8 @@ The final production-runtime local evidence passed:
 - locked metadata, offline `cargo audit --no-fetch`, `cargo deny check`,
   offline fuzz-binary compilation, offline packaging, and Quickstart execution;
 - 113 core, 9 composition, 9 independent-oracle, 49 Gateway unit, 25 Gateway
-  boundary, 1 public-api smoke, 4 CLI unit, 10 HTTP adapter, 14 product-proof,
-  13 real-effect, 34 provider, and 1 opt-in live
+  boundary, 1 public-api smoke, 4 CLI unit, 10 HTTP adapter, 6 Rust client,
+  14 product-proof, 13 real-effect, 34 provider, and 1 opt-in live
   guard tests in the debug/release matrix;
 - targeted runtime mutation: 110 mutants, 85 caught, 24 unviable, and one
   diagnostic-only `Visitor::expecting` survivor; no security-path survivor;
@@ -154,10 +157,11 @@ is started and no existing scan is canceled.
 ## Current phase
 
 The current phase is Productization / Distribution / DX, with the stable API
-contract, bounded CLI onboarding, and local HTTP adapter complete. The Core and
-Gateway authority model remain frozen; the next boundary is a thin SDK/MCP
-adapter over the reviewed HTTP contract. No speculative provider, UI, cloud,
-or public gateway implementation is implied by these adapters.
+contract, bounded CLI onboarding, local HTTP adapter, and thin Rust client
+complete. The Core and Gateway authority model remain frozen; the next
+boundary is a separately reviewed MCP adapter, followed by distribution
+artifacts. No speculative provider, UI, cloud, or public gateway
+implementation is implied by these adapters.
 
 Historical checkpoints and reports remain valuable evidence, but they are not
 active mandates. `DEVELOPMENT.md` is the concise chronological engineering

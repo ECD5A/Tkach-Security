@@ -36,6 +36,10 @@ permanent rules are in `../Tkach Security — MASTER_MANDATE.md`.
 - current Productization cycle: added the loopback-only `tkach-http` adapter
   with strict HTTP framing, Bearer translation into `RuntimeService`, bounded
   responses, health liveness, and transport regression coverage.
+- current Productization cycle: added the bounded tkach-client Rust adapter
+  over the reviewed HTTP contract, with loopback-only configuration, strict
+  response parsing, zeroizing token/header buffers, and no retry or authority
+  semantics.
 - current checkpoint cycle: reran the local Strong Core matrix and recorded
   the bounded release decision and residual claims in `EVIDENCE.md`.
 
