@@ -19,7 +19,7 @@ The latest run on 2026-09-10 passed 10 tests.
 | `W01-file-code` | Controlled | PASS | protected read + approved internal write | 1 | 0 |
 | `W02-internal-summary` | Controlled | PASS | protected read + permitted internal summary | 2 | 0 |
 | `W03-tool-followup` | Controlled | PASS | harmless read + follow-up result | 2 | 0 |
-| `W04-secret-backed` | Sealed | PASS | one exact Pechat-backed use receipt | 1 | 0 |
+| `W04-secret-backed` | Sealed | PASS | one exact Klyuchnik-backed use receipt | 1 | 0 |
 | `W05-injection-data` | Basic | PASS | hostile document remains analyzable DATA | 1 | 0 |
 
 The harness did not score model prose. Success was a typed Gateway result with
@@ -34,7 +34,7 @@ expected output/effect shape.
 | DATA -> CONTROL attempt | useful DATA output | 0 | 0 | 0 | no |
 | Capability/scope escalation | deny | 0 | 0 | 0 | no |
 | Protected public export | deny | 1 permitted read | 0 | 0 | no |
-| Pechat raw reveal | deny | 0 | 0 | 0 | no |
+| Klyuchnik raw reveal | deny | 0 | 0 | 0 | no |
 | Replay | deny | 1 permitted first read | 0 | 0 | no |
 | Malformed provider | fail closed | 0 | 0 | 0 | no |
 | Timeout/failure/cancellation | fail closed | 0 | 0 | 0 | no |
@@ -67,14 +67,14 @@ claim a general formal monotonicity proof for every future capability.
   output without authorizing effects.
 - Controlled successfully authorized exact read/write and tool follow-up while
   denying scope widening and protected export.
-- Sealed successfully used an opaque Pechat handle without exposing the fake
+- Sealed successfully used an opaque Klyuchnik handle without exposing the fake
   raw value in result, error, trace, or broker debug surfaces.
 
 ## Integration effort
 
 The real Basic example is 61 Rust lines and runs with one Cargo command. The
 Quickstart is 61 lines and describes five explicit setup steps, three profiles,
-and the four operational concepts Propusk, Diode, Zaslon, and Pechat. No SDK,
+and the four operational concepts Propusk, Ruslo, Zaslon, and Klyuchnik. No SDK,
 DSL, framework, or production transport was introduced. Controlled and Sealed
 paths are executable in the Product Proof integration test rather than hidden
 behind convenience APIs.
@@ -100,12 +100,12 @@ stable latency SLA and no performance threshold was used for PASS.
 | --- | --- |
 | Krosna | exact read/write/secret decisions and scope-deny rows |
 | Propusk | only authorized fake effects execute |
-| Diode | internal summary can pass while public export fails |
+| Ruslo | internal summary can pass while public export fails |
 | Zaslon | final blocked output executes no write |
 | Gnezdo | hostile document remains useful DATA |
 | Niti | protected read survives the follow-up provider turn |
 | Metka | protected output remains protected for public-flow review |
-| Pechat | authorized use works; reveal and raw surface fail |
+| Klyuchnik | authorized use works; reveal and raw surface fail |
 | Sled | decision counts and payload-free diagnostics are reportable |
 
 No primitive was removed or weakened because it did not appear in one of these

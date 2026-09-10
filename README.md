@@ -26,9 +26,9 @@ streaming, UI, cloud orchestration, or a real executor.
 
 ## How does it work?
 
-`untrusted input -> Gnezdo -> provider -> typed proposal -> Krosna/Diode/Zaslon -> Propusk -> protected executor`
+`untrusted input -> Gnezdo -> provider -> typed proposal -> Krosna/Ruslo/Zaslon -> Propusk -> protected executor`
 
-Pechat keeps broker-held secrets outside normal model context. Niti and Metka
+Klyuchnik keeps broker-held secrets outside normal model context. Niti and Metka
 carry provenance and conservative classification. Sled provides payload-free
 decision evidence.
 

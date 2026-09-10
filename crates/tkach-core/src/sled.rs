@@ -22,8 +22,8 @@ use crate::domain::{
     Principal, ProvenanceSource, Resource, ResourceId, ResourceKind, SecurityContext,
 };
 use crate::gnezdo::UntrustedContent;
+use crate::klyuchnik::{BrokerReceipt, KlyuchnikError, SecretBroker, SecretHandle};
 use crate::krosna::Krosna;
-use crate::pechat::{BrokerReceipt, PechatError, SecretBroker, SecretHandle};
 use crate::propusk::{AuthorizationError, ExecutionError, Propusk, ProtectedExecutor};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
@@ -437,7 +437,7 @@ pub enum EnforcementOutcome {
     Denied(Decision),
     /// A non-secret authorized effect crossed the fake executor boundary.
     Executed(ExecutionReceipt),
-    /// An authorized secret operation ran inside Pechat without returning raw
+    /// An authorized secret operation ran inside Klyuchnik without returning raw
     /// material.
     BrokerUsed(BrokerReceipt),
 }
@@ -457,15 +457,15 @@ pub enum TestbedError {
     /// A successful request crossed the fake executor but execution failed.
     #[error(transparent)]
     Execution(#[from] ExecutionError),
-    /// A secret operation was requested without a Pechat broker.
-    #[error("secret operation requires Pechat broker")]
+    /// A secret operation was requested without a Klyuchnik broker.
+    #[error("secret operation requires Klyuchnik broker")]
     BrokerRequired,
-    /// A secret destination did not use the exact Pechat operation contract.
-    #[error("secret destination has no valid Pechat route")]
+    /// A secret destination did not use the exact Klyuchnik operation contract.
+    #[error("secret destination has no valid Klyuchnik route")]
     InvalidBrokerRoute,
-    /// Pechat rejected the authorized broker operation.
+    /// Klyuchnik rejected the authorized broker operation.
     #[error(transparent)]
-    Broker(#[from] PechatError),
+    Broker(#[from] KlyuchnikError),
 }
 
 /// A complete fake chain from hostile model proposal to protected effect.
@@ -507,7 +507,7 @@ impl EnforcementTestbed {
         self.run_inner(model, None)
     }
 
-    /// Process hostile requests and route authorized secret use through Pechat.
+    /// Process hostile requests and route authorized secret use through Klyuchnik.
     ///
     /// # Errors
     ///
@@ -606,9 +606,9 @@ fn action(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diode::{Diode, FlowMatcher, FlowRule, FlowSource};
     use crate::domain::{FlowDirection, PolicyId, Provenance, RuleId, SledReason};
     use crate::krosna::{Policy, PolicyRule, RuleMatcher};
+    use crate::ruslo::{FlowMatcher, FlowRule, FlowSource, Ruslo};
     use crate::zaslon::{ActionRule, Zaslon};
 
     fn evidence() -> Decision {
@@ -647,12 +647,12 @@ mod tests {
             )],
         )
         .unwrap();
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-model-read").unwrap(),
             FlowMatcher::any()
                 .source(FlowSource::Resource(read))
                 .destination(Destination::Model)
-                .operation(crate::diode::FlowOperation::Read),
+                .operation(crate::ruslo::FlowOperation::Read),
         )])
         .unwrap();
         let zaslon = Zaslon::new(
@@ -663,7 +663,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        Krosna::with_zaslon_and_diode(policy, zaslon, diode)
+        Krosna::with_zaslon_and_ruslo(policy, zaslon, ruslo)
     }
 
     #[test]
@@ -827,7 +827,7 @@ mod tests {
     }
 
     #[test]
-    fn authorized_secret_route_uses_pechat_without_secret_output() {
+    fn authorized_secret_route_uses_klyuchnik_without_secret_output() {
         let handle = SecretHandle::new("github-prod").unwrap();
         let resource = handle.resource();
         let policy = Policy::new(
@@ -866,7 +866,7 @@ mod tests {
             TestbedError::BrokerRequired
         );
         assert!(without_broker.executor().is_empty());
-        let mut broker = crate::pechat::FakeBroker::new();
+        let mut broker = crate::klyuchnik::FakeBroker::new();
         broker
             .register(handle, b"actual-secret-value".to_vec())
             .unwrap();

@@ -70,7 +70,7 @@ also remains entirely preflighted: the read is not executed.
 The `Provider` implementation receives only an immutable `ProviderRequest` and
 a `ProviderSink`. The sink can stage bounded text and typed `ActionRequest`
 proposals; it cannot issue `Propusk`, call a broker, construct trusted Niti or
-Metka, change policy, release output, access Pechat, or retain an executor
+Metka, change policy, release output, access Klyuchnik, or retain an executor
 reference supplied by the Gateway. `ProviderRequest` contains only bounded
 model inputs, metadata, and a fixed tool vocabulary. Provider output has no
 security metadata and is conservatively re-derived by the Gateway.
@@ -156,7 +156,7 @@ complete list; categories are intentionally explicit.
 | `tools.rs:265` | network capacity `>= -> <` | `UNREACHABLE_BY_PUBLIC_API` | The public network route is hard-denied for the Gateway's untrusted context; no public Propusk reaches this guard. |
 | `tools.rs:268` | `external_send_count += 1 -> -= 1` | `DIAGNOSTIC_ONLY` | Counter has no authority or effect semantics; public route is also unreachable. |
 | `tools.rs:268` | `external_send_count += 1 -> *= 1` | `DIAGNOSTIC_ONLY` | Same non-authoritative counter rationale. |
-| `tools.rs:274` | secret-use operation guard `&& -> ||` | `UNREACHABLE_BY_PUBLIC_API` | Pechat/Krosna exact-route hard deny prevents malformed secret permits. |
+| `tools.rs:274` | secret-use operation guard `&& -> ||` | `UNREACHABLE_BY_PUBLIC_API` | Klyuchnik/Krosna exact-route hard deny prevents malformed secret permits. |
 | `tools.rs:275` | secret-use capability guard `&& -> ||` | `UNREACHABLE_BY_PUBLIC_API` | `secret.use` is only known for the exact secret operation route. |
 | `tools.rs:276` | secret-use kind guard `&& -> ||` | `UNREACHABLE_BY_PUBLIC_API` | Secret resource kind is enforced before Propusk issuance. |
 

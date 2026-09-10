@@ -28,13 +28,13 @@ normalizes the authority/trust/lane tuple to model/unknown data, rejects trusted
 `System` provenance, and Krosna rejects attempts to pair an untrusted context
 with a non-model principal. Public Gnezdo containment and tagged-data roots
 accept content only and assign conservative unknown metadata. The
-context-to-Diode mapper is crate-private; public tagged-data flow mapping fixes
+context-to-Ruslo mapper is crate-private; public tagged-data flow mapping fixes
 the source to the model. These restrictions prevent caller-controlled identity
 or provenance metadata from becoming authority.
 
 M12 adds explicit resource budgets before allocation or indexing: policy,
-Zaslon, and Diode rules are bounded; provenance lineage and derivation parents
-are bounded and canonicalized; model fixtures, Sled traces, Pechat entries,
+Zaslon, and Ruslo rules are bounded; provenance lineage and derivation parents
+are bounded and canonicalized; model fixtures, Sled traces, Klyuchnik entries,
 secret values, and Zaslon stream input are bounded. A streaming Zaslon scan
 returns `NeedMoreData` until explicitly finished, so an intermediate result is
 never a release permission.
@@ -47,11 +47,11 @@ validated SecurityEnvelope
           v
         Krosna
    /      |       \
-Zaslon  Propusk  Diode
+Zaslon  Propusk  Ruslo
    \      |       /
       decision + Sled
           |
-     Pechat boundary
+     Klyuchnik boundary
 ```
 
 Gnezdo contains untrusted content in a data lane. Niti and Metka preserve
@@ -92,7 +92,7 @@ model summary of mixed public/secret input remains protected-derived. Lowering a
 Metka requires an opaque `DeclassificationPermit`; there is no public issuer,
 and model self-declassification always returns an error.
 
-Diode evaluates an explicit directed `FlowRequest` with source endpoint,
+Ruslo evaluates an explicit directed `FlowRequest` with source endpoint,
 destination, flow operation, provenance, and classification. It has fixed effect
 precedence and default denial; unknown endpoints/operations and protected
 export to `PublicExternal` are denied. Public tagged-data mapping fixes the
@@ -103,7 +103,7 @@ effect as model-origin; a model-to-internal deny therefore cannot be bypassed by
 a write mislabeled as resource-origin. Thus `READ` into model context is not an
 inferred `EXPORT`, and reverse/onward edges require their own rules.
 
-Pechat exposes only validated `SecretHandle` values to model-facing code. The
+Klyuchnik exposes only validated `SecretHandle` values to model-facing code. The
 fake broker stores raw bytes in a private non-serializable `SecretValue`, bounds
 entry, per-value, and aggregate-byte capacity, accepts only a Krosna-issued exact `Propusk` for
 `secret.use`, and refuses every reveal request. Receipts, errors, and debug
@@ -117,7 +117,7 @@ principal, capability, provenance, operation, and destination values are
 projected to payload-free evidence categories, while validated policy rule IDs
 remain separate trusted configuration labels for explainability. The enforcement
 testbed models hostile proposals, sends allowed non-secret effects through a
-`ProtectedExecutor`, and routes an authorized secret-use effect through Pechat;
+`ProtectedExecutor`, and routes an authorized secret-use effect through Klyuchnik;
 missing broker or token conversion fails closed. The fake executor also rejects
 any direct `SecretBroker` destination, even if a malformed or non-secret
 authorized action reaches that defense-in-depth boundary.
@@ -126,8 +126,8 @@ Zaslon streaming matching uses incremental prefix state rather than cloning a
 rule-sized suffix for every chunk. It also enforces aggregate pattern memory,
 rule count, and cumulative input budgets.
 
-Independent composition tests exercise Gnezdo, Zaslon, Propusk, Diode,
-Niti/Metka, Pechat, and Sled together. They include detection-independent and
+Independent composition tests exercise Gnezdo, Zaslon, Propusk, Ruslo,
+Niti/Metka, Klyuchnik, and Sled together. They include detection-independent and
 multiple-defense-failure scenarios; no heuristic result is treated as an
 authority input. In-crate and integration oracle suites independently enumerate
 authority/lane, capability/scope, classification/destination, flow direction,
@@ -146,7 +146,7 @@ ingress Zaslon before a private SecurityEnvelope is built.
 The provider trait can emit bounded text chunks and typed `ActionRequest`
 proposals only. It has no executor, broker, Propusk, Decision, release, or
 trusted-metadata API. Provider output is staged; a complete final response is
-derived from all protected tool inputs, checked by Krosna/Diode and egress
+derived from all protected tool inputs, checked by Krosna/Ruslo and egress
 Zaslon, and only then returned. A response with actions cannot leave an
 authorized effect behind if its final output gate fails. Awaited turns accept
 read-only actions only, and replayed action requests are rejected within a
@@ -154,7 +154,7 @@ request lifecycle.
 
 Tool execution is a gateway-owned `ProtectedExecutor` boundary receiving only
 core-issued Propusk values. Phase 1's fake broker supports protected reads,
-harmless reads, a bounded write, external-send attempts, and Pechat-backed
+harmless reads, a bounded write, external-send attempts, and Klyuchnik-backed
 secret use. Raw fake secret material stays in the broker; provider-visible
 results preserve Niti/Metka or are payload-free receipts. No real provider,
 transport, SDK, MCP, cloud, or production executor is implemented.
@@ -182,9 +182,9 @@ Read-only tool results return as bounded `function_call_output` DATA items
 paired with tracked call IDs. Response/call IDs are replay markers only and
 are retained in a bounded provider lifecycle set. No ID creates authority.
 The provider can stage text and proposals through the existing Gateway sink,
-but cannot construct Decision/Propusk, call an executor, access Pechat, or
+but cannot construct Decision/Propusk, call an executor, access Klyuchnik, or
 release output. The real provider path is therefore still subject to the same
-Krosna, Diode, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
+Krosna, Ruslo, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
 
 Responses streaming, provider-side tools, MCP, automatic retry, SDKs, and
 production transport orchestration remain intentionally disabled. The current
@@ -201,11 +201,11 @@ only become a typed proposal; authority, information flow, secret use, and
 release remain in the existing core/Gateway boundaries.
 
 The A0-A20 review removed only three redundant public names: the zero-sized
-`DataLane` marker, the empty `Pechat` facade, and the `ScriptedProvider` alias.
-The Gnezdo context, Pechat broker, and `DeterministicProvider` are the actual
-mechanisms. Krosna, Propusk, Diode, Zaslon, Pechat broker, Gnezdo, Niti,
+`DataLane` marker, the empty `Klyuchnik` facade, and the `ScriptedProvider` alias.
+The Gnezdo context, Klyuchnik broker, and `DeterministicProvider` are the actual
+mechanisms. Krosna, Propusk, Ruslo, Zaslon, Klyuchnik broker, Gnezdo, Niti,
 Metka, and Sled retain their documented roles. Repeated checks at Krosna,
-Diode, Gateway, and the provider boundary are intentional trust-boundary
+Ruslo, Gateway, and the provider boundary are intentional trust-boundary
 checks, not competing policy engines.
 
 `INTEGRATION_MODEL.md` defines Basic Gateway, Controlled Agent, and Sealed

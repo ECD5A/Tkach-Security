@@ -302,7 +302,7 @@ enum PolicyState {
 pub struct Krosna {
     policy: PolicyState,
     zaslon: Option<crate::zaslon::Zaslon>,
-    diode: Option<crate::diode::Diode>,
+    ruslo: Option<crate::ruslo::Ruslo>,
 }
 
 impl Krosna {
@@ -312,7 +312,7 @@ impl Krosna {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: None,
-            diode: None,
+            ruslo: None,
         }
     }
 
@@ -324,7 +324,7 @@ impl Krosna {
             Err(_) => Self {
                 policy: PolicyState::Failed,
                 zaslon: None,
-                diode: None,
+                ruslo: None,
             },
         }
     }
@@ -335,31 +335,31 @@ impl Krosna {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: Some(zaslon),
-            diode: None,
+            ruslo: None,
         }
     }
 
-    /// Create a kernel with a deterministic Diode flow plane.
+    /// Create a kernel with a deterministic Ruslo flow plane.
     #[must_use]
-    pub fn with_diode(policy: Policy, diode: crate::diode::Diode) -> Self {
+    pub fn with_ruslo(policy: Policy, ruslo: crate::ruslo::Ruslo) -> Self {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: None,
-            diode: Some(diode),
+            ruslo: Some(ruslo),
         }
     }
 
     /// Create a kernel with both hard-deny and directional-flow planes.
     #[must_use]
-    pub fn with_zaslon_and_diode(
+    pub fn with_zaslon_and_ruslo(
         policy: Policy,
         zaslon: crate::zaslon::Zaslon,
-        diode: crate::diode::Diode,
+        ruslo: crate::ruslo::Ruslo,
     ) -> Self {
         Self {
             policy: PolicyState::Ready(policy),
             zaslon: Some(zaslon),
-            diode: Some(diode),
+            ruslo: Some(ruslo),
         }
     }
 
@@ -386,7 +386,7 @@ impl Krosna {
             return Self::deny(context, request, None, SledReason::UnknownDenied);
         }
 
-        // SecretBroker is a dedicated Pechat route, not a general executor
+        // SecretBroker is a dedicated Klyuchnik route, not a general executor
         // destination. Enforce this at the authority minting boundary so a
         // custom ProtectedExecutor cannot accidentally process a non-secret
         // Propusk addressed at the broker.
@@ -412,9 +412,9 @@ impl Krosna {
             return Self::deny(context, request, None, SledReason::UnknownDenied);
         }
 
-        if let Some(diode) = &self.diode {
-            let flow = crate::diode::flow_from_action(context, request);
-            let decision = diode.evaluate(&flow);
+        if let Some(ruslo) = &self.ruslo {
+            let flow = crate::ruslo::flow_from_action(context, request);
+            let decision = ruslo.evaluate(&flow);
             if !decision.is_allowed() {
                 return decision;
             }
@@ -474,13 +474,13 @@ impl Krosna {
         crate::propusk::AuthorizedAction::issue(request.clone(), grant)
     }
 
-    /// Evaluate a directional flow through the kernel's configured Diode.
+    /// Evaluate a directional flow through the kernel's configured Ruslo.
     ///
     /// Gateway/orchestration boundaries use this method instead of copying
-    /// Diode semantics. A kernel without a configured Diode fails closed.
+    /// Ruslo semantics. A kernel without a configured Ruslo fails closed.
     #[must_use]
-    pub fn evaluate_flow(&self, flow: &crate::diode::FlowRequest) -> Decision {
-        self.diode.as_ref().map_or_else(
+    pub fn evaluate_flow(&self, flow: &crate::ruslo::FlowRequest) -> Decision {
+        self.ruslo.as_ref().map_or_else(
             || {
                 Decision::new(
                     DecisionKind::Deny,
@@ -488,7 +488,7 @@ impl Krosna {
                         rule_id: None,
                         principal: flow.principal().into(),
                         operation: crate::domain::EvidenceOperation::Unknown,
-                        capability: crate::domain::EvidenceCapability::DiodeFlow,
+                        capability: crate::domain::EvidenceCapability::RusloFlow,
                         provenance: flow.provenance().source().into(),
                         classification: flow.classification(),
                         destination: flow.destination().into(),
@@ -497,7 +497,7 @@ impl Krosna {
                     },
                 )
             },
-            |diode| diode.evaluate(flow),
+            |ruslo| ruslo.evaluate(flow),
         )
     }
 
@@ -606,11 +606,11 @@ fn requires_trusted_control(operation: &Operation) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
     use crate::domain::{
         CapabilityName, Classification, Identity, Provenance, ProvenanceSource, Resource,
         ResourceId, ResourceKind,
     };
+    use crate::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
     use crate::zaslon::{ActionRule, Zaslon};
     use proptest::prelude::*;
 
@@ -937,7 +937,7 @@ mod tests {
     }
 
     #[test]
-    fn secret_use_cannot_be_authorized_outside_pechat() {
+    fn secret_use_cannot_be_authorized_outside_klyuchnik() {
         let policy = Policy::new(
             PolicyId::new("secret-route").unwrap(),
             vec![PolicyRule::allow(
@@ -1120,7 +1120,7 @@ mod tests {
     }
 
     #[test]
-    fn secret_broker_destination_requires_exact_pechat_route() {
+    fn secret_broker_destination_requires_exact_klyuchnik_route() {
         let policy = Policy::new(
             PolicyId::new("broker-route-boundary").unwrap(),
             vec![PolicyRule::allow(
@@ -1173,7 +1173,7 @@ mod tests {
     }
 
     #[test]
-    fn network_send_is_mapped_to_model_source_for_diode() {
+    fn network_send_is_mapped_to_model_source_for_ruslo() {
         let policy = Policy::new(
             PolicyId::new("network").unwrap(),
             vec![PolicyRule::allow(
@@ -1182,7 +1182,7 @@ mod tests {
             )],
         )
         .unwrap();
-        let diode = Diode::new(vec![
+        let ruslo = Ruslo::new(vec![
             FlowRule::hard_deny(
                 RuleId::new("deny-model-egress").unwrap(),
                 FlowMatcher::any()
@@ -1193,7 +1193,7 @@ mod tests {
             FlowRule::allow(RuleId::new("allow-any-flow").unwrap(), FlowMatcher::any()),
         ])
         .unwrap();
-        let decision = Krosna::with_diode(policy, diode).evaluate(
+        let decision = Krosna::with_ruslo(policy, ruslo).evaluate(
             &fixture_context(Classification::Public),
             &fixture_request(Operation::NetworkSend, Destination::PublicExternal),
         );
@@ -1206,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_diode_allows_read_but_denies_protected_export() {
+    fn configured_ruslo_allows_read_but_denies_protected_export() {
         let database = Resource::new(
             ResourceKind::Database,
             ResourceId::new("customer.db").unwrap(),
@@ -1231,19 +1231,19 @@ mod tests {
             .operation(FlowOperation::Read)
             .classification(Classification::Secret);
         let policy = Policy::new(
-            PolicyId::new("diode-composition").unwrap(),
+            PolicyId::new("ruslo-composition").unwrap(),
             vec![PolicyRule::allow(
                 RuleId::new("allow-db-read").unwrap(),
                 read_policy,
             )],
         )
         .unwrap();
-        let diode = Diode::new(vec![
+        let ruslo = Ruslo::new(vec![
             FlowRule::allow(RuleId::new("allow-db-to-model").unwrap(), read_flow),
             FlowRule::allow(RuleId::new("allow-any-flow").unwrap(), FlowMatcher::any()),
         ])
         .unwrap();
-        let kernel = Krosna::with_diode(policy, diode);
+        let kernel = Krosna::with_ruslo(policy, ruslo);
         let context = fixture_context(Classification::Secret);
         assert!(kernel.authorize(&context, &read_request).is_ok());
 

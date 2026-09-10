@@ -9,10 +9,10 @@ The secure common case requires only:
 
 1. a validated Krosna policy;
 2. ingress and egress Zaslon rules;
-3. an optional Diode flow policy;
+3. an optional Ruslo flow policy;
 4. a release `Destination`;
 5. a typed `ProtectedExecutor`;
-6. an optional Pechat broker for secrets;
+6. an optional Klyuchnik broker for secrets;
 7. trusted provider configuration such as `OpenAiConfig`.
 
 These are typed Rust construction boundaries, not a new configuration DSL.
@@ -43,7 +43,7 @@ auditing harder, so no such merge is made.
 | Path | Dominant work | Security-mandated buffering/bound | Assessment |
 | --- | --- | --- | --- |
 | Krosna | Rule matching, sorted policy scan | Bounded rule count and typed request | Linear scan is deterministic and auditable |
-| Diode | Rule matching over directed flow | Bounded flow-rule count | Separate pass is required to preserve flow semantics |
+| Ruslo | Rule matching over directed flow | Bounded flow-rule count | Separate pass is required to preserve flow semantics |
 | Zaslon | Canonical input plus incremental matcher state | Aggregate pattern, chunk, and cumulative input limits | Incremental state avoids rule-sized suffix copying |
 | Gnezdo/Niti/Metka | Bounded derivation and classification joins | Parent, lineage, and content limits | Copies preserve ownership and immutable metadata |
 | Gateway lifecycle | Turns × actions × bounded inputs | Fixed turns, messages, actions, context, output, and trace budgets | `seen_actions` is intentionally quadratic only within a max-32 action turn |

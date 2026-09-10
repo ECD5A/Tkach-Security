@@ -43,7 +43,7 @@ security-semantic survivor remains unexplained.
 
 ## Strong Core Final Hardening Round 3
 
-Targeted mutation scope covered the changed Sled evidence projection, Pechat
+Targeted mutation scope covered the changed Sled evidence projection, Klyuchnik
 aggregate budget and redacted receipts, Niti wire decoder, Krosna broker-route
 and unknown-resource gates, and Zaslon incremental matcher/pattern budget.
 

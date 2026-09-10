@@ -14,9 +14,9 @@ tests, and documentation agree.
 | 2 | Guarantees are conditional and honest | Deployment assumptions and out-of-band bypass limits are explicit. |
 | 3 | Non-guarantees are explicit | Prompt injection, semantic intent, compromised host, production transactions, and deferred integrations are excluded. |
 | 4 | Every primitive has a role | `PRIMITIVE_REVIEW.md` and `SECURITY_VALUE_MAP.md` map each named primitive to a threat and enforcement point. |
-| 5 | Unjustified wrappers are removed | `DataLane`, empty `Pechat`, and `ScriptedProvider` are absent from the public source surface. |
+| 5 | Unjustified wrappers are removed | `DataLane`, empty `Klyuchnik`, and `ScriptedProvider` are absent from the public source surface. |
 | 6 | Public API is reduced or justified | `PRUNING_METRICS.md` records the public-surface reduction and retained boundary rationale. |
-| 7 | Security logic is not duplicated without a boundary | Krosna, Diode, Gateway, and provider checks are documented as separate trust boundaries. |
+| 7 | Security logic is not duplicated without a boundary | Krosna, Ruslo, Gateway, and provider checks are documented as separate trust boundaries. |
 | 8 | Integration model is clear | `INTEGRATION_MODEL.md` specifies Gateway ingress, provider DATA, core gates, executor, and release. |
 | 9 | Deployment profiles are clear | Basic, Controlled, and Sealed profiles are defined with assumptions and unavailable guarantees. |
 | 10 | Secure defaults are visible | Default deny, bounded inputs, no provider persistence/tools, no redirects, and no live network tests by default are documented. |

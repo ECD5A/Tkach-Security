@@ -10,7 +10,7 @@ Status: PASS — Product Proof B0-B22 completed locally on 2026-09-10.
 | 4 | False allows are zero | Structured effect/external-send assertions |
 | 5 | False denies are measured | `Observation`/`ReportRow` and workload assertions |
 | 6 | READ and EXPORT are distinct | Internal summary success/public export denial |
-| 7 | Pechat secret remains non-model-visible | Output/error/trace/broker debug scan |
+| 7 | Klyuchnik secret remains non-model-visible | Output/error/trace/broker debug scan |
 | 8 | Minimum authority is demonstrated | Read-only/write-removed/secret-removed tests |
 | 9 | Basic/Controlled/Sealed are distinguished | Profile-tagged report and Quickstart |
 | 10 | Integration effort is measured | Quickstart/example line and concept counts |

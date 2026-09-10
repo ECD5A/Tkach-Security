@@ -9,9 +9,9 @@
  * See LICENSE and SECURITY.md.
  */
 
-//! Pechat, the opaque-secret broker boundary.
+//! Klyuchnik, the opaque-secret broker boundary.
 //!
-//! Pechat protects the model-context boundary under the documented assumption
+//! Klyuchnik protects the model-context boundary under the documented assumption
 //! that the host process and operating system are not fully compromised. The
 //! model receives a [`SecretHandle`], while the fake broker keeps the raw value
 //! in a non-serializable, redacted type and never returns it.
@@ -29,7 +29,7 @@ const MAX_TOTAL_SECRET_BYTES: usize = 16 * 1024 * 1024;
 
 /// Errors from the opaque-secret boundary.
 #[derive(Debug, PartialEq, Eq, Error)]
-pub enum PechatError {
+pub enum KlyuchnikError {
     /// The handle is empty, malformed, or not present in the broker.
     #[error("invalid or unknown secret handle")]
     InvalidHandle,
@@ -62,10 +62,10 @@ impl SecretHandle {
     ///
     /// # Errors
     ///
-    /// Returns [`PechatError::InvalidHandle`] for invalid identifier syntax.
-    pub fn new(value: impl Into<String>) -> Result<Self, PechatError> {
+    /// Returns [`KlyuchnikError::InvalidHandle`] for invalid identifier syntax.
+    pub fn new(value: impl Into<String>) -> Result<Self, KlyuchnikError> {
         Ok(Self(
-            ResourceId::new(value).map_err(|_| PechatError::InvalidHandle)?,
+            ResourceId::new(value).map_err(|_| KlyuchnikError::InvalidHandle)?,
         ))
     }
 
@@ -136,20 +136,20 @@ pub trait SecretBroker {
     ///
     /// # Errors
     ///
-    /// Returns [`PechatError::InvalidPropusk`] if the token is not bound to the
+    /// Returns [`KlyuchnikError::InvalidPropusk`] if the token is not bound to the
     /// exact secret handle/use operation.
     fn use_authorized(
         &self,
         handle: &SecretHandle,
         action: Propusk,
-    ) -> Result<BrokerReceipt, PechatError>;
+    ) -> Result<BrokerReceipt, KlyuchnikError>;
 
     /// Refuse to return raw material, regardless of handle possession.
     ///
     /// # Errors
     ///
-    /// Always returns [`PechatError::UnauthorizedReveal`].
-    fn reveal(&self, handle: &SecretHandle) -> Result<(), PechatError>;
+    /// Always returns [`KlyuchnikError::UnauthorizedReveal`].
+    fn reveal(&self, handle: &SecretHandle) -> Result<(), KlyuchnikError>;
 }
 
 /// In-memory fake broker used only for provider-independent security tests.
@@ -180,28 +180,28 @@ impl FakeBroker {
     /// Register a fake raw secret on the trusted broker side.
     ///
     /// The value is accepted only for test setup and is not returned or logged
-    /// by any Pechat API.
+    /// by any Klyuchnik API.
     ///
     /// # Errors
     ///
     /// Returns an error when the handle exists, the value exceeds its per-value
     /// limit, or the aggregate broker memory budget would be exceeded.
-    pub fn register(&mut self, handle: SecretHandle, value: Vec<u8>) -> Result<(), PechatError> {
+    pub fn register(&mut self, handle: SecretHandle, value: Vec<u8>) -> Result<(), KlyuchnikError> {
         if self.secrets.contains_key(&handle) {
-            return Err(PechatError::DuplicateHandle);
+            return Err(KlyuchnikError::DuplicateHandle);
         }
         if self.secrets.len() >= MAX_REGISTERED_SECRETS {
-            return Err(PechatError::CapacityExceeded);
+            return Err(KlyuchnikError::CapacityExceeded);
         }
         if value.len() > MAX_SECRET_BYTES {
-            return Err(PechatError::SecretTooLarge);
+            return Err(KlyuchnikError::SecretTooLarge);
         }
         let new_total = self
             .total_secret_bytes
             .checked_add(value.len())
-            .ok_or(PechatError::TotalSecretBytesExceeded)?;
+            .ok_or(KlyuchnikError::TotalSecretBytesExceeded)?;
         if new_total > MAX_TOTAL_SECRET_BYTES {
-            return Err(PechatError::TotalSecretBytesExceeded);
+            return Err(KlyuchnikError::TotalSecretBytesExceeded);
         }
         self.total_secret_bytes = new_total;
         self.secrets.insert(handle, SecretValue(value));
@@ -232,17 +232,17 @@ impl SecretBroker for FakeBroker {
         &self,
         handle: &SecretHandle,
         action: Propusk,
-    ) -> Result<BrokerReceipt, PechatError> {
+    ) -> Result<BrokerReceipt, KlyuchnikError> {
         let request = action.request();
         if request.operation() != &Operation::Execute
             || request.capability().as_str() != "secret.use"
             || request.resource() != &handle.resource()
             || request.destination() != &Destination::SecretBroker
         {
-            return Err(PechatError::InvalidPropusk);
+            return Err(KlyuchnikError::InvalidPropusk);
         }
         let Some(secret) = self.secrets.get(handle) else {
-            return Err(PechatError::InvalidHandle);
+            return Err(KlyuchnikError::InvalidHandle);
         };
         // The fake operation intentionally consumes only an internal property.
         // No reference to the raw bytes escapes this method.
@@ -253,8 +253,8 @@ impl SecretBroker for FakeBroker {
         })
     }
 
-    fn reveal(&self, _handle: &SecretHandle) -> Result<(), PechatError> {
-        Err(PechatError::UnauthorizedReveal)
+    fn reveal(&self, _handle: &SecretHandle) -> Result<(), KlyuchnikError> {
+        Err(KlyuchnikError::UnauthorizedReveal)
     }
 }
 
@@ -331,7 +331,7 @@ mod tests {
             .register(handle.clone(), b"actual-secret-value".to_vec())
             .unwrap();
         let error = broker.reveal(&handle).unwrap_err();
-        assert_eq!(error, PechatError::UnauthorizedReveal);
+        assert_eq!(error, KlyuchnikError::UnauthorizedReveal);
         assert!(!error.to_string().contains("actual-secret-value"));
         assert!(!format!("{error:?}").contains("actual-secret-value"));
     }
@@ -361,7 +361,7 @@ mod tests {
         // must fail before the broker touches the stored value.
         let other = SecretHandle::new("other-secret").unwrap();
         let error = broker.use_authorized(&other, action).unwrap_err();
-        assert_eq!(error, PechatError::InvalidPropusk);
+        assert_eq!(error, KlyuchnikError::InvalidPropusk);
         action = authorized_action();
         let receipt = broker.use_authorized(&handle, action).unwrap();
         assert_eq!(receipt.operation(), &Operation::Execute);
@@ -371,14 +371,14 @@ mod tests {
     fn invalid_handle_and_duplicate_registration_are_safe() {
         assert_eq!(
             SecretHandle::new("").unwrap_err(),
-            PechatError::InvalidHandle
+            KlyuchnikError::InvalidHandle
         );
         let handle = handle();
         let mut broker = FakeBroker::new();
         broker.register(handle.clone(), Vec::new()).unwrap();
         assert_eq!(
             broker.register(handle, b"second".to_vec()).unwrap_err(),
-            PechatError::DuplicateHandle
+            KlyuchnikError::DuplicateHandle
         );
     }
 
@@ -388,7 +388,7 @@ mod tests {
         let mut broker = FakeBroker::new();
         assert_eq!(
             broker.register(oversized, vec![0; MAX_SECRET_BYTES + 1]),
-            Err(PechatError::SecretTooLarge)
+            Err(KlyuchnikError::SecretTooLarge)
         );
         for index in 0..MAX_REGISTERED_SECRETS {
             let handle = SecretHandle::new(format!("secret-{index}")).unwrap();
@@ -396,7 +396,7 @@ mod tests {
         }
         assert_eq!(
             broker.register(SecretHandle::new("overflow").unwrap(), vec![0]),
-            Err(PechatError::CapacityExceeded)
+            Err(KlyuchnikError::CapacityExceeded)
         );
     }
 
@@ -413,7 +413,7 @@ mod tests {
         }
         assert_eq!(
             broker.register(SecretHandle::new("aggregate-overflow").unwrap(), vec![0],),
-            Err(PechatError::TotalSecretBytesExceeded)
+            Err(KlyuchnikError::TotalSecretBytesExceeded)
         );
     }
 }

@@ -310,7 +310,7 @@ Metka describes protection characteristics such as:
 
 ---
 
-## Diode
+## Ruslo
 
 **Technical meaning:** directional information-flow control.
 
@@ -324,7 +324,7 @@ Secret-derived model output → public internet = DENY
 
 ---
 
-## Pechat
+## Klyuchnik
 
 **Technical meaning:** opaque-secret / credential broker boundary.
 
@@ -395,7 +395,7 @@ INPUT
                     │
                     ▼
 ┌────────────────────────────────────────────┐
-│                 DIODE                      │
+│                 RUSLO                      │
 │      directional information-flow policy   │
 └───────────────────┬────────────────────────┘
                     ▼
@@ -405,7 +405,7 @@ INPUT
 └───────────────────┬────────────────────────┘
                     ▼
 ┌────────────────────────────────────────────┐
-│                 PECHAT                     │
+│                 KLYUCHNIK                     │
 │ protected credentials / secret broker      │
 └───────────────────┬────────────────────────┘
                     ▼
@@ -694,7 +694,7 @@ Principal
 + Destination
 + Requested Action
 + Zaslon rules
-+ Diode rules
++ Ruslo rules
 + Policy
       ↓
 KROSNA
@@ -720,7 +720,7 @@ At minimum consider:
 2. violated invariant → deny;
 3. explicit hard Zaslon deny → deny;
 4. authorization/capability failure → deny;
-5. information-flow/Diode failure → deny;
+5. information-flow/Ruslo failure → deny;
 6. explicit approval/sandbox requirement → restricted result;
 7. explicit allow → allow;
 8. otherwise privileged unknown → deny.
@@ -1131,9 +1131,9 @@ But enforce:
 
 ---
 
-# 32. DIODE — DIRECTIONAL INFORMATION FLOW
+# 32. RUSLO — DIRECTIONAL INFORMATION FLOW
 
-Diode is a first-class Tkach primitive.
+Ruslo is a first-class Tkach primitive.
 
 It must model directional security relationships.
 
@@ -1178,7 +1178,7 @@ B → C
 
 ---
 
-# 33. DIODE AS GRAPH POLICY
+# 33. RUSLO AS GRAPH POLICY
 
 Consider representing information-flow policy through typed edges or equivalent structures containing:
 
@@ -1189,7 +1189,7 @@ Consider representing information-flow policy through typed edges or equivalent 
 - authority constraints;
 - policy verdict.
 
-A diode is a directional flow rule, not an isolated `if` statement.
+A ruslo is a directional flow rule, not an isolated `if` statement.
 
 Do not overengineer a general graph database.
 
@@ -1197,7 +1197,7 @@ The model should remain small and auditable.
 
 ---
 
-# 34. PECHAT — SECRET BROKER
+# 34. KLYUCHNIK — SECRET BROKER
 
 The preferred way to protect credentials from a compromised model is:
 
@@ -1221,7 +1221,7 @@ A trusted broker later performs the authorized operation using the real credenti
 
 ---
 
-# 35. PECHAT SECURITY PROPERTY
+# 35. KLYUCHNIK SECURITY PROPERTY
 
 Conceptually:
 
@@ -1233,7 +1233,7 @@ MODEL
 PROPUSK
   │
   ▼
-PECHAT
+KLYUCHNIK
   │
   │ retrieves actual secret outside model-visible context
   ▼
@@ -1244,11 +1244,11 @@ The real secret remains behind the broker boundary.
 
 ---
 
-# 36. PECHAT THREAT-MODEL SCOPE
+# 36. KLYUCHNIK THREAT-MODEL SCOPE
 
 Do not overclaim.
 
-Pechat protects against model-context / model-output exposure only when:
+Klyuchnik protects against model-context / model-output exposure only when:
 
 - the deployment does not give the model a bypass to the secret store;
 - real secrets are not separately injected into model-visible context;
@@ -1277,7 +1277,7 @@ Conceptual example:
 ```text
 decision = DENY
 
-rule_id = DIODE-SECRET-EXTERNAL
+rule_id = RUSLO-SECRET-EXTERNAL
 
 principal = MODEL
 
@@ -1342,9 +1342,9 @@ Propusk capability rules
       ↓
 Niti / Metka
       ↓
-Diode
+Ruslo
       ↓
-Pechat boundary
+Klyuchnik boundary
       ↓
 optional heuristic security signals
       ↓
@@ -1457,7 +1457,7 @@ Model output alone cannot remove protected classification/lineage.
 
 Input authority and output authority are independent.
 
-## I-13 — DIODE DIRECTIONALITY
+## I-13 — RUSLO DIRECTIONALITY
 
 A permitted flow edge does not imply reverse or onward permission.
 
@@ -1507,7 +1507,7 @@ At minimum analyze:
 - provenance stripping;
 - Metka stripping;
 - self-declassification;
-- Diode bypass;
+- Ruslo bypass;
 - Zaslon bypass;
 - chunk-boundary bypass;
 - Unicode/normalization mismatch;
@@ -1568,7 +1568,7 @@ Maintain a canonical end-to-end Strong Core scenario:
 2. model is considered fully compromised;
 3. prompt-injection detection is disabled, absent, or reports SAFE;
 4. model attempts to exfiltrate protected-derived information;
-5. Tkach rejects the flow through deterministic authorization / Diode / Zaslon policy;
+5. Tkach rejects the flow through deterministic authorization / Ruslo / Zaslon policy;
 6. actual protected effect does not execute.
 
 This scenario must not depend on a real LLM.
@@ -1597,7 +1597,7 @@ Expected:
 
 ---
 
-# 47. CANONICAL PECHAT TEST
+# 47. CANONICAL KLYUCHNIK TEST
 
 Provide the hostile model only:
 
@@ -1685,8 +1685,8 @@ Examples:
 
 - Gnezdo injection containment;
 - Propusk self-grant rejection;
-- Diode protected export denial;
-- Pechat opaque-secret behavior;
+- Ruslo protected export denial;
+- Klyuchnik opaque-secret behavior;
 - Zaslon hard deny;
 - self-declassification rejection;
 - provenance stripping rejection;
@@ -1923,8 +1923,8 @@ The product primitives are:
 - Propusk
 - Niti
 - Metka
-- Diode
-- Pechat
+- Ruslo
+- Klyuchnik
 - Sled
 
 These names may appear in public Rust types/modules where it improves the product identity.
@@ -1940,7 +1940,7 @@ Deterministic Hard-Deny Plane
 Gnezdo
 Data/Control Authority Isolation
 
-Diode
+Ruslo
 Directional Information-Flow Control
 ```
 
@@ -1968,7 +1968,7 @@ Do not claim:
 - perfect semantic taint tracking exists;
 - all data leakage is impossible;
 - Tkach protects deployments that leave direct privileged bypass paths;
-- Pechat protects secrets from a fully compromised operating system.
+- Klyuchnik protects secrets from a fully compromised operating system.
 
 Claims must be supported by architecture and executable evidence.
 
@@ -2037,9 +2037,9 @@ gnezdo: isolate untrusted data from authority
 
 propusk: require typed authorization for execution
 
-flow: add niti metka and diode enforcement
+flow: add niti metka and ruslo enforcement
 
-pechat: isolate opaque credential handles
+klyuchnik: isolate opaque credential handles
 
 security: harden hostile-model boundaries
 ```
@@ -2135,8 +2135,8 @@ Ask:
 - Can a scope be widened?
 - Can Gnezdo data enter the control lane?
 - Can Zaslon be bypassed through representation differences?
-- Can Diode directionality be bypassed?
-- Can Pechat leak secret material?
+- Can Ruslo directionality be bypassed?
+- Can Klyuchnik leak secret material?
 - Can Sled leak secret material?
 - Can a raw request reach execution without Propusk?
 
@@ -2511,7 +2511,7 @@ Continue.
 
 ---
 
-# 76. MANDATE 7 — DIODE
+# 76. MANDATE 7 — RUSLO
 
 Objective:
 
@@ -2561,7 +2561,7 @@ Continue.
 
 ---
 
-# 77. MANDATE 8 — PECHAT
+# 77. MANDATE 8 — KLYUCHNIK
 
 Objective:
 
@@ -2648,8 +2648,8 @@ HostileModel
 → ActionRequest
 → Krosna
 → Propusk
-→ Diode/Zaslon
-→ Pechat if needed
+→ Ruslo/Zaslon
+→ Klyuchnik if needed
 → ProtectedExecutor
 ```
 
@@ -2691,13 +2691,13 @@ Hostile model cannot execute privileged action without kernel authorization.
 
 ---
 
-## Scenario D — Diode
+## Scenario D — Ruslo
 
 Allowed read followed by forbidden external export is denied.
 
 ---
 
-## Scenario E — Pechat
+## Scenario E — Klyuchnik
 
 Model can reference a credential handle but cannot reveal the credential.
 
@@ -2723,7 +2723,7 @@ Simulate failure/absence of the ingress detector.
 
 Model becomes hostile.
 
-Gnezdo, Propusk, Diode, Zaslon, and Pechat still enforce their own invariants.
+Gnezdo, Propusk, Ruslo, Zaslon, and Klyuchnik still enforce their own invariants.
 
 This mandate is extremely important.
 
@@ -2753,8 +2753,8 @@ Attempt to break:
 - Propusk scope enforcement;
 - Niti preservation;
 - Metka monotonicity;
-- Diode directionality;
-- Pechat secret isolation;
+- Ruslo directionality;
+- Klyuchnik secret isolation;
 - Sled redaction;
 - error handling;
 - malformed serialization;
@@ -2875,7 +2875,7 @@ Do not declare Strong Core complete until all following conditions are substanti
 26. Model cannot self-declassify.
 27. Sensitivity monotonicity has meaningful tests.
 
-## DIODE
+## RUSLO
 
 28. READ and EXPORT are distinct.
 29. Directionality is first-class.
@@ -2883,7 +2883,7 @@ Do not declare Strong Core complete until all following conditions are substanti
 31. Unknown protected destination does not silently allow.
 32. Mixed-provenance behavior is documented and tested.
 
-## PECHAT
+## KLYUCHNIK
 
 33. Opaque handles do not reveal raw broker secret values.
 34. Hostile model cannot directly retrieve fake broker credential.
@@ -2902,8 +2902,8 @@ Do not declare Strong Core complete until all following conditions are substanti
 41. Detection-independent containment scenario passes.
 42. Gnezdo injection scenario passes.
 43. Propusk self-grant scenario passes.
-44. Diode exfiltration scenario passes.
-45. Pechat secret-isolation scenario passes.
+44. Ruslo exfiltration scenario passes.
+45. Klyuchnik secret-isolation scenario passes.
 46. Important property tests pass.
 47. Tractable state-space combinations are checked.
 48. Independent adversarial goldens exist.
@@ -3029,9 +3029,9 @@ When Strong Core is complete, report:
 
 ## METKA
 
-## DIODE
+## RUSLO
 
-## PECHAT
+## KLYUCHNIK
 
 ## SLED
 
@@ -3078,11 +3078,11 @@ Provider Adapter
         ↓
 LLM
         ↓
-Krosna / Propusk / Niti / Metka / Diode
+Krosna / Propusk / Niti / Metka / Ruslo
         ↓
 Tool / Egress Zaslon
         ↓
-Pechat
+Klyuchnik
         ↓
 MCP / API / Files / DB / Network
 ```
@@ -3207,9 +3207,9 @@ The project should continuously preserve these ideas:
 
 > THE MODEL CANNOT REMOVE ITS OWN METKA.
 
-> DIODE CONTROLS DIRECTION.
+> RUSLO CONTROLS DIRECTION.
 
-> PECHAT KEEPS REAL SECRETS OUTSIDE MODEL-VISIBLE CONTEXT.
+> KLYUCHNIK KEEPS REAL SECRETS OUTSIDE MODEL-VISIBLE CONTEXT.
 
 > ZASLON DOES NOT NEGOTIATE WITH HARD POLICY.
 

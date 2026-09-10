@@ -11,17 +11,17 @@
 
 //! Independent adversarial composition scenarios for the Strong Core.
 
-use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
 use tkach_core::domain::{
     ActionRequest, Authority, CapabilityName, Classification, DecisionKind, Destination,
     FlowDirection, Identity, Lane, Operation, PolicyId, Principal, ProvenanceSource, Resource,
     ResourceId, ResourceKind, ResourceScope, RuleId, SledReason, Trust,
 };
 use tkach_core::gnezdo::{Gnezdo, GnezdoError};
+use tkach_core::klyuchnik::{FakeBroker, KlyuchnikError, SecretBroker, SecretHandle};
 use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::niti_metka::{Metka, TaggedData};
-use tkach_core::pechat::{FakeBroker, PechatError, SecretBroker, SecretHandle};
 use tkach_core::propusk::ProtectedExecutor;
+use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::sled::{EnforcementOutcome, EnforcementTestbed, HostileModel};
 use tkach_core::zaslon::{ActionRule, ContentDecision, ContentRule, Zaslon};
 
@@ -72,8 +72,8 @@ fn allow_read_policy() -> Policy {
     .unwrap()
 }
 
-fn diode_for_notes_read() -> Diode {
-    Diode::new(vec![FlowRule::allow(
+fn ruslo_for_notes_read() -> Ruslo {
+    Ruslo::new(vec![FlowRule::allow(
         rule_id("allow-notes-flow"),
         FlowMatcher::any()
             .source(FlowSource::Resource(file_read_request().resource().clone()))
@@ -92,7 +92,7 @@ fn all_deterministic_gates_kernel() -> Krosna {
         Vec::new(),
     )
     .unwrap();
-    Krosna::with_zaslon_and_diode(allow_read_policy(), zaslon, diode_for_notes_read())
+    Krosna::with_zaslon_and_ruslo(allow_read_policy(), zaslon, ruslo_for_notes_read())
 }
 
 fn secret_read_export_kernel() -> Krosna {
@@ -122,7 +122,7 @@ fn secret_read_export_kernel() -> Krosna {
         ],
     )
     .unwrap();
-    let diode = Diode::new(vec![
+    let ruslo = Ruslo::new(vec![
         FlowRule::allow(
             rule_id("allow-database-read"),
             FlowMatcher::any()
@@ -133,7 +133,7 @@ fn secret_read_export_kernel() -> Krosna {
         FlowRule::allow(rule_id("allow-other-flow"), FlowMatcher::any()),
     ])
     .unwrap();
-    Krosna::with_diode(policy, diode)
+    Krosna::with_ruslo(policy, ruslo)
 }
 
 fn secret_use_model(handle: &SecretHandle) -> HostileModel {
@@ -228,7 +228,7 @@ fn scenario_c_propusk_is_required_before_any_effect() {
 }
 
 #[test]
-fn scenario_d_diode_allows_read_but_denies_external_export() {
+fn scenario_d_ruslo_allows_read_but_denies_external_export() {
     let database = resource(ResourceKind::Database, "customer.db");
     let read = ActionRequest::new(
         Principal::Model,
@@ -257,11 +257,11 @@ fn scenario_d_diode_allows_read_but_denies_external_export() {
 }
 
 #[test]
-fn scenario_e_pechat_allows_handle_use_but_never_reveal() {
+fn scenario_e_klyuchnik_allows_handle_use_but_never_reveal() {
     let handle = SecretHandle::new("github-prod").unwrap();
     let secret_resource = handle.resource();
     let policy = Policy::new(
-        PolicyId::new("pechat-composition").unwrap(),
+        PolicyId::new("klyuchnik-composition").unwrap(),
         vec![PolicyRule::allow(
             rule_id("allow-secret-use"),
             RuleMatcher::any()
@@ -280,7 +280,7 @@ fn scenario_e_pechat_allows_handle_use_but_never_reveal() {
         .unwrap();
     assert_eq!(
         broker.reveal(&handle).unwrap_err(),
-        PechatError::UnauthorizedReveal
+        KlyuchnikError::UnauthorizedReveal
     );
     let mut testbed = EnforcementTestbed::new(Krosna::new(policy));
     let outcomes = testbed.run_with_broker(&model, &broker).unwrap();
@@ -335,7 +335,7 @@ fn scenario_g_detection_failure_does_not_remove_deterministic_containment() {
 #[test]
 fn scenario_h_multiple_defense_failure_keeps_each_boundary_active() {
     // Simulate missing ingress detection: hostile DATA is never interpreted as
-    // control, while Krosna, Zaslon, Diode, Propusk, and Pechat remain active.
+    // control, while Krosna, Zaslon, Ruslo, Propusk, and Klyuchnik remain active.
     let model = HostileModel::canonical();
     let mut testbed = EnforcementTestbed::new(all_deterministic_gates_kernel());
     let outcomes = testbed.run(&model).unwrap();
@@ -357,7 +357,10 @@ fn scenario_h_multiple_defense_failure_keeps_each_boundary_active() {
     broker
         .register(handle.clone(), b"not-for-output".to_vec())
         .unwrap();
-    assert_eq!(broker.reveal(&handle), Err(PechatError::UnauthorizedReveal));
+    assert_eq!(
+        broker.reveal(&handle),
+        Err(KlyuchnikError::UnauthorizedReveal)
+    );
 }
 
 #[test]

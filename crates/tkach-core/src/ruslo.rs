@@ -9,9 +9,9 @@
  * See LICENSE and SECURITY.md.
  */
 
-//! Diode, first-class directional information-flow control.
+//! Ruslo, first-class directional information-flow control.
 //!
-//! A Diode rule describes one directed edge. No reverse or onward edge is
+//! A Ruslo rule describes one directed edge. No reverse or onward edge is
 //! inferred. Classification and provenance travel with the flow request and
 //! are evaluated independently from action authorization.
 
@@ -25,12 +25,12 @@ const MAX_RULES: usize = 1_024;
 
 /// Errors while constructing a directional policy.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
-pub enum DiodeError {
+pub enum RusloError {
     /// Two flow rules reused the same identity.
-    #[error("duplicate Diode rule id")]
+    #[error("duplicate Ruslo rule id")]
     DuplicateRuleId,
     /// The directional policy would exceed its deterministic rule budget.
-    #[error("Diode rule capacity exceeded")]
+    #[error("Ruslo rule capacity exceeded")]
     TooManyRules,
 }
 
@@ -344,24 +344,24 @@ impl FlowRule {
 
 /// A deterministic directional policy.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Diode {
+pub struct Ruslo {
     rules: Vec<FlowRule>,
 }
 
-impl Diode {
+impl Ruslo {
     /// Validate and construct a directional policy.
     ///
     /// # Errors
     ///
-    /// Returns [`DiodeError::DuplicateRuleId`] for repeated rule identities.
-    pub fn new(mut rules: Vec<FlowRule>) -> Result<Self, DiodeError> {
+    /// Returns [`RusloError::DuplicateRuleId`] for repeated rule identities.
+    pub fn new(mut rules: Vec<FlowRule>) -> Result<Self, RusloError> {
         if rules.len() > MAX_RULES {
-            return Err(DiodeError::TooManyRules);
+            return Err(RusloError::TooManyRules);
         }
         let mut ids = std::collections::HashSet::new();
         for rule in &rules {
             if !ids.insert(rule.id.clone()) {
-                return Err(DiodeError::DuplicateRuleId);
+                return Err(RusloError::DuplicateRuleId);
             }
         }
         rules.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
@@ -417,7 +417,7 @@ fn deny(request: &FlowRequest, rule_id: Option<RuleId>, reason: SledReason) -> D
 
 fn evidence(request: &FlowRequest, rule_id: Option<RuleId>, reason: SledReason) -> SledEvidence {
     let capability =
-        crate::domain::CapabilityName::new("diode.flow").expect("static capability is valid");
+        crate::domain::CapabilityName::new("ruslo.flow").expect("static capability is valid");
     let operation = match request.operation {
         FlowOperation::Read => Operation::Read,
         FlowOperation::Export => Operation::NetworkSend,
@@ -530,12 +530,12 @@ mod tests {
             .destination(Destination::Model)
             .operation(FlowOperation::Read)
             .classification(Classification::Secret);
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("db-to-model-read").unwrap(),
             read,
         )])
         .unwrap();
-        assert_eq!(diode.evaluate(&read_flow()).kind, DecisionKind::Allow);
+        assert_eq!(ruslo.evaluate(&read_flow()).kind, DecisionKind::Allow);
         let reverse = FlowRequest::new(
             Principal::Model,
             FlowSource::Model,
@@ -544,17 +544,17 @@ mod tests {
             secret_provenance(),
             Classification::Secret,
         );
-        assert_eq!(diode.evaluate(&reverse).kind, DecisionKind::Deny);
+        assert_eq!(ruslo.evaluate(&reverse).kind, DecisionKind::Deny);
     }
 
     #[test]
     fn protected_external_export_is_denied_even_by_allow() {
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-any").unwrap(),
             FlowMatcher::any(),
         )])
         .unwrap();
-        let decision = diode.evaluate(&export_flow(
+        let decision = ruslo.evaluate(&export_flow(
             Destination::PublicExternal,
             Classification::Secret,
         ));
@@ -564,7 +564,7 @@ mod tests {
 
     #[test]
     fn protected_public_destination_is_denied_for_every_flow_operation() {
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-any").unwrap(),
             FlowMatcher::any(),
         )])
@@ -582,7 +582,7 @@ mod tests {
                 secret_provenance(),
                 Classification::Unknown,
             );
-            let decision = diode.evaluate(&request);
+            let decision = ruslo.evaluate(&request);
             assert_eq!(decision.kind, DecisionKind::Deny);
             assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
         }
@@ -596,7 +596,7 @@ mod tests {
             Classification::Secret,
         )
         .unwrap();
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-public").unwrap(),
             FlowMatcher::any()
                 .destination(Destination::PublicExternal)
@@ -606,7 +606,7 @@ mod tests {
         .unwrap();
         let flow =
             FlowRequest::from_tagged(Destination::PublicExternal, FlowOperation::Export, &secret);
-        let decision = diode.evaluate(&flow);
+        let decision = ruslo.evaluate(&flow);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
     }
@@ -623,24 +623,24 @@ mod tests {
         assert_eq!(flow.classification(), Classification::Unknown);
         assert_eq!(flow.provenance().source(), &ProvenanceSource::Unknown);
 
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-any").unwrap(),
             FlowMatcher::any(),
         )])
         .unwrap();
-        let decision = diode.evaluate(&flow);
+        let decision = ruslo.evaluate(&flow);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
     }
 
     #[test]
     fn unknown_destination_fails_closed() {
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-any").unwrap(),
             FlowMatcher::any(),
         )])
         .unwrap();
-        let decision = diode.evaluate(&export_flow(
+        let decision = ruslo.evaluate(&export_flow(
             Destination::Unknown(Identity::new("future").unwrap()),
             Classification::Public,
         ));
@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn mixed_provenance_cannot_be_laundered_by_model_endpoint() {
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new("allow-public-export").unwrap(),
             FlowMatcher::any()
                 .source(FlowSource::Model)
@@ -659,7 +659,7 @@ mod tests {
                 .classification(Classification::Public),
         )])
         .unwrap();
-        let decision = diode.evaluate(&export_flow(
+        let decision = ruslo.evaluate(&export_flow(
             Destination::PublicExternal,
             Classification::Secret,
         ));
@@ -671,8 +671,8 @@ mod tests {
     fn conflicting_rules_are_order_independent_and_evidence_stable() {
         let allow = FlowRule::allow(RuleId::new("z-allow").unwrap(), FlowMatcher::any());
         let deny = FlowRule::deny(RuleId::new("a-deny").unwrap(), FlowMatcher::any());
-        let first = Diode::new(vec![allow.clone(), deny.clone()]).unwrap();
-        let second = Diode::new(vec![deny, allow]).unwrap();
+        let first = Ruslo::new(vec![allow.clone(), deny.clone()]).unwrap();
+        let second = Ruslo::new(vec![deny, allow]).unwrap();
         let one = first.evaluate(&read_flow());
         let two = second.evaluate(&read_flow());
         assert_eq!(one, two);
@@ -690,13 +690,13 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(Diode::new(rules).unwrap_err(), DiodeError::TooManyRules);
+        assert_eq!(Ruslo::new(rules).unwrap_err(), RusloError::TooManyRules);
     }
 
     #[test]
     fn sled_evidence_contains_no_flow_payload() {
-        let diode = Diode::new(Vec::new()).unwrap();
-        let decision = diode.evaluate(&export_flow(
+        let ruslo = Ruslo::new(Vec::new()).unwrap();
+        let decision = ruslo.evaluate(&export_flow(
             Destination::PublicExternal,
             Classification::Secret,
         ));
@@ -718,14 +718,14 @@ mod tests {
                 Classification::Unknown,
             ])
         ) {
-            let diode = Diode::new(vec![FlowRule::allow(
+            let ruslo = Ruslo::new(vec![FlowRule::allow(
                 RuleId::new("public-only").unwrap(),
                 FlowMatcher::any()
                     .destination(Destination::PublicExternal)
                     .operation(FlowOperation::Export)
                     .classification(Classification::Public),
             )]).unwrap();
-            let decision = diode.evaluate(&export_flow(Destination::PublicExternal, classification));
+            let decision = ruslo.evaluate(&export_flow(Destination::PublicExternal, classification));
             if classification != Classification::Public {
                 prop_assert_ne!(decision.kind, DecisionKind::Allow);
             }
@@ -733,21 +733,21 @@ mod tests {
 
         #[test]
         fn unknown_flow_operation_never_allows(_seed in any::<u64>()) {
-            let diode = Diode::new(vec![FlowRule::allow(
+            let ruslo = Ruslo::new(vec![FlowRule::allow(
                 RuleId::new("allow-any").unwrap(),
                 FlowMatcher::any(),
             )]).unwrap();
             let mut flow = read_flow();
             flow.operation = FlowOperation::Unknown;
-            prop_assert_ne!(diode.evaluate(&flow).kind, DecisionKind::Allow);
+            prop_assert_ne!(ruslo.evaluate(&flow).kind, DecisionKind::Allow);
         }
     }
 
     #[test]
     fn capability_name_for_flow_evidence_is_validated() {
         assert_eq!(
-            CapabilityName::new("diode.flow").unwrap().as_str(),
-            "diode.flow"
+            CapabilityName::new("ruslo.flow").unwrap().as_str(),
+            "ruslo.flow"
         );
     }
 }

@@ -12,13 +12,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
 use tkach_core::domain::{
     CapabilityName, Classification, Destination, FlowDirection, Identity, Operation, Principal,
     ProvenanceSource, Resource, ResourceId, ResourceKind, ResourceScope, RuleId,
 };
 use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
+use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::zaslon::{ContentRule, Zaslon};
 use tkach_gateway::{
     CancelledProvider, DeterministicProvider, ExternalRequest, FailureProvider, FakeToolBroker,
@@ -126,7 +126,7 @@ fn gateway_with_replacement(
     let database = resource(ResourceKind::Database, "customer-db");
     let network = resource(ResourceKind::Network, "public-api");
     let file = resource(ResourceKind::File, "workspace/output.txt");
-    let secret = tkach_core::pechat::SecretHandle::new("github-prod")
+    let secret = tkach_core::klyuchnik::SecretHandle::new("github-prod")
         .unwrap()
         .resource();
     let tool = resource(ResourceKind::Database, "status");
@@ -175,7 +175,7 @@ fn gateway_with_replacement(
     )
     .unwrap();
 
-    let mut diode_rules = vec![
+    let mut ruslo_rules = vec![
         flow_allow(
             "flow-database-read",
             FlowSource::Resource(database),
@@ -208,15 +208,15 @@ fn gateway_with_replacement(
         ),
     ];
     if release_destination != Destination::Internal(Identity::new("client").unwrap()) {
-        diode_rules.push(flow_allow(
+        ruslo_rules.push(flow_allow(
             "flow-release-configured",
             FlowSource::Model,
             release_destination.clone(),
             FlowOperation::Export,
         ));
     }
-    let diode = Diode::new(diode_rules).unwrap();
-    let kernel = Krosna::with_zaslon_and_diode(policy, Zaslon::empty(), diode);
+    let ruslo = Ruslo::new(ruslo_rules).unwrap();
+    let kernel = Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo);
     let broker = Rc::new(RefCell::new(FakeToolBroker::new()));
     let executor = SharedExecutor {
         broker: broker.clone(),
@@ -621,7 +621,7 @@ fn awaited_turns_reject_mutations_and_batches_reject_multiple_effects() {
 }
 
 #[test]
-fn pechat_reveal_is_denied_but_authorized_secret_use_is_internal_only() {
+fn klyuchnik_reveal_is_denied_but_authorized_secret_use_is_internal_only() {
     let (mut gateway, broker) = gateway(
         Destination::Internal(Identity::new("client").unwrap()),
         Zaslon::empty(),
@@ -638,7 +638,7 @@ fn pechat_reveal_is_denied_but_authorized_secret_use_is_internal_only() {
     assert!(matches!(error.kind(), GatewayErrorKind::ActionDenied(_)));
     assert_eq!(broker.borrow().effect_count(), 0);
 
-    let secret_resource = tkach_core::pechat::SecretHandle::new("github-prod")
+    let secret_resource = tkach_core::klyuchnik::SecretHandle::new("github-prod")
         .unwrap()
         .resource();
     let secret_action = tkach_core::domain::ActionRequest::new(

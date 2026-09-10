@@ -1007,8 +1007,8 @@ pub enum EvidenceCapability {
     SecretUse,
     /// Secret reveal capability.
     SecretReveal,
-    /// Diode boundary evaluation capability.
-    DiodeFlow,
+    /// Ruslo boundary evaluation capability.
+    RusloFlow,
     /// Zaslon content boundary capability.
     ZaslonContent,
     /// Zaslon action boundary capability.
@@ -1032,7 +1032,7 @@ impl From<&CapabilityName> for EvidenceCapability {
             "tool.execute" => Self::ToolExecute,
             "secret.use" => Self::SecretUse,
             "secret.reveal" => Self::SecretReveal,
-            "diode.flow" => Self::DiodeFlow,
+            "ruslo.flow" => Self::RusloFlow,
             "zaslon.content" => Self::ZaslonContent,
             "zaslon.action" => Self::ZaslonAction,
             "policy.mutate" => Self::PolicyMutate,
@@ -1454,7 +1454,7 @@ mod tests {
             ("tool.execute", EvidenceCapability::ToolExecute),
             ("secret.use", EvidenceCapability::SecretUse),
             ("secret.reveal", EvidenceCapability::SecretReveal),
-            ("diode.flow", EvidenceCapability::DiodeFlow),
+            ("ruslo.flow", EvidenceCapability::RusloFlow),
             ("zaslon.content", EvidenceCapability::ZaslonContent),
             ("zaslon.action", EvidenceCapability::ZaslonAction),
             ("policy.mutate", EvidenceCapability::PolicyMutate),

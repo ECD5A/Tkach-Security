@@ -12,7 +12,7 @@ cargo run -p tkach-gateway --example quickstart --locked
 
 The example performs these real steps:
 
-1. create typed `Destination`, `FlowRule`, `Diode`, `Policy`, `Krosna`, and
+1. create typed `Destination`, `FlowRule`, `Ruslo`, `Policy`, `Krosna`, and
    bounded `Zaslon` values;
 2. construct `Gateway` with a `ProtectedExecutor` implementation;
 3. construct bounded `ExternalRequest` DATA;
@@ -23,7 +23,7 @@ The example performs these real steps:
 
 | Profile | Additional integration | Resulting boundary |
 | --- | --- | --- |
-| Basic | trusted Krosna/Diode/Zaslon and non-effect/rejecting executor | bounded input/provider/output proof without real effects |
+| Basic | trusted Krosna/Ruslo/Zaslon and non-effect/rejecting executor | bounded input/provider/output proof without real effects |
 | Controlled | typed `PolicyRule` action grants, separate `FlowRule` destination policy, and a `ProtectedExecutor` that accepts only `Propusk` | authorized reads/writes and tool follow-up with exact scope |
 | Sealed | Controlled plus `SecretHandle`/`SecretBroker`, exact `secret.use` rule, no raw credential/out-of-band path | broker-held secret use without model-visible raw secret |
 

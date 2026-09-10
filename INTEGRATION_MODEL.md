@@ -12,7 +12,7 @@ Replace the direct path
 
 with
 
-`external request -> Gateway -> Provider -> typed proposal -> Krosna/Diode/Zaslon -> ProtectedExecutor`.
+`external request -> Gateway -> Provider -> typed proposal -> Krosna/Ruslo/Zaslon -> ProtectedExecutor`.
 
 The host constructs a `Gateway` with trusted `Krosna`, ingress/egress
 `Zaslon`, a valid release `Destination`, and an executor that accepts only
@@ -34,10 +34,10 @@ or release function.
    do not authorize arbitrary model-provided strings.
 4. Declare protected destinations explicitly as `Destination::Internal`,
    `Destination::PublicExternal`, or `Destination::SecretBroker` and configure
-   Diode rules independently from action policy.
+   Ruslo rules independently from action policy.
 5. Route every tool implementation through `ProtectedExecutor`; never expose a
    raw executor or raw action request to the provider.
-6. Keep credentials in trusted host configuration. Use Pechat handles and
+6. Keep credentials in trusted host configuration. Use Klyuchnik handles and
    broker-side use for secrets; never copy raw values into `ModelInput`.
 7. Treat `GatewayError::kind()` and its payload-free `SledTrace` as the DENY
    reason surface. Do not turn model text into an authorization explanation.
@@ -48,9 +48,9 @@ or release function.
 An integrator needs to understand four operational concepts:
 
 - `Propusk` — scoped execution capability issued only by Krosna;
-- `Diode` — directional information-flow decision;
+- `Ruslo` — directional information-flow decision;
 - `Zaslon` — formal content/action hard boundary;
-- `Pechat` — broker-side secret-use isolation.
+- `Klyuchnik` — broker-side secret-use isolation.
 
 `Gnezdo`, `Niti`, and `Metka` are the data/control and lineage state carried by
 the system; `Sled` is the safe diagnostic evidence. The model does not need to
@@ -73,28 +73,28 @@ construct or mutate these values directly.
 **Use:** model input containment, bounded provider lifecycle, final content and
 flow checks, and safe DENY evidence without authorizing real effects.
 
-**Setup:** trusted Krosna/Zaslon/Diode configuration and a rejecting or
+**Setup:** trusted Krosna/Zaslon/Ruslo configuration and a rejecting or
 non-effect executor; all model I/O still passes through Gateway.
 
 **Guarantees:** bounded ingress, Gnezdo DATA containment, provider staging,
-Zaslon/Diode final gates, no model-minted authority.
+Zaslon/Ruslo final gates, no model-minted authority.
 
 **Unavailable:** no guarantee for effects performed by application code outside
-the Gateway; no secret isolation unless Pechat is used; no business-intent
+the Gateway; no secret isolation unless Klyuchnik is used; no business-intent
 validation.
 
 ### Controlled Agent
 
 **Use:** tools and protected effects controlled by Tkach.
 
-**Setup:** Basic Gateway plus explicit Krosna action policy, Diode flow policy,
+**Setup:** Basic Gateway plus explicit Krosna action policy, Ruslo flow policy,
 and a `ProtectedExecutor` implementation that refuses raw requests.
 
 **Guarantees:** Basic guarantees plus exact-scope Propusk authorization,
 preflighted action batches, protected lifecycle/effect ordering, directional
 export control, and typed tool-result lineage.
 
-**Unavailable:** raw credentials may still leak if the host bypasses Pechat;
+**Unavailable:** raw credentials may still leak if the host bypasses Klyuchnik;
 the executor's external side effects and transaction semantics remain the
 integrator's responsibility.
 
@@ -102,7 +102,7 @@ integrator's responsibility.
 
 **Use:** maximum current boundary for sensitive data and tools.
 
-**Setup:** Controlled Agent plus Pechat-backed `SecretBroker`, no raw secret in
+**Setup:** Controlled Agent plus Klyuchnik-backed `SecretBroker`, no raw secret in
 model context, no out-of-band executor/broker/release path, and trusted host
 configuration isolated from model-controlled data.
 

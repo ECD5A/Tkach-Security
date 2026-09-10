@@ -116,10 +116,10 @@
   empty-parent path remains conservative (`Unknown` + `Derived`).
 - Commit: `niti-metka: preserve lineage and conservative classification`.
 
-## Mandate 7 — Diode directional information flow
+## Mandate 7 — Ruslo directional information flow
 
 - Architecture: typed `FlowRequest`, `FlowSource`, `FlowOperation`,
-  `FlowMatcher`, and effect-ranked `Diode`; Krosna can compose it ahead of
+  `FlowMatcher`, and effect-ranked `Ruslo`; Krosna can compose it ahead of
   policy authorization.
 - Security: read/export/reverse/onward edges are independent; unknown
   endpoints/operations fail closed; protected public export is a hard gate;
@@ -127,17 +127,17 @@
   principal claim.
 - Tests: 54 tests pass, including read-vs-export/reverse goldens, unknown
   destination, mixed-provenance route-laundering, classification property,
-  deterministic conflict ordering, payload-free evidence, and Krosna/Diode
+  deterministic conflict ordering, payload-free evidence, and Krosna/Ruslo
   composition.
 - Weaknesses and hardening: public arbitrary flow source construction was found
   capable of metadata/route laundering; source construction was restricted to
   crate-private context mapping or fixed-Model tagged mapping, with regression
   coverage.
-- Commit: `diode: enforce directional provenance-aware information flow`.
+- Commit: `ruslo: enforce directional provenance-aware information flow`.
 
-## Mandate 8 — Pechat opaque secret broker
+## Mandate 8 — Klyuchnik opaque secret broker
 
-- Architecture: Pechat exposes validated opaque `SecretHandle` values and
+- Architecture: Klyuchnik exposes validated opaque `SecretHandle` values and
   keeps raw bytes in a private non-serializable broker value. Authorized
   `secret.use` requires a kernel-issued exact `Propusk`; raw reveal is denied.
 - Security: handles, receipts, errors, and debug output contain no secret
@@ -149,31 +149,31 @@
 - Weaknesses and hardening: a public broker method initially leaked a private
   secret type in its return signature; it was replaced with a payload-free
   unit error result before the full validation rerun.
-- Commit: `pechat: isolate broker secrets behind opaque handles`.
+- Commit: `klyuchnik: isolate broker secrets behind opaque handles`.
 
 ## Mandate 9 — Sled and enforcement testbed
 
 - Architecture: Sled records bounded trace-local decision IDs and typed
   payload-free evidence. The testbed models hostile typed proposals, routes
   authorized non-secret effects through `ProtectedExecutor`, and routes
-  authorized `secret.use` through Pechat.
+  authorized `secret.use` through Klyuchnik.
 - Security: trace serialization and all testbed debug/receipt surfaces contain
-  metadata only; oversized model input, trace exhaustion, missing Pechat, and
+  metadata only; oversized model input, trace exhaustion, missing Klyuchnik, and
   token conversion mismatch fail closed.
 - Tests: 67 tests pass, including monotonic/bounded traces, safe JSON,
   hostile DATA containment, canonical hostile-chain outcomes, exact denial
   reasons, executor boundary behavior, and broker-route isolation.
 - Weaknesses and hardening: the initial hostile export fixture used a database
   resource with `network.send`, so Krosna correctly rejected it as unknown
-  before Diode. The fixture was corrected to a typed network resource so the
-  test now exercises Diode's default-deny path; missing-broker behavior also
+  before Ruslo. The fixture was corrected to a typed network resource so the
+  test now exercises Ruslo's default-deny path; missing-broker behavior also
   has explicit regression coverage.
 - Commit: `sled: add safe evidence and hostile enforcement testbed`.
 
 ## Mandate 10 — Composition testing
 
 - Architecture: independent integration scenarios combine Gnezdo, Zaslon,
-  Krosna/Propusk, Diode, Niti/Metka, Pechat, Sled, and the fake executor.
+  Krosna/Propusk, Ruslo, Niti/Metka, Klyuchnik, Sled, and the fake executor.
   Scenarios cover hostile DATA, formal blocking, authorization, directional
   exfiltration, secret handles, mixed lineage, detector absence, and multiple
   simultaneous defense failures.
@@ -191,7 +191,7 @@
 
 - Attack surface reviewed: Krosna precedence and state conversion, Zaslon
   canonicalization/stream seams, Gnezdo authority isolation, Propusk scope,
-  Niti/Metka propagation, Diode direction and provenance, Pechat isolation,
+  Niti/Metka propagation, Ruslo direction and provenance, Klyuchnik isolation,
   Sled/error/debug redaction, malformed wire values, UNKNOWN states, resource
   matching, canonical paths, and race/TOCTOU assumptions.
 - Reproduced and fixed weaknesses: Zaslon whitespace split across chunks;
@@ -212,9 +212,9 @@
 
 - Architecture: public untrusted roots no longer accept caller-supplied
   principal, provenance, or classification metadata; public tagged-data flows
-  fix source to the model. Policy, Zaslon, Diode, provenance, derivation,
-  model-fixture, Sled, Pechat, and stream state all have explicit bounds.
-  `secret.use` is recognized only at the exact Pechat destination, and
+  fix source to the model. Policy, Zaslon, Ruslo, provenance, derivation,
+  model-fixture, Sled, Klyuchnik, and stream state all have explicit bounds.
+  `secret.use` is recognized only at the exact Klyuchnik destination, and
   protected external flow denial applies to every flow operation.
 - Security: red-team candidates for metadata relabeling, non-Export egress,
   incorrect `NetworkSend` source, generic secret-use execution, stream-size
@@ -251,7 +251,7 @@
 
 - Scope: local hardening on the frozen `strong-core-candidate-1` tag at
   `7d555cb`; no provider, MCP, SDK, gateway, UI, cloud, or integration work.
-- Design and fixes: action-to-Diode mapping now treats every model-controlled
+- Design and fixes: action-to-Ruslo mapping now treats every model-controlled
   non-read effect as model-originated; the fake protected executor rejects any
   direct `SecretBroker` destination; and `ZaslonStream` is terminal after a
   successful finish. A misleading composition helper was corrected so its
@@ -272,7 +272,7 @@
   normalize to conservative metadata; tagged-data flows fix source to Model;
   broker values remain private and non-serializable.
 - Residual risks: model-readable generic serialization is not an egress permit;
-  adapters must run Diode/Zaslon before external release. Sled evidence is
+  adapters must run Ruslo/Zaslon before external release. Sled evidence is
   bounded typed metadata, not raw payload, but hostile-model trace exposure can
   remain a metadata side channel. Windows MSVC cannot execute the libFuzzer
   binary because of the known linker entry-point limitation; Linux CI retains
@@ -295,7 +295,7 @@
 - Hardening: Sled evidence now uses payload-free categories, Decision creation
   and Sled recording are kernel-internal, receipts expose accessors only, Niti
   uses an explicit wrapper wire shape, unknown declassification resources fail
-  closed, Pechat has a 16 MiB aggregate fake-broker budget, and Zaslon uses
+  closed, Klyuchnik has a 16 MiB aggregate fake-broker budget, and Zaslon uses
   incremental prefix matching with a 256 KiB aggregate pattern budget.
 - Regression/adversarial coverage: hostile metadata markers are absent from Sled
   JSON; receipt and Propusk deserialization/forgery paths are unavailable;
@@ -304,7 +304,7 @@
 - Current local test counts after Round 3 changes: 112 unit tests, 9 composition
   tests, and 9 independent integration-oracle tests.
 - Residual assumptions: policy `RuleId` is trusted validated configuration and
-  remains in evidence for explainability; Pechat handle existence can be
+  remains in evidence for explainability; Klyuchnik handle existence can be
   observable to an already-authorized caller. No constant-time claim is made.
 - The final validation matrix, mutation result, freeze commit, and freeze tag
   are recorded below when the round is complete. Local history only; no push.
@@ -315,8 +315,8 @@
   independent gateway around the frozen Strong Core. No OpenAI, Anthropic, MCP,
   SDK, HTTP, cloud, or production provider integration.
 - Architecture: the gateway will own bounded ingress, request lifecycle,
-  provider orchestration, output staging, and tool dispatch. Krosna, Diode,
-  Zaslon, Gnezdo, Propusk, Pechat, Niti, Metka, and Sled remain the authority
+  provider orchestration, output staging, and tool dispatch. Krosna, Ruslo,
+  Zaslon, Gnezdo, Propusk, Klyuchnik, Niti, Metka, and Sled remain the authority
   and evidence boundaries; the gateway must not duplicate their semantics.
 - Invariant: `NO PROTECTED EFFECT OR PROTECTED EGRESS MAY BYPASS TKACH
   ENFORCEMENT`.
@@ -333,7 +333,7 @@
 - Architecture: committed `tkach-gateway` as a separate provider-independent
   crate. The gateway owns strict bounded JSON ingress, Gnezdo/Zaslon ingress,
   private SecurityEnvelope construction, provider lifecycle, staged output,
-  Krosna/Diode/Zaslon egress, and Propusk-only tool dispatch. Core primitives
+  Krosna/Ruslo/Zaslon egress, and Propusk-only tool dispatch. Core primitives
   remain the authority and no client tool declaration changes the fixed tool
   catalog.
 - Security: provider output is untrusted text and typed proposals only. It has
@@ -343,18 +343,18 @@
   Awaited turns allow reads only, all action proposals are preflighted, and
   duplicate proposals are rejected within a lifecycle. Invalid release
   destinations, parser ambiguity, raw/body and collection limits, provider
-  failure/timeout/cancellation, chunk/stream limits, malformed steps, Pechat
+  failure/timeout/cancellation, chunk/stream limits, malformed steps, Klyuchnik
   reveal, protected public export, metadata stripping, and fake-provider
   authority claims fail closed.
 - Tools and secrets: fake protected read/write/external-send/harmless-read and
-  Pechat-backed secret-use routes are available only through kernel-issued
+  Klyuchnik-backed secret-use routes are available only through kernel-issued
   Propusk. Tool data retains Niti/Metka; receipts and traces carry no raw
   secret. `FakeToolBroker` has a bounded effect log and never exposes its
   broker value to a provider.
 - Tests: 20 Gateway boundary tests cover ingress, limits, fixed catalog,
   canonical hostile read-then-exfiltration, Niti/Metka preservation, egress
   stripping and stream seams, partial-effect regression, action preflight,
-  Pechat reveal/use, provider malformed/timeout/failure/cancellation, replay,
+  Klyuchnik reveal/use, provider malformed/timeout/failure/cancellation, replay,
   invalid release, and duplicate metadata. `fuzz/gateway_wire.rs` exercises
   arbitrary bounded JSON parser input. Workspace tests, clippy with warnings
   denied, and fuzz target compile-check pass.
@@ -429,7 +429,7 @@
   output is model data only; response IDs, call IDs, metadata, and model
   authority claims are opaque and never become Tkach authority.
 - Security invariants: provider output cannot mint Propusk, access an
-  executor/Pechat broker, alter Krosna/Zaslon/Diode policy, strip Niti/Metka,
+  executor/Klyuchnik broker, alter Krosna/Zaslon/Ruslo policy, strip Niti/Metka,
   or bypass final egress gates. The planned adapter must use explicit
   `store:false`, no background/conversation state, no provider-side tools, and
   trusted HTTPS-only endpoint configuration.
@@ -455,7 +455,7 @@
   non-empty function arguments fail closed. Provider/call IDs are bounded
   replay markers and tool outputs are explicitly paired as DATA.
 - Gateway composition: the actual `OpenAiProvider` path was run through a
-  real Gateway test. `harmless_read` executed only after Krosna/Diode
+  real Gateway test. `harmless_read` executed only after Krosna/Ruslo
   authorization and returned a bounded follow-up result; `external_send` was
   denied before the executor. A malformed oversized follow-up regression test
   confirmed pending call state is preserved after rejection.
@@ -512,10 +512,10 @@
   `PRODUCT_CONTRACT.md`; the integration flow and Basic/Controlled/Sealed
   profiles are in `INTEGRATION_MODEL.md`.
 - Primitive review: `PRIMITIVE_REVIEW.md` and `SECURITY_VALUE_MAP.md` assign a
-  threat and enforcement role to Krosna, Propusk, Diode, Zaslon, Pechat,
+  threat and enforcement role to Krosna, Propusk, Ruslo, Zaslon, Klyuchnik,
   Gnezdo, Niti, Metka, Sled, Gateway, and the OpenAI boundary. Repeated checks
   at independent trust boundaries are retained deliberately.
-- Safe pruning: removed the zero-sized `DataLane` marker, empty `Pechat`
+- Safe pruning: removed the zero-sized `DataLane` marker, empty `Klyuchnik`
   facade, and `ScriptedProvider` alias. No authority constructor, policy
   decision, flow rule, secret broker operation, lifecycle transition, or
   diagnostic invariant was removed. `SIMPLIFICATION_RED_TEAM.md` records the

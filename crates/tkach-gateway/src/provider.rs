@@ -233,7 +233,7 @@ pub enum ProviderSinkError {
 /// Sink through which a provider proposes output and actions.
 ///
 /// The sink only stages values. It has no method for executing tools, issuing
-/// Propusk, accessing Pechat, or releasing bytes to an external destination.
+/// Propusk, accessing Klyuchnik, or releasing bytes to an external destination.
 pub trait ProviderSink {
     /// Stage one bounded text chunk.
     ///

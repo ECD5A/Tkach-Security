@@ -21,8 +21,8 @@
 /// these stable conceptual boundaries in small, auditable increments.
 pub mod domain;
 
-/// Directional information-flow policy and Diode evaluator.
-pub mod diode;
+/// Directional information-flow policy and Ruslo evaluator.
+pub mod ruslo;
 
 /// DATA/CONTROL authority containment boundary.
 pub mod gnezdo;
@@ -34,7 +34,7 @@ pub mod krosna;
 pub mod niti_metka;
 
 /// Opaque secret-handle broker boundary and fake test broker.
-pub mod pechat;
+pub mod klyuchnik;
 
 /// Kernel-issued scoped execution authority and protected executor boundary.
 pub mod propusk;

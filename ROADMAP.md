@@ -16,8 +16,8 @@ repository, not future product marketing.
 - DONE — Mandate 4: Gnezdo data/control containment.
 - DONE — Mandate 5: Propusk scoped authorization.
 - DONE — Mandate 6: Niti and Metka conservative lineage.
-- DONE — Mandate 7: Diode directional flow enforcement.
-- DONE — Mandate 8: Pechat opaque secret broker.
+- DONE — Mandate 7: Ruslo directional flow enforcement.
+- DONE — Mandate 8: Klyuchnik opaque secret broker.
 - DONE — Mandate 9: Sled and enforcement testbed.
 - DONE — Mandate 10: composition testing.
 - DONE — Mandate 11: core red team and adversarial parser/authority review.

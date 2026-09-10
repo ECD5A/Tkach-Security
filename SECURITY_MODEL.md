@@ -13,7 +13,7 @@
   requested resource, even when a trusted policy matcher used a prefix;
 - derived model output retains Niti lineage and the maximum parent Metka;
   model-only declassification is rejected;
-- Diode treats read/export/reverse/onward edges as separate decisions and denies
+- Ruslo treats read/export/reverse/onward edges as separate decisions and denies
   protected public export deterministically;
 - untrusted data cannot mint authority, capabilities, or policy changes;
 - untrusted contexts cannot spoof a trusted principal, and public wire values
@@ -29,7 +29,7 @@
 - authorized broker use requires an exact `Propusk`, while raw reveal is
   denied;
 - a direct protected-executor call addressed to `SecretBroker` is rejected;
-- Pechat handles, receipts, errors, and debug output do not contain broker
+- Klyuchnik handles, receipts, errors, and debug output do not contain broker
   secret values;
 - important decisions carry safe structured evidence without payload logging;
 - Sled trace growth and hostile-model inputs are bounded, and the fake
@@ -41,7 +41,7 @@
   not deserializable authority inputs; only kernel code records decisions.
 - Zaslon pattern memory has an aggregate budget and streaming matching uses
   incremental bounded state rather than copying a rule-sized suffix per chunk.
-- Pechat's fake broker has both per-secret and aggregate secret-byte budgets.
+- Klyuchnik's fake broker has both per-secret and aggregate secret-byte budgets.
 - all bounded wire collections and identifiers are validated against fixed
   limits, and malformed provenance shapes cannot create a trusted root; input
   adapters must impose reader/token byte limits before generic deserializers
@@ -58,7 +58,7 @@
 - provider output can propose only text and typed ActionRequest values; it
   cannot construct or receive Decision, Propusk, trusted provenance,
   declassification authority, executor, or broker values;
-- provider output is buffered until final Krosna/Diode and egress Zaslon checks
+- provider output is buffered until final Krosna/Ruslo and egress Zaslon checks
   pass, and final output validation occurs before any action in that response
   executes;
 - protected action proposals are preflighted through Krosna before execution,
@@ -98,7 +98,7 @@ executors that do not provide an out-of-band bypass.
   or transaction semantics; a real executor must preserve the Propusk-only
   boundary and bounded result contract;
 - `Serialize` on model-readable data is context construction, not an egress
-  authorization decision; adapters must apply Diode/Zaslon before release.
+  authorization decision; adapters must apply Ruslo/Zaslon before release.
 
 ## Non-guarantees
 
@@ -107,14 +107,14 @@ LLM compromise, perfect taint analysis, or all possible data leakage. It does
 not protect a deployment that gives the model a direct privileged path or a
 fully compromised operating system. Policy `RuleId` values are trusted,
 validated configuration labels and remain in evidence for explainability;
-adapters must not treat them as attacker data. Pechat intentionally exposes
+adapters must not treat them as attacker data. Klyuchnik intentionally exposes
 opaque handle labels and an authorized caller can distinguish a successful
 broker use from an unknown handle; this is metadata, not a raw-secret leak,
 and this review does not claim constant-time behavior.
 
 ## Current implementation status
 
-The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Diode, Pechat,
+The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Ruslo, Klyuchnik,
 Sled, the enforcement testbed, and the provider-independent Gateway Phase 1
 boundary are implemented and tested. The first real-provider milestone adds a
 non-streaming OpenAI Responses adapter with an offline fake transport, strict
@@ -122,10 +122,10 @@ wire fixtures, an actual Gateway integration test, and an opt-in live smoke
 test that is skipped unless explicitly enabled. Strong Core
 Hardening Round 3 additionally closes diagnostic metadata injection and
 forgeable evidence construction, fixes Niti wire round-trips, rejects unknown
-declassification resources, bounds aggregate Pechat memory, and replaces the
+declassification resources, bounds aggregate Klyuchnik memory, and replaces the
 quadratic streaming matcher state with incremental matching.
 Zaslon's canonicalizer is intentionally strict and rejects ambiguous Unicode/
-escape representations; it does not detect every semantic paraphrase. Pechat
+escape representations; it does not detect every semantic paraphrase. Klyuchnik
 does not defend against a fully compromised
 host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
@@ -164,7 +164,7 @@ with their exact results in `PRODUCT_CONTRACT_CHECKPOINT.md` and
 The Product Proof B0-B22 harness exercises the same typed Gateway boundary
 with deterministic providers, a fake protected executor, and fake broker-held
 secret material. It measures useful bounded workflows and structured effects;
-it does not infer security from model prose, replace Krosna/Diode/Zaslon
+it does not infer security from model prose, replace Krosna/Ruslo/Zaslon
 decisions, or prove semantic prompt-injection detection. The completed local
 checkpoint recorded zero defined false allows and zero false denies for the
 explicit legitimate workload rows. Its Standard Codex Security review found

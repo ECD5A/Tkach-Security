@@ -33,7 +33,7 @@ const MAX_REPLAY_IDENTIFIERS: usize = 4_096;
 ///
 /// The adapter is intentionally a thin wire boundary. It can create only raw
 /// `ActionRequest` proposals for the Gateway sink; it has no Krosna, Propusk,
-/// executor, Pechat, or release capability.
+/// executor, Klyuchnik, or release capability.
 pub struct OpenAiProvider {
     config: OpenAiConfig,
     transport: Box<dyn Transport>,
@@ -341,13 +341,13 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
     use std::sync::{Arc, Mutex};
-    use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
     use tkach_core::domain::{
         CapabilityName, Classification, Destination, Identity, Resource, ResourceId, ResourceKind,
         ResourceScope, RuleId,
     };
     use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
     use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
+    use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
     use tkach_core::zaslon::Zaslon;
     use tkach_gateway::{
         ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway, GatewayErrorKind,
@@ -427,7 +427,7 @@ mod tests {
             )],
         )
         .unwrap();
-        let diode = Diode::new(vec![
+        let ruslo = Ruslo::new(vec![
             FlowRule::allow(
                 RuleId::new("flow-status-to-model").unwrap(),
                 FlowMatcher::any()
@@ -448,7 +448,7 @@ mod tests {
         .unwrap();
         let broker = Rc::new(RefCell::new(FakeToolBroker::new()));
         let gateway = Gateway::new(
-            Krosna::with_zaslon_and_diode(policy, Zaslon::empty(), diode),
+            Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo),
             Zaslon::empty(),
             Zaslon::empty(),
             client,

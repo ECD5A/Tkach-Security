@@ -19,13 +19,13 @@ threat models.
   malformed privileged state denies.
 - Propusk is the only accepted protected-executor authority and is bound to
   principal, operation, capability, and exact resource scope.
-- READ and EXPORT are distinct Diode decisions; protected-derived public
+- READ and EXPORT are distinct Ruslo decisions; protected-derived public
   export is denied.
 - Gnezdo keeps untrusted content in DATA and exposes no public DATA-to-CONTROL
   constructor.
 - Niti and Metka preserve provenance and conservative classification; model
   output cannot self-declassify.
-- Pechat keeps broker-held raw values outside normal model-visible structures;
+- Klyuchnik keeps broker-held raw values outside normal model-visible structures;
   reveal is denied and secret use requires an exact Propusk route.
 - Zaslon is a deterministic hard boundary for configured content/action rules,
   including bounded stream semantics and explicit finish.
@@ -33,7 +33,7 @@ threat models.
 - Gateway input, lifecycle, staging, tool, replay, and egress boundaries are
   bounded and fail closed.
 - OpenAI adapter credentials remain trusted configuration; provider data cannot
-  mint authority, access executor/Pechat, or bypass Gateway/Core egress gates.
+  mint authority, access executor/Klyuchnik, or bypass Gateway/Core egress gates.
 
 ## Test and security baseline
 

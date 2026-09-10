@@ -14,7 +14,7 @@
 //! This crate deliberately starts with trusted adapter configuration and
 //! credential handling. Provider wire data will be parsed into untrusted
 //! Gateway proposals in later, separately reviewed milestones. It does not
-//! implement policy, Propusk issuance, protected execution, or Pechat.
+//! implement policy, Propusk issuance, protected execution, or Klyuchnik.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

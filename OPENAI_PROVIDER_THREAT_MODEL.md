@@ -34,9 +34,9 @@ OpenAI adapter -- HTTPS + infrastructure credential --> OpenAI Responses API
         v
 Gateway staging: text DATA + ActionRequest proposals
         |
-        +--> Krosna / Diode / Zaslon --> release or deny
+        +--> Krosna / Ruslo / Zaslon --> release or deny
         |
-        +--> kernel-issued Propusk --> protected executor / Pechat
+        +--> kernel-issued Propusk --> protected executor / Klyuchnik
 ```
 
 The provider-independent contract is source-backed by:
@@ -45,20 +45,20 @@ The provider-independent contract is source-backed by:
 | --- | --- |
 | Gateway to provider | `crates/tkach-gateway/src/provider.rs:105-263`: the provider sees bounded inputs, metadata, a fixed tool vocabulary, and a sink that only stages text or raw `ActionRequest` proposals. |
 | Provider staging | `crates/tkach-gateway/src/provider.rs:265-329`: chunks/actions are bounded and retained until the Gateway completes its checks. |
-| Final output gate | `crates/tkach-gateway/src/gateway.rs:267-344,462-501`: complete output is size-, Diode-, and egress-Zaslon-checked before release. |
+| Final output gate | `crates/tkach-gateway/src/gateway.rs:267-344,462-501`: complete output is size-, Ruslo-, and egress-Zaslon-checked before release. |
 | Action boundary | `crates/tkach-gateway/src/gateway.rs:379-461`: all proposals are preflighted by Krosna and only the resulting Propusk reaches the executor. |
 | Core authority | `crates/tkach-core/src/domain.rs:729-779` and the Propusk boundary: an ActionRequest is a request, not execution authority. |
-| Secret boundary | `crates/tkach-core/src/pechat.rs` and the Gateway tool boundary: provider-visible handles/results do not expose broker-held raw secrets. |
+| Secret boundary | `crates/tkach-core/src/klyuchnik.rs` and the Gateway tool boundary: provider-visible handles/results do not expose broker-held raw secrets. |
 
 The line references identify the baseline inspected for this P0 document;
 future edits must keep the claims and controls synchronized with code.
 
 ## Assets and invariants
 
-- Krosna policy, Zaslon hard-deny rules, Diode flow rules, and the fixed tool
+- Krosna policy, Zaslon hard-deny rules, Ruslo flow rules, and the fixed tool
   catalog must not be changed by provider data.
 - A raw provider response must never become a Decision, Propusk,
-  DeclassificationPermit, ProtectedExecutor, Pechat broker, or trusted
+  DeclassificationPermit, ProtectedExecutor, Klyuchnik broker, or trusted
   provenance/classification value.
 - Model text is data. It is released only after Gateway-owned final flow and
   content gates pass.
@@ -83,11 +83,11 @@ claims that a vulnerability already exists.
 | Critical | A function call names an unknown tool, a built-in tool, MCP, web search, file search, computer action, or a provider-side effect. | The request advertises only the fixed Tkach-controlled custom functions; the parser allowlist rejects every other output item and no provider tool is enabled. |
 | Critical | Malicious arguments widen a scope, select a secret, change a destination, or smuggle a second operation. | Function schemas and the adapter parser accept only the minimal known argument shape; all resulting ActionRequests are reconstructed from trusted tool mapping and still require Krosna authorization. |
 | Critical | The adapter returns a raw secret, API key, or provider error body to the model/client/log. | API keys are opaque infrastructure configuration; response/error bodies are bounded and payload-free at the public error boundary; secret-backed tool results are receipts or protected data governed by Gateway. |
-| High | A response contains a protected tool result request followed by public-looking text, or provider metadata claims the result is public/declassified. | Provider metadata is ignored as authority. Gateway derives output from all model inputs and applies Niti/Metka, Diode, and egress Zaslon before release. |
+| High | A response contains a protected tool result request followed by public-looking text, or provider metadata claims the result is public/declassified. | Provider metadata is ignored as authority. Gateway derives output from all model inputs and applies Niti/Metka, Ruslo, and egress Zaslon before release. |
 | High | A partial stream, chunk seam, duplicate event, missing terminal event, or malformed SSE event is released or executes an action. | Streaming is intentionally disabled in v0.1; the synchronous Gateway accepts only complete buffered provider steps. A future streaming mode must preserve event/byte/time limits, terminal-event checks, and no fragment release before final Gateway gates. |
 | High | A timeout/cancellation after an action proposal leaves an irreversible effect or stale Propusk. | Adapter performs no automatic retry; provider failure is returned before Gateway authorization/execution, and Gateway owns per-lifecycle staging and effect ordering. |
 | High | A retry or replay of a response ID or function call ID repeats a protected effect. | IDs are opaque replay markers only. The adapter tracks bounded seen IDs, rejects duplicates, and never uses IDs as authority or as an executor key. |
-| High | The provider follows a prompt injection embedded in a client message, tool result, or model-generated text. | Detection is not a security proof. Gnezdo, Krosna, Propusk, Niti/Metka, Diode, Pechat, and Zaslon remain deterministic boundaries. |
+| High | The provider follows a prompt injection embedded in a client message, tool result, or model-generated text. | Detection is not a security proof. Gnezdo, Krosna, Propusk, Niti/Metka, Ruslo, Klyuchnik, and Zaslon remain deterministic boundaries. |
 | Medium | Oversized output, item count, arguments, headers, or error body causes uncontrolled allocation or CPU work. | Raw response length, streaming reads, item counts, text, arguments, request serialization, and HTTP error bodies have explicit bounded limits. |
 | Medium | Redirects, proxy behavior, or a model-controlled endpoint sends the credential elsewhere. | Base URL is trusted configuration, HTTPS-only, no credentials/query/fragment, redirects are disabled, and no provider/model field controls the destination. |
 | Medium | OpenAI persistence or remote conversation state becomes hidden Tkach security state. | Non-streaming requests set `store:false`, do not use background mode, conversations, or `previous_response_id`; Tkach/Gateway owns lifecycle state. |
@@ -149,7 +149,7 @@ transport errors. It does not log request headers or credential-bearing URLs.
   is a request-level application-state control, not a claim that no service
   telemetry or network intermediary can ever observe content.
 - The deployment permits the specific protected reads that it intentionally
-  sends to the provider. Diode still governs whether a result can leave the
+  sends to the provider. Ruslo still governs whether a result can leave the
   model boundary.
 - This phase does not solve semantic prompt injection, model compromise,
   perfect taint analysis, or all possible data leakage.

@@ -18,9 +18,9 @@ With a correctly integrated Gateway and protected executor:
 2. Protected execution requires a Tkach-issued, exact-scope `Propusk`.
 3. A READ permission does not imply EXPORT permission.
 4. Protected-derived data cannot be released to a protected public destination
-   through the final `Diode`/`Zaslon` gates.
+   through the final `Ruslo`/`Zaslon` gates.
 5. Untrusted DATA does not automatically become trusted CONTROL.
-6. Broker-held secrets can be used through `Pechat` without entering ordinary
+6. Broker-held secrets can be used through `Klyuchnik` without entering ordinary
    model-visible context; raw reveal is denied.
 7. Malformed, unknown, replayed, over-limit, failed, cancelled, or terminal
    privileged states fail closed.
@@ -45,7 +45,7 @@ The integrator must ensure that:
 - broker-held secrets are not independently copied into model-visible input;
 - adapters preserve required bounds, typed metadata, lineage, and final
   egress checks;
-- trusted construction of Krosna, Zaslon, Diode, release destination, and
+- trusted construction of Krosna, Zaslon, Ruslo, release destination, and
   executor is performed by trusted host code;
 - policy labels and deployment configuration are treated as trusted inputs,
   not as model-controlled data;
@@ -65,7 +65,7 @@ Tkach Security does not:
 - protect a fully compromised host process, operating system, runtime, or
   deployment administrator;
 - guarantee security for raw credentials deliberately inserted into model
-  context outside Pechat;
+  context outside Klyuchnik;
 - infer whether an allowed action is business-wise desirable;
 - provide durable distributed replay protection or transaction semantics;
 - make the current OpenAI adapter a production gateway;
@@ -83,5 +83,5 @@ is never itself evidence of authorization.
 
 An integration that bypasses the Gateway, substitutes raw requests for
 `Propusk`, strips `Niti`/`Metka`, exposes broker values, or releases output
-without final `Diode`/`Zaslon` checks is outside this contract, even if the
+without final `Ruslo`/`Zaslon` checks is outside this contract, even if the
 underlying crates are used.

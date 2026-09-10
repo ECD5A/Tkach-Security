@@ -15,16 +15,16 @@
 //! production predicates. A changed implementation must therefore still agree
 //! with an independently authored allow/deny table.
 
-use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule};
 use tkach_core::domain::{
     ActionRequest, Authority, CapabilityName, Classification, DecisionKind, Destination,
     FlowDirection, Identity, Lane, Operation, PolicyId, Principal, Resource, ResourceId,
     ResourceKind, ResourceScope, RuleId, SledReason, Trust,
 };
 use tkach_core::gnezdo::Gnezdo;
+use tkach_core::klyuchnik::{FakeBroker, KlyuchnikError, SecretBroker, SecretHandle};
 use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::niti_metka::TaggedData;
-use tkach_core::pechat::{FakeBroker, PechatError, SecretBroker, SecretHandle};
+use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, Ruslo};
 use tkach_core::zaslon::{ContentDecision, ContentRule, Zaslon};
 
 fn id(value: &str) -> ResourceId {
@@ -323,7 +323,7 @@ fn trace_and_executor_nonempty_accessors_return_recorded_entries() {
 fn classification_destination_truth_table_keeps_unknown_model_data_out_of_public_egress() {
     let data = TaggedData::from_untrusted("model-derived data".to_owned());
     assert_eq!(data.metka().classification(), Classification::Unknown);
-    let diode = Diode::new(vec![FlowRule::allow(
+    let ruslo = Ruslo::new(vec![FlowRule::allow(
         rule_id("oracle-allow-flow"),
         FlowMatcher::any(),
     )])
@@ -355,8 +355,8 @@ fn classification_destination_truth_table_keeps_unknown_model_data_out_of_public
         ),
     ];
     for (destination, operation, expected_kind, expected_reason) in table {
-        let request = tkach_core::diode::FlowRequest::from_tagged(destination, operation, &data);
-        let decision = diode.evaluate(&request);
+        let request = tkach_core::ruslo::FlowRequest::from_tagged(destination, operation, &data);
+        let decision = ruslo.evaluate(&request);
         assert_eq!(
             (decision.kind(), decision.evidence().reason()),
             (expected_kind, expected_reason)
@@ -432,7 +432,10 @@ fn secret_handle_operation_truth_table_has_one_broker_use_and_no_reveal() {
     );
     let permit = kernel.authorize(&context, &use_request).unwrap();
     assert!(broker.use_authorized(&handle, permit).is_ok());
-    assert_eq!(broker.reveal(&handle), Err(PechatError::UnauthorizedReveal));
+    assert_eq!(
+        broker.reveal(&handle),
+        Err(KlyuchnikError::UnauthorizedReveal)
+    );
 
     let reveal_request = ActionRequest::new(
         Principal::Model,
@@ -459,7 +462,7 @@ fn secret_handle_operation_truth_table_has_one_broker_use_and_no_reveal() {
     assert!(kernel.authorize(&context, &other_request).is_err());
     assert_eq!(
         broker.use_authorized(&other_handle, other_permit),
-        Err(PechatError::InvalidPropusk)
+        Err(KlyuchnikError::InvalidPropusk)
     );
 }
 

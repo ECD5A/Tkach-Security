@@ -11,17 +11,17 @@
 
 //! Independent in-crate truth tables for states not constructible by public callers.
 
-use crate::diode::{Diode, FlowMatcher, FlowOperation, FlowRequest, FlowRule, FlowSource};
 use crate::domain::{
     ActionRequest, Classification, DecisionKind, Destination, FlowDirection, Identity, Operation,
     PolicyId, Principal, Provenance, ProvenanceSource, Resource, ResourceId, ResourceKind,
     ResourceScope, RuleId, SecurityContext, SledReason,
 };
 use crate::gnezdo::{Gnezdo, GnezdoError, UntrustedContent};
+use crate::klyuchnik::{FakeBroker, KlyuchnikError, SecretBroker, SecretHandle};
 use crate::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use crate::niti_metka::{Metka, Niti, TaggedData};
-use crate::pechat::{FakeBroker, PechatError, SecretBroker, SecretHandle};
 use crate::propusk::{AuthorizedAction, CapabilityGrant, ProtectedExecutor};
+use crate::ruslo::{FlowMatcher, FlowOperation, FlowRequest, FlowRule, FlowSource, Ruslo};
 use crate::sled::{EnforcementTestbed, FakeProtectedExecutor, HostileModel};
 use crate::zaslon::{ActionRule, CanonicalText, ContentRule, ContentVerdict, Zaslon};
 
@@ -257,7 +257,7 @@ fn capability_registry_oracle_rejects_wrong_operation_and_resource_pairs() {
 }
 
 #[test]
-fn policy_matcher_and_diode_matcher_tables_reject_each_unmatched_dimension() {
+fn policy_matcher_and_ruslo_matcher_tables_reject_each_unmatched_dimension() {
     let request = ActionRequest::new(
         Principal::Model,
         Operation::Read,
@@ -305,12 +305,12 @@ fn policy_matcher_and_diode_matcher_tables_reject_each_unmatched_dimension() {
         FlowMatcher::any().classification(Classification::Secret),
     ];
     for (index, matcher) in cases.into_iter().enumerate() {
-        let diode = Diode::new(vec![FlowRule::allow(
+        let ruslo = Ruslo::new(vec![FlowRule::allow(
             RuleId::new(format!("filter-{index}")).unwrap(),
             matcher,
         )])
         .unwrap();
-        let decision = diode.evaluate(&base);
+        let decision = ruslo.evaluate(&base);
         assert_eq!(
             (decision.kind, decision.evidence.reason),
             (DecisionKind::Deny, SledReason::NoAuthorization)
@@ -508,7 +508,7 @@ fn flow_action_mapping_and_broker_route_tables_preserve_direction_and_contract()
         crate::domain::CapabilityName::new("file.read").unwrap(),
     );
     assert_eq!(
-        crate::diode::flow_from_action(&context, &read).operation(),
+        crate::ruslo::flow_from_action(&context, &read).operation(),
         FlowOperation::Export
     );
 
@@ -519,7 +519,7 @@ fn flow_action_mapping_and_broker_route_tables_preserve_direction_and_contract()
         Destination::Internal(Identity::new("oracle-store").unwrap()),
         crate::domain::CapabilityName::new("file.write").unwrap(),
     );
-    let diode = Diode::new(vec![
+    let ruslo = Ruslo::new(vec![
         FlowRule::hard_deny(
             RuleId::new("deny-model-write").unwrap(),
             FlowMatcher::any()
@@ -532,7 +532,7 @@ fn flow_action_mapping_and_broker_route_tables_preserve_direction_and_contract()
         FlowRule::allow(RuleId::new("allow-fallback").unwrap(), FlowMatcher::any()),
     ])
     .unwrap();
-    let write_kernel = Krosna::with_diode(
+    let write_kernel = Krosna::with_ruslo(
         Policy::new(
             PolicyId::new("write-policy").unwrap(),
             vec![PolicyRule::allow(
@@ -541,7 +541,7 @@ fn flow_action_mapping_and_broker_route_tables_preserve_direction_and_contract()
             )],
         )
         .unwrap(),
-        diode,
+        ruslo,
     );
     let write_decision = write_kernel.evaluate(&context, &write);
     assert_eq!(
@@ -597,7 +597,7 @@ fn flow_action_mapping_and_broker_route_tables_preserve_direction_and_contract()
         let action = AuthorizedAction::issue(request, grant).unwrap();
         assert_eq!(
             broker.use_authorized(&handle, action),
-            Err(PechatError::InvalidPropusk)
+            Err(KlyuchnikError::InvalidPropusk)
         );
     }
 

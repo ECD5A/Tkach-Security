@@ -19,13 +19,13 @@ use std::fmt::Write as _;
 use std::rc::Rc;
 use std::time::Instant;
 
-use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
 use tkach_core::domain::{
     ActionRequest, CapabilityName, Classification, Destination, FlowDirection, Identity, Operation,
     Principal, Resource, ResourceId, ResourceKind, ResourceScope, RuleId,
 };
 use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
+use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::zaslon::{ContentRule, Zaslon};
 use tkach_gateway::{
     CancelledProvider, DeterministicProvider, ExternalMessage, ExternalRequest, ExternalRole,
@@ -126,7 +126,7 @@ fn gateway_fixture(
     let database = resource(ResourceKind::Database, "customer-db");
     let status = resource(ResourceKind::Database, "status");
     let file = resource(ResourceKind::File, "workspace/output.txt");
-    let secret = tkach_core::pechat::SecretHandle::new("github-prod")
+    let secret = tkach_core::klyuchnik::SecretHandle::new("github-prod")
         .expect("static benchmark handle is valid")
         .resource();
     let storage = Destination::Internal(Identity::new("storage").unwrap());
@@ -206,8 +206,8 @@ fn gateway_fixture(
             FlowOperation::Export,
         ));
     }
-    let diode = Diode::new(flow_rules).unwrap();
-    let kernel = Krosna::with_zaslon_and_diode(policy, Zaslon::empty(), diode);
+    let ruslo = Ruslo::new(flow_rules).unwrap();
+    let kernel = Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo);
     let broker = Rc::new(RefCell::new(FakeToolBroker::new()));
     let executor = SharedExecutor {
         broker: broker.clone(),

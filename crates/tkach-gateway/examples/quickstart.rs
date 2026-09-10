@@ -11,9 +11,9 @@
 
 //! Minimal Basic Gateway integration smoke.
 
-use tkach_core::diode::{Diode, FlowMatcher, FlowOperation, FlowRule, FlowSource};
 use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
 use tkach_core::krosna::{Krosna, Policy};
+use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::zaslon::Zaslon;
 use tkach_gateway::{
     DeterministicProvider, ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway,
@@ -30,9 +30,9 @@ fn main() {
             .destination(client.clone())
             .operation(FlowOperation::Export),
     );
-    let diode = Diode::new(vec![flow]).unwrap();
+    let ruslo = Ruslo::new(vec![flow]).unwrap();
     let policy = Policy::new(PolicyId::new("quickstart-basic").unwrap(), Vec::new()).unwrap();
-    let kernel = Krosna::with_zaslon_and_diode(policy, Zaslon::empty(), diode);
+    let kernel = Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo);
     let mut gateway = Gateway::new(
         kernel,
         Zaslon::empty(),

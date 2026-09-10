@@ -21,7 +21,7 @@ External request
   -> Niti/Metka derivation
   -> Krosna authorization
   -> Propusk-only tool execution
-  -> Diode and Zaslon egress checks
+  -> Ruslo and Zaslon egress checks
   -> release or deny
 ```
 
@@ -42,9 +42,9 @@ semantics remain in `tkach-core`.
 | Gnezdo | `crates/tkach-core/src/gnezdo.rs:46-155` contains untrusted content in DATA with no public promotion path. |
 | Krosna | `crates/tkach-core/src/krosna.rs:373-475` evaluates gates and is the only production path that mints Propusk. |
 | Propusk/executor | `crates/tkach-core/src/propusk.rs:80-127` prevents raw ActionRequest execution. |
-| Diode | `crates/tkach-core/src/diode.rs:65-190` models directional flow requests and decisions. |
+| Ruslo | `crates/tkach-core/src/ruslo.rs:65-190` models directional flow requests and decisions. |
 | Zaslon | `crates/tkach-core/src/zaslon.rs:224-300` and `:331-435` provide action and bounded streaming content gates. |
-| Pechat | `crates/tkach-core/src/pechat.rs:134-251` keeps fake broker values private and reveal-denied. |
+| Klyuchnik | `crates/tkach-core/src/klyuchnik.rs:134-251` keeps fake broker values private and reveal-denied. |
 | Sled/testbed | `crates/tkach-core/src/sled.rs:456-516` records safe decisions and models protected execution. |
 | Gateway | `crates/tkach-gateway`: bounded protocol boundary, lifecycle, provider invocation, staging, ordering, and Propusk-only tool dispatch. |
 | OpenAI adapter | `crates/tkach-provider-openai`: trusted credential/endpoint boundary, bounded HTTPS transport, strict Responses parser, fixed proposal mapping, replay markers, and stateless tool-result pairing. |
@@ -78,7 +78,7 @@ executor, broker, or egress sink.
 
 The adapter is tested with a fake transport and with the actual Gateway
 orchestrator. A completed `harmless_read` response becomes a raw proposal,
-passes Krosna and Diode, reaches the fake executor only as a Propusk, and
+passes Krosna and Ruslo, reaches the fake executor only as a Propusk, and
 returns a bounded tool result for the next stateless Responses turn. An
 `external_send` response is denied by Gateway policy and reaches no executor
 effect. Unknown provider item types, malicious arguments, duplicate/replayed
@@ -98,9 +98,9 @@ output before final egress checks.
 
 - kernel-issued `Propusk` values and the exact scope they bind;
 - protected tool effects, writes, network sends, and broker operations;
-- raw fake/real secret values held behind Pechat;
+- raw fake/real secret values held behind Klyuchnik;
 - protected model context, Niti lineage, and Metka classification;
-- policy and hard-deny semantics in Krosna, Diode, and Zaslon;
+- policy and hard-deny semantics in Krosna, Ruslo, and Zaslon;
 - safe Sled evidence without protected payloads;
 - availability of the gateway's bounded request lifecycle.
 
@@ -112,7 +112,7 @@ output before final egress checks.
 | Hostile provider/model | Sees the model request and may return arbitrary bounded chunks/actions, including forged-looking fields. | Decision construction, Propusk construction, trusted Niti/Metka mutation, raw secret access, executor reference. |
 | Gateway orchestrator | Owns lifecycle and calls core APIs in fixed order. | Must not reinterpret core decisions or duplicate policy semantics. |
 | Fake tool broker | Receives only kernel-issued Propusk. | Raw ActionRequest, provider identity, direct provider callback. |
-| Pechat broker | Owns fake raw secret values and may use them for an authorized operation. | Raw secret return to provider/model/client. |
+| Klyuchnik broker | Owns fake raw secret values and may use them for an authorized operation. | Raw secret return to provider/model/client. |
 | Strong Core | Trusted TCB for typed authorization and flow decisions. | Provider-specific protocol interpretation. |
 
 ### Trust boundaries and expected controls
@@ -131,9 +131,9 @@ output before final egress checks.
 5. **Gateway -> Tool.** No provider-held callback or executor reference exists.
    Protected tools are gateway-owned and receive only `Propusk`.
 6. **Gateway -> Network/client egress.** No staged bytes are released before
-   final Niti/Metka, Diode, and Zaslon evaluation. A timeout, malformed response,
+   final Niti/Metka, Ruslo, and Zaslon evaluation. A timeout, malformed response,
    cancellation, or failed check discards staged output.
-7. **Gateway -> Pechat.** Only a valid, exact secret-use Propusk reaches the
+7. **Gateway -> Klyuchnik.** Only a valid, exact secret-use Propusk reaches the
    fake broker. Handles are opaque labels; raw values never enter provider
    output, Sled, errors, or release buffers.
 8. **Gateway -> Sled.** Sled is evidence, not authority. Gateway never trusts a
@@ -147,8 +147,8 @@ in the control column; residual assumptions remain explicit below.
 | Priority | Scenario and capability gain | Prerequisites | Expected control | Evidence/uncertainty |
 | --- | --- | --- | --- | --- |
 | Critical | Provider calls protected executor directly, gaining an effect without policy. | Provider obtains an executor reference or gateway exposes raw dispatch. | Provider trait exposes proposals only; gateway-owned executor accepts Propusk only. | Covered by trait/API shape and hostile-provider tests. |
-| Critical | Provider obtains raw broker secret and returns it to the client. | Secret is copied into provider request or broker return value. | Pechat uses opaque handles and internal operation; staged output and debug/error surfaces are redacted. | Covered by Pechat and Gateway secret-use/reveal tests. |
-| High | Protected model output is released before final authorization. | Streaming sink writes directly to client or network. | Buffer all security-relevant chunks; run Diode/Zaslon before one final release. | Covered by cross-chunk and rejected-final-output tests. |
+| Critical | Provider obtains raw broker secret and returns it to the client. | Secret is copied into provider request or broker return value. | Klyuchnik uses opaque handles and internal operation; staged output and debug/error surfaces are redacted. | Covered by Klyuchnik and Gateway secret-use/reveal tests. |
+| High | Protected model output is released before final authorization. | Streaming sink writes directly to client or network. | Buffer all security-relevant chunks; run Ruslo/Zaslon before one final release. | Covered by cross-chunk and rejected-final-output tests. |
 | High | Malformed/timeout provider response leaves a partial protected effect. | Gateway executes actions while response is incomplete. | Stage response and actions; failure/timeout/cancellation discards staging. | Covered by hostile lifecycle tests. |
 | High | Untrusted content is mapped to trusted system control. | Adapter accepts caller-provided role/trust/authority fields. | External schema has data-only roles; Gnezdo creates DATA; no public control constructor. | Covered by ingress and core data-lane tests. |
 | High | Size-limit bypass causes memory/CPU exhaustion. | Limit checked after deserialization or per-message but not cumulative. | Raw body bound first; bounded vectors/strings/chunks/results/context and cumulative output budget. | Covered by raw, chunk, core, and fuzz parser checks. |
@@ -161,7 +161,7 @@ in the control column; residual assumptions remain explicit below.
 ### Assumptions and unresolved questions
 
 - The host process and operating system are not fully compromised; this is the
-  same Pechat limit documented by Strong Core.
+  same Klyuchnik limit documented by Strong Core.
 - The provider may be completely controlled by an attacker. No provider
   behavior is used as an authority signal.
 - Any future transport must preserve the same bounded-reader and
@@ -198,7 +198,7 @@ security metadata.
 
 All effects are capability-mediated. A raw action is denied by Krosna or never
 reaches the executor. Public network sends are separate from reads and pass
-Diode/Zaslon. Secret use passes Pechat and returns only a payload-free result.
+Ruslo/Zaslon. Secret use passes Klyuchnik and returns only a payload-free result.
 The gateway must not expose executor or broker references through the provider
 trait, callbacks, request objects, logs, or errors.
 

@@ -24,10 +24,10 @@ edges; the complete dependency rationale is in `DEPENDENCY_REVIEW.md`.
 
 ## Security-preserving interpretation
 
-- No Krosna, Propusk, Diode, Zaslon, Pechat broker, Gnezdo, Niti, Metka, or
+- No Krosna, Propusk, Ruslo, Zaslon, Klyuchnik broker, Gnezdo, Niti, Metka, or
   Sled enforcement mechanism was removed.
 - `DataLane` was a zero-sized naming marker; Gnezdo already enforces the data
-  lane through its validated context. `Pechat` was an empty facade; the real
+  lane through its validated context. `Klyuchnik` was an empty facade; the real
   boundary is `SecretBroker` plus `SecretHandle`. `ScriptedProvider` was an
   alias; `DeterministicProvider` remains the test provider.
 - The removed names have no remaining source callers. The post-pruning core

@@ -22,12 +22,12 @@ use crate::{
 };
 use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
-use tkach_core::diode::{FlowOperation, FlowRequest};
 use tkach_core::domain::{Decision, Destination, FlowDirection, SecurityContext};
 use tkach_core::gnezdo::Gnezdo;
 use tkach_core::krosna::Krosna;
 use tkach_core::niti_metka::TaggedData;
 use tkach_core::propusk::{AuthorizationError, ExecutionError, ProtectedExecutor};
+use tkach_core::ruslo::{FlowOperation, FlowRequest};
 use tkach_core::sled::{SledError, SledTrace};
 use tkach_core::zaslon::{ContentDecision, Zaslon};
 
@@ -216,7 +216,7 @@ impl Debug for Gateway {
 impl Gateway {
     /// Construct a gateway around an already-configured Strong Core kernel.
     ///
-    /// `kernel` must contain the action Zaslon and Diode policy used for
+    /// `kernel` must contain the action Zaslon and Ruslo policy used for
     /// protected operations. The separate ingress/egress Zaslon values own
     /// formal content boundaries. The executor is stored privately and is
     /// reachable only from gateway code through `Propusk`.

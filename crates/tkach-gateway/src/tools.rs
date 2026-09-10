@@ -16,8 +16,8 @@ use tkach_core::domain::{
     ActionRequest, CapabilityName, Destination, Identity, Operation, ProvenanceSource, Resource,
     ResourceId, ResourceKind,
 };
+use tkach_core::klyuchnik::{FakeBroker, SecretBroker, SecretHandle};
 use tkach_core::niti_metka::TaggedData;
-use tkach_core::pechat::{FakeBroker, SecretBroker, SecretHandle};
 use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 
 const MAX_FAKE_EFFECTS: usize = 1_024;
@@ -354,7 +354,7 @@ pub fn secret_reveal_request() -> ActionRequest {
     )
 }
 
-/// Build the fixed Pechat-backed secret-use proposal.
+/// Build the fixed Klyuchnik-backed secret-use proposal.
 ///
 /// The opaque handle identifies a broker operation; it never contains the
 /// broker-held secret value and is still only an untrusted `ActionRequest` until
