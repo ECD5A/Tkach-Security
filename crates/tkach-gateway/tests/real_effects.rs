@@ -307,10 +307,13 @@ fn real_filesystem_read_accepts_exact_limit_but_rejects_the_next_byte() {
     }
 
     fs::write(&input, vec![b'a'; MAX_TOOL_RESULT_BYTES + 1]).unwrap();
+    // The bounded reader has already opened and consumed the protected file;
+    // rejecting the oversized result does not prove that no read occurred.
     assert_eq!(
         executor.execute(unknown_permit(&action)).unwrap_err(),
-        ExecutionError::FailedBeforeEffect
+        ExecutionError::OutcomeUnknown
     );
+    assert_eq!(executor.unknown_effect_count(), 1);
 }
 
 #[test]

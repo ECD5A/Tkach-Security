@@ -12,7 +12,7 @@
 //! Protected effect boundaries for the provider-independent Gateway.
 
 use std::fmt::{Debug, Formatter};
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
@@ -278,28 +278,37 @@ impl RealEffectExecutor {
 
     fn execute_read(&mut self) -> Result<ToolResult, ExecutionError> {
         let path = self.checked_existing_path("workspace/input.txt")?;
-        let mut file = OpenOptions::new()
-            .read(true)
-            .open(&path)
-            .map_err(|_| ExecutionError::FailedBeforeEffect)?;
-        if self.checked_existing_path("workspace/input.txt").is_err() {
+        let mut file =
+            open_existing_no_follow(&path).map_err(|_| ExecutionError::FailedBeforeEffect)?;
+        if !path_matches_open_file(&path, &file) {
             return Err(ExecutionError::OutcomeUnknown);
         }
         let mut bytes = Vec::with_capacity(crate::MAX_TOOL_RESULT_BYTES + 1);
-        std::io::Read::by_ref(&mut file)
+        if std::io::Read::by_ref(&mut file)
             .take((crate::MAX_TOOL_RESULT_BYTES + 1) as u64)
             .read_to_end(&mut bytes)
-            .map_err(|_| ExecutionError::FailedBeforeEffect)?;
-        if bytes.len() > crate::MAX_TOOL_RESULT_BYTES {
-            return Err(ExecutionError::FailedBeforeEffect);
+            .is_err()
+        {
+            return self.mark_unknown();
         }
-        let value = String::from_utf8(bytes).map_err(|_| ExecutionError::FailedBeforeEffect)?;
-        let source = ProvenanceSource::File(
-            ResourceId::new("workspace/input.txt")
-                .map_err(|_| ExecutionError::FailedBeforeEffect)?,
-        );
-        let tagged = TaggedData::from_trusted_ingress(value, source, Classification::Confidential)
-            .map_err(|_| ExecutionError::FailedBeforeEffect)?;
+        if bytes.len() > crate::MAX_TOOL_RESULT_BYTES {
+            return self.mark_unknown();
+        }
+        if !path_matches_open_file(&path, &file) {
+            return self.mark_unknown();
+        }
+        let Ok(value) = String::from_utf8(bytes) else {
+            return self.mark_unknown();
+        };
+        let Ok(source) = ResourceId::new("workspace/input.txt") else {
+            return self.mark_unknown();
+        };
+        let source = ProvenanceSource::File(source);
+        let Ok(tagged) =
+            TaggedData::from_trusted_ingress(value, source, Classification::Confidential)
+        else {
+            return self.mark_unknown();
+        };
         self.successful_reads += 1;
         Ok(ToolResult::Data(tagged))
     }
@@ -310,12 +319,11 @@ impl RealEffectExecutor {
         execution_id: u64,
     ) -> Result<ToolResult, ExecutionError> {
         let path = self.checked_new_path("workspace/output.txt")?;
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .read(true)
-            .write(true)
-            .open(&path)
-            .map_err(|_| ExecutionError::FailedBeforeEffect)?;
+        let mut file =
+            open_create_new_no_follow(&path).map_err(|_| ExecutionError::FailedBeforeEffect)?;
+        if !is_ordinary_open_file(&file) || !path_matches_open_file(&path, &file) {
+            return self.mark_unknown();
+        }
 
         if write_exact_and_flush(&mut file).is_err() {
             return self.mark_unknown();
@@ -338,7 +346,7 @@ impl RealEffectExecutor {
             Ok(0) => {}
             Ok(_) | Err(_) => return self.mark_unknown(),
         }
-        if self.checked_existing_path("workspace/output.txt").is_err() {
+        if !path_matches_open_file(&path, &file) {
             return self.mark_unknown();
         }
         drop(file);
@@ -451,6 +459,109 @@ impl RealEffectExecutor {
                 }
             }
         }
+    }
+}
+
+/// Open an existing regular file without following a final link/reparse
+/// point. This is deliberately isolated from the effect contract so an OS
+/// adapter can be replaced by a reviewed handle-relative implementation later.
+fn open_existing_no_follow(path: &Path) -> std::io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    configure_no_follow(&mut options);
+    options.open(path)
+}
+
+/// Create a new regular file without following a final link/reparse point.
+fn open_create_new_no_follow(path: &Path) -> std::io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.create_new(true).read(true).write(true);
+    configure_no_follow(&mut options);
+    options.open(path)
+}
+
+#[cfg(unix)]
+fn configure_no_follow(options: &mut OpenOptions) {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    options.custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW);
+}
+
+#[cfg(windows)]
+fn configure_no_follow(options: &mut OpenOptions) {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    // FILE_FLAG_OPEN_REPARSE_POINT asks CreateFileW not to traverse a final
+    // reparse point. The value is a stable Windows SDK flag and this call is
+    // the safe std adapter; no raw Win32 handle or unsafe code enters Tkach.
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+}
+
+#[cfg(not(any(unix, windows)))]
+fn configure_no_follow(_options: &mut OpenOptions) {}
+
+fn is_ordinary_open_file(file: &File) -> bool {
+    let Ok(metadata) = file.metadata() else {
+        return false;
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return false;
+    }
+    #[cfg(windows)]
+    if is_windows_reparse_point(&metadata) {
+        return false;
+    }
+    true
+}
+
+fn path_matches_open_file(path: &Path, file: &File) -> bool {
+    let Ok(path_metadata) = fs::symlink_metadata(path) else {
+        return false;
+    };
+    if path_metadata.file_type().is_symlink() {
+        return false;
+    }
+    #[cfg(windows)]
+    if is_windows_reparse_point(&path_metadata) {
+        return false;
+    }
+    if !path_metadata.is_file() || !is_ordinary_open_file(file) {
+        return false;
+    }
+    let Ok(handle_metadata) = file.metadata() else {
+        return false;
+    };
+    same_file_identity(&path_metadata, &handle_metadata)
+}
+
+fn same_file_identity(path_metadata: &fs::Metadata, handle_metadata: &fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+
+        return path_metadata.dev() == handle_metadata.dev()
+            && path_metadata.ino() == handle_metadata.ino();
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+
+        // Stable std does not expose the Windows volume/file identifier
+        // methods on our MSRV. These fields are only an observation used to
+        // detect ordinary replacement; they are not claimed to be a unique
+        // handle identity proof. OPEN_REPARSE_POINT and the final path checks
+        // remain the primary safe-Rust controls until a reviewed Win32 adapter
+        // can be isolated without unsafe code in this crate.
+        path_metadata.file_attributes() == handle_metadata.file_attributes()
+            && path_metadata.creation_time() == handle_metadata.creation_time()
+            && path_metadata.last_write_time() == handle_metadata.last_write_time()
+            && path_metadata.file_size() == handle_metadata.file_size()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        path_metadata.file_type() == handle_metadata.file_type()
+            && path_metadata.len() == handle_metadata.len()
     }
 }
 

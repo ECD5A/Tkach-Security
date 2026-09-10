@@ -34,13 +34,22 @@ effect. Existing output is rejected; overwrite is not implemented.
 ## Filesystem safety
 
 The root, parent, and target are checked with `symlink_metadata` and
-canonicalization. Links/reparse points, absolute paths, drive/prefix syntax,
+canonicalization. Open operations additionally use an isolated platform
+adapter: Unix requests set `O_NOFOLLOW|O_CLOEXEC`; Windows requests set
+`FILE_FLAG_OPEN_REPARSE_POINT` through safe `OpenOptions` extensions. Links/reparse points, absolute paths, drive/prefix syntax,
 backslashes, dot/parent components, missing parents, outside-root targets,
 wrong siblings, and normalization lookalikes are rejected. The read result is
 bounded by the Gateway tool-result limit. The write uses `create_new`, so a
 pre-existing target cannot be overwritten atomically by this API. It verifies
 the same open handle's bytes, length, and the final path state before issuing a
 receipt.
+
+An opened file is checked as an ordinary file and compared with the path
+observation after use. On Windows the stable standard-library metadata API
+does not expose a unique handle file-id on this MSRV, so that comparison is
+defense-in-depth observation, not an identity proof. A separate reviewed
+Win32 handle-identity/handle-relative adapter is still required for a sealed
+hostile-concurrency profile.
 
 The write is intentionally create-only rather than pretending to provide
 rollback. A failure after target creation can leave a partial target and is
@@ -67,15 +76,16 @@ an untrusted model proposal cannot create a public network send.
 
 ## TOCTOU boundary
 
-The implementation uses safe Rust and portable standard filesystem APIs. They
-provide metadata checks and an open file handle but do not provide one
-portable handle-relative, no-follow transaction for every supported OS. A
-concurrent attacker with write access to the sandbox can still race a path
-between validation and use; the implementation rechecks where possible and
-reports post-open uncertainty, but it does not claim to eliminate that race.
-Deployments requiring adversarial same-process filesystem mutation must add an
-OS-specific handle-relative adapter with an independently reviewed contract or
-deny this executor profile.
+The implementation uses safe Rust and standard filesystem APIs. Unix final
+component no-follow flags and Windows final reparse-point flags reduce the
+portable attack surface, but parent-component traversal is not a universal
+handle-relative transaction in this adapter. A concurrent attacker with write
+access to the sandbox can still race a parent path between validation and use;
+the implementation rechecks where possible and reports post-open uncertainty,
+but it does not claim to eliminate that race. Deployments requiring
+adversarial same-process filesystem mutation must add an OS-specific
+handle-relative adapter with an independently reviewed contract or deny this
+executor profile.
 
 ## Verification
 
