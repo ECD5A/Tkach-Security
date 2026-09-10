@@ -30,6 +30,10 @@
 - important decisions carry safe structured evidence without payload logging;
 - Sled trace growth and hostile-model inputs are bounded, and the fake
   protected executor accepts only `Propusk`.
+- all bounded wire collections and identifiers are rejected before unbounded
+  domain allocation; malformed provenance shapes cannot create a trusted root;
+- an in-progress Zaslon stream is not releasable until `finish()` returns
+  `Clear`, and empty, malformed, or oversized streams deny.
 
 These guarantees apply only to validated inputs reaching the core and to
 executors that do not provide an out-of-band bypass.
@@ -51,18 +55,22 @@ fully compromised operating system.
 ## Current implementation status
 
 The domain model, Krosna, Zaslon, Gnezdo, Propusk, Niti/Metka, Diode, Pechat,
-Sled, and the enforcement testbed are implemented and tested. Zaslon's
-canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
+Sled, and the enforcement testbed are implemented and tested. M12 adds bounded
+resource budgets, conservative public metadata roots, exact secret routing,
+all-operation protected external-flow gates, and explicit streaming finality.
+Zaslon's canonicalizer is intentionally strict and rejects ambiguous Unicode/escape
 representations; it does not detect
 every semantic paraphrase. Pechat does not defend against a fully compromised
 host or a deployment that separately exposes the real secret. The enforcement
 testbed proves effect containment for the canonical hostile fixture; composition
 scenarios A–H and tractable state-space combinations pass. The red-team pass
-and final checkpoint remain pending.
+is complete, and the final checkpoint is pending only the final validation and
+owner-review handoff.
 
 The red-team pass also closed streaming-boundary, debug-redaction,
 identity-spoofing, provenance-spoofing, and originless-labeling weaknesses.
+M12 also closed metadata relabeling, non-export external-flow, incorrect
+NetworkSend provenance, generic secret-use execution, and bounded-input gaps.
 Fuzz targets cover the canonical text and domain-wire parsers; their binaries
 compile on this host, while libFuzzer execution is currently unavailable under
-the installed MSVC linker. The final checkpoint remains pending until
-production-oriented hardening and all configured checks complete.
+the installed MSVC linker. Linux CI provides the bounded execution smoke test.

@@ -22,11 +22,20 @@ class, the lexicographically smallest rule ID supplies stable evidence. Policy
 rule order therefore does not alter authorization.
 
 The red-team boundary is explicit: the public untrusted-context constructor
-normalizes the authority/trust/lane tuple, rejects trusted `System` provenance,
-and Krosna rejects attempts to pair an untrusted context with a non-model
-principal. The context-to-Diode mapper is crate-private; public tagged-data
-flow mapping fixes the source to the model. These restrictions prevent caller
-controlled identity or provenance metadata from becoming authority.
+normalizes the authority/trust/lane tuple to model/unknown data, rejects trusted
+`System` provenance, and Krosna rejects attempts to pair an untrusted context
+with a non-model principal. Public Gnezdo containment and tagged-data roots
+accept content only and assign conservative unknown metadata. The
+context-to-Diode mapper is crate-private; public tagged-data flow mapping fixes
+the source to the model. These restrictions prevent caller-controlled identity
+or provenance metadata from becoming authority.
+
+M12 adds explicit resource budgets before allocation or indexing: policy,
+Zaslon, and Diode rules are bounded; provenance lineage and derivation parents
+are bounded and canonicalized; model fixtures, Sled traces, Pechat entries,
+secret values, and Zaslon stream input are bounded. A streaming Zaslon scan
+returns `NeedMoreData` until explicitly finished, so an intermediate result is
+never a release permission.
 
 ## Target Strong Core shape
 
@@ -58,13 +67,15 @@ define security semantics. Zaslon does not claim semantic prompt-injection
 detection; its guarantee is limited to configured formal representations.
 
 Gnezdo's `UntrustedContent` is a model-readable DATA-lane value whose context is
-always `Lane::Data`, `Authority::None`, and `Trust::Untrusted`. Derived values
-join parent classifications and preserve parent provenance. There is no public
-DATA-to-CONTROL constructor; the opaque `TrustedControl` type has a private
-field and is not deserializable. Natural-language content is not interpreted as
-policy, capability, declassification, or authority. Its debug surface redacts
-the content, as do generic `TaggedData<T>`, Zaslon matcher state, and the
-streaming matcher tail.
+always `Lane::Data`, `Authority::None`, and `Trust::Untrusted`. Public
+containment creates an unknown root; internal trusted ingress mapping is the
+only place that can attach richer metadata. Derived values join parent
+classifications and preserve parent provenance, with bounded overflow falling
+back to unknown-derived state. There is no public DATA-to-CONTROL constructor;
+the opaque `TrustedControl` type has a private field and is not deserializable.
+Natural-language content is not interpreted as policy, capability,
+declassification, or authority. Its debug surface redacts the content, as do
+generic `TaggedData<T>`, Zaslon matcher state, and the streaming matcher tail.
 
 Propusk is issued only by `Krosna::authorize` after an explicit allow. The
 resulting `AuthorizedAction` contains a private request/grant pair and validates
@@ -88,9 +99,10 @@ crate-private. Thus `READ` into model context is not an inferred `EXPORT`, and
 reverse/onward edges require their own rules.
 
 Pechat exposes only validated `SecretHandle` values to model-facing code. The
-fake broker stores raw bytes in a private non-serializable `SecretValue`, accepts
-only a Krosna-issued exact `Propusk` for `secret.use`, and refuses every reveal
-request. Receipts, errors, and debug output contain no broker secret.
+fake broker stores raw bytes in a private non-serializable `SecretValue`, bounds
+entry/value capacity, accepts only a Krosna-issued exact `Propusk` for
+`secret.use`, and refuses every reveal request. Receipts, errors, and debug
+output contain no broker secret.
 
 Sled records bounded, trace-local decision IDs alongside the existing typed
 evidence and serializes only those payload-free records. The enforcement

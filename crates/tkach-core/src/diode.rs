@@ -21,12 +21,17 @@ use crate::domain::{
 };
 use thiserror::Error;
 
+const MAX_RULES: usize = 1_024;
+
 /// Errors while constructing a directional policy.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum DiodeError {
     /// Two flow rules reused the same identity.
     #[error("duplicate Diode rule id")]
     DuplicateRuleId,
+    /// The directional policy would exceed its deterministic rule budget.
+    #[error("Diode rule capacity exceeded")]
+    TooManyRules,
 }
 
 /// A directional source endpoint.
@@ -350,6 +355,9 @@ impl Diode {
     ///
     /// Returns [`DiodeError::DuplicateRuleId`] for repeated rule identities.
     pub fn new(mut rules: Vec<FlowRule>) -> Result<Self, DiodeError> {
+        if rules.len() > MAX_RULES {
+            return Err(DiodeError::TooManyRules);
+        }
         let mut ids = std::collections::HashSet::new();
         for rule in &rules {
             if !ids.insert(rule.id.clone()) {
@@ -370,10 +378,7 @@ impl Diode {
             return deny(request, None, SledReason::UnknownDenied);
         }
 
-        if request.classification.is_protected()
-            && request.operation == FlowOperation::Export
-            && request.destination.is_public_external()
-        {
+        if request.classification.is_protected() && request.destination.is_public_external() {
             return deny(request, None, SledReason::FlowDenied);
         }
 
@@ -444,6 +449,9 @@ pub(crate) fn flow_from_action(
     request: &crate::domain::ActionRequest,
 ) -> FlowRequest {
     let operation = match request.operation() {
+        Operation::Read if request.destination() == &Destination::PublicExternal => {
+            FlowOperation::Export
+        }
         Operation::Read => FlowOperation::Read,
         Operation::NetworkSend => FlowOperation::Export,
         Operation::Unknown(_) => FlowOperation::Unknown,
@@ -455,7 +463,10 @@ pub(crate) fn flow_from_action(
     };
     FlowRequest::from_context(
         context,
-        FlowSource::Resource(request.resource().clone()),
+        match request.operation() {
+            Operation::NetworkSend => FlowSource::Model,
+            _ => FlowSource::Resource(request.resource().clone()),
+        },
         request.destination().clone(),
         operation,
     )
@@ -543,6 +554,32 @@ mod tests {
     }
 
     #[test]
+    fn protected_public_destination_is_denied_for_every_flow_operation() {
+        let diode = Diode::new(vec![FlowRule::allow(
+            RuleId::new("allow-any").unwrap(),
+            FlowMatcher::any(),
+        )])
+        .unwrap();
+        for operation in [
+            FlowOperation::Read,
+            FlowOperation::Export,
+            FlowOperation::Transfer,
+        ] {
+            let request = FlowRequest::new(
+                Principal::Model,
+                FlowSource::Model,
+                Destination::PublicExternal,
+                operation,
+                secret_provenance(),
+                Classification::Unknown,
+            );
+            let decision = diode.evaluate(&request);
+            assert_eq!(decision.kind, DecisionKind::Deny);
+            assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+        }
+    }
+
+    #[test]
     fn tagged_secret_metadata_cannot_be_replaced_by_public_model_claim() {
         let secret = crate::niti_metka::TaggedData::from_source(
             "raw secret".to_owned(),
@@ -560,6 +597,28 @@ mod tests {
         .unwrap();
         let flow =
             FlowRequest::from_tagged(Destination::PublicExternal, FlowOperation::Export, &secret);
+        let decision = diode.evaluate(&flow);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+    }
+
+    #[test]
+    fn public_tagged_flow_cannot_supply_source_or_sensitivity_metadata() {
+        let tagged = crate::niti_metka::TaggedData::from_untrusted("model output".to_owned());
+        let flow = FlowRequest::from_tagged(
+            Destination::PublicExternal,
+            FlowOperation::Transfer,
+            &tagged,
+        );
+        assert_eq!(flow.source(), &FlowSource::Model);
+        assert_eq!(flow.classification(), Classification::Unknown);
+        assert_eq!(flow.provenance().source(), &ProvenanceSource::Unknown);
+
+        let diode = Diode::new(vec![FlowRule::allow(
+            RuleId::new("allow-any").unwrap(),
+            FlowMatcher::any(),
+        )])
+        .unwrap();
         let decision = diode.evaluate(&flow);
         assert_eq!(decision.kind, DecisionKind::Deny);
         assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
@@ -610,6 +669,19 @@ mod tests {
         assert_eq!(one, two);
         assert_eq!(one.kind, DecisionKind::Deny);
         assert_eq!(one.evidence.reason, SledReason::PolicyDeny);
+    }
+
+    #[test]
+    fn rule_budget_is_enforced_before_rule_indexing() {
+        let rules = (0..=MAX_RULES)
+            .map(|index| {
+                FlowRule::allow(
+                    RuleId::new(format!("flow-{index}")).unwrap(),
+                    FlowMatcher::any(),
+                )
+            })
+            .collect();
+        assert_eq!(Diode::new(rules).unwrap_err(), DiodeError::TooManyRules);
     }
 
     #[test]

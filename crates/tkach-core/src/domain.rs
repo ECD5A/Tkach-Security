@@ -17,10 +17,14 @@
 //! execution permit.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
+use std::marker::PhantomData;
 use thiserror::Error;
 
 const MAX_ID_BYTES: usize = 128;
+pub(crate) const MAX_DERIVATION_PARENTS: usize = 256;
+pub(crate) const MAX_PROVENANCE_LINEAGE: usize = 256;
 
 /// Errors returned when structured security state cannot be represented safely.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -46,6 +50,88 @@ pub enum CoreError {
         /// The non-sensitive type name that failed decoding.
         kind: &'static str,
     },
+    /// A bounded collection or value exceeded the core's fixed budget.
+    #[error("core resource limit exceeded for {kind}")]
+    ResourceLimit {
+        /// The non-sensitive bounded type name.
+        kind: &'static str,
+    },
+}
+
+pub(crate) fn deserialize_bounded_vec<'de, D, T, const MAX: usize>(
+    deserializer: D,
+) -> Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct BoundedVecVisitor<T, const MAX: usize>(PhantomData<T>);
+
+    impl<'de, T, const MAX: usize> serde::de::Visitor<'de> for BoundedVecVisitor<T, MAX>
+    where
+        T: Deserialize<'de>,
+    {
+        type Value = Vec<T>;
+
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a sequence with at most {MAX} elements")
+        }
+
+        fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            let mut values = Vec::new();
+            while let Some(value) = sequence.next_element()? {
+                if values.len() >= MAX {
+                    return Err(serde::de::Error::custom("sequence exceeds core bound"));
+                }
+                values.push(value);
+            }
+            Ok(values)
+        }
+    }
+
+    deserializer.deserialize_seq(BoundedVecVisitor::<T, MAX>(PhantomData))
+}
+
+pub(crate) fn deserialize_bounded_string<'de, D, const MAX: usize>(
+    deserializer: D,
+) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct BoundedStringVisitor<const MAX: usize>;
+
+    impl<const MAX: usize> serde::de::Visitor<'_> for BoundedStringVisitor<MAX> {
+        type Value = String;
+
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a string with at most {MAX} bytes")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            if value.len() > MAX {
+                return Err(E::custom("string exceeds core bound"));
+            }
+            Ok(value.to_owned())
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            if value.len() > MAX {
+                return Err(E::custom("string exceeds core bound"));
+            }
+            Ok(value)
+        }
+    }
+
+    deserializer.deserialize_str(BoundedStringVisitor::<MAX>)
 }
 
 fn validate_identifier(value: String, kind: &'static str) -> Result<String, CoreError> {
@@ -99,7 +185,7 @@ macro_rules! validated_identifier {
             where
                 D: serde::Deserializer<'de>,
             {
-                let value = String::deserialize(deserializer)?;
+                let value = deserialize_bounded_string::<D, MAX_ID_BYTES>(deserializer)?;
                 Self::new(value).map_err(serde::de::Error::custom)
             }
         }
@@ -233,21 +319,43 @@ impl Provenance {
     /// Create derived provenance while retaining every known parent source.
     #[must_use]
     pub fn derived_from(parents: &[Self]) -> Self {
+        if parents.len() > MAX_DERIVATION_PARENTS {
+            return Self::originless_derived();
+        }
         let mut lineage = Vec::new();
+        let mut seen = HashSet::new();
+        let mut overflowed = false;
         for parent in parents {
             for source in &parent.lineage {
-                if !lineage.contains(source) {
+                if source == &ProvenanceSource::Derived {
+                    continue;
+                }
+                if seen.insert(source.clone()) {
+                    if lineage.len() >= MAX_PROVENANCE_LINEAGE - 1 {
+                        overflowed = true;
+                        break;
+                    }
                     lineage.push(source.clone());
                 }
             }
+            if overflowed {
+                break;
+            }
         }
-        if lineage.is_empty() {
-            lineage.push(ProvenanceSource::Unknown);
+        if overflowed || lineage.is_empty() {
+            return Self::originless_derived();
         }
         lineage.push(ProvenanceSource::Derived);
         Self {
             source: ProvenanceSource::Derived,
             lineage,
+        }
+    }
+
+    fn originless_derived() -> Self {
+        Self {
+            source: ProvenanceSource::Derived,
+            lineage: vec![ProvenanceSource::Unknown, ProvenanceSource::Derived],
         }
     }
 
@@ -267,7 +375,17 @@ impl Provenance {
 #[derive(Deserialize)]
 struct ProvenanceWire {
     source: ProvenanceSource,
+    #[serde(deserialize_with = "deserialize_provenance_lineage")]
     lineage: Vec<ProvenanceSource>,
+}
+
+fn deserialize_provenance_lineage<'de, D>(
+    deserializer: D,
+) -> Result<Vec<ProvenanceSource>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_bounded_vec::<D, ProvenanceSource, MAX_PROVENANCE_LINEAGE>(deserializer)
 }
 
 impl<'de> Deserialize<'de> for Provenance {
@@ -292,9 +410,23 @@ impl<'de> Deserialize<'de> for Provenance {
         }
         let valid = match wire.source {
             ProvenanceSource::Derived => {
-                wire.lineage.len() > 1 && wire.lineage.last() == Some(&ProvenanceSource::Derived)
+                wire.lineage.len() > 1
+                    && wire.lineage.last() == Some(&ProvenanceSource::Derived)
+                    && wire.lineage[..wire.lineage.len() - 1]
+                        .iter()
+                        .all(|source| source != &ProvenanceSource::Derived)
+                    && wire.lineage[..wire.lineage.len() - 1]
+                        .iter()
+                        .cloned()
+                        .collect::<HashSet<_>>()
+                        .len()
+                        == wire.lineage.len() - 1
             }
-            ref source => wire.lineage.first() == Some(source),
+            ref source => {
+                wire.lineage.len() == 1
+                    && wire.lineage.first() == Some(source)
+                    && source != &ProvenanceSource::Derived
+            }
         };
         if !valid {
             return Err(serde::de::Error::custom(CoreError::InvalidSerialization {
@@ -430,7 +562,7 @@ impl<'de> Deserialize<'de> for CanonicalPath {
     where
         D: serde::Deserializer<'de>,
     {
-        let value = String::deserialize(deserializer)?;
+        let value = deserialize_bounded_string::<D, { MAX_ID_BYTES * 8 }>(deserializer)?;
         Self::new(&value).map_err(serde::de::Error::custom)
     }
 }
@@ -688,27 +820,34 @@ impl<'de> Deserialize<'de> for SecurityContext {
             || wire.authority != Authority::None
             || wire.trust != Trust::Untrusted
             || wire.lane != Lane::Data
+            || wire.provenance != unknown_provenance()
+            || wire.classification != Classification::Unknown
         {
             return Err(serde::de::Error::custom(CoreError::InvalidSerialization {
                 kind: "untrusted security context",
             }));
         }
-        Ok(Self::untrusted_data(
-            wire.principal,
-            wire.provenance,
-            wire.classification,
-        ))
+        Ok(Self::untrusted_data())
     }
 }
 
 impl SecurityContext {
-    /// Construct the canonical untrusted data context used by Gnezdo.
+    /// Construct the canonical public untrusted data context.
     ///
-    /// Krosna rejects this context when a caller tries to use a non-model
-    /// principal as an untrusted identity. A trusted principal must come from a
-    /// future authenticated adapter, not this public constructor.
+    /// Public callers cannot choose identity, provenance, or classification.
+    /// All three are conservative model/data values. Trusted ingress adapters
+    /// must use a crate-internal authenticated boundary before constructing
+    /// richer context.
     #[must_use]
-    pub fn untrusted_data(
+    pub fn untrusted_data() -> Self {
+        Self::untrusted_with_metadata(
+            Principal::Model,
+            unknown_provenance(),
+            Classification::Unknown,
+        )
+    }
+
+    pub(crate) fn untrusted_with_metadata(
         principal: Principal,
         provenance: Provenance,
         classification: Classification,
@@ -758,6 +897,10 @@ impl SecurityContext {
     pub const fn classification(&self) -> Classification {
         self.classification
     }
+}
+
+fn unknown_provenance() -> Provenance {
+    Provenance::from_source(ProvenanceSource::Unknown).expect("static unknown provenance is valid")
 }
 
 /// A safe reason code for decision evidence; it cannot contain a payload.
@@ -862,7 +1005,7 @@ mod tests {
 
     #[test]
     fn data_context_retains_untrusted_lane_and_lineage() {
-        let context = SecurityContext::untrusted_data(
+        let context = SecurityContext::untrusted_with_metadata(
             Principal::Model,
             Provenance::from_source(ProvenanceSource::Web(
                 Identity::new("example.test").expect("fixture is valid"),
@@ -887,6 +1030,54 @@ mod tests {
         assert!(derived.lineage().contains(&ProvenanceSource::Database(
             ResourceId::new("customer.db").unwrap()
         )));
+    }
+
+    #[test]
+    fn oversized_lineage_wire_is_rejected_before_domain_construction() {
+        let forged = serde_json::json!({
+            "source": "Derived",
+            "lineage": vec!["User"; MAX_PROVENANCE_LINEAGE + 1]
+        });
+        assert!(serde_json::from_value::<Provenance>(forged).is_err());
+    }
+
+    #[test]
+    fn provenance_wire_requires_canonical_root_or_derived_shape() {
+        let root_with_extra = serde_json::json!({
+            "source": "User",
+            "lineage": ["User", "Derived"]
+        });
+        let impossible_derived = serde_json::json!({
+            "source": "Derived",
+            "lineage": ["Derived", "Derived"]
+        });
+        assert!(serde_json::from_value::<Provenance>(root_with_extra).is_err());
+        assert!(serde_json::from_value::<Provenance>(impossible_derived).is_err());
+    }
+
+    #[test]
+    fn nested_derivation_keeps_one_terminal_derived_marker() {
+        let root = Provenance::from_source(ProvenanceSource::User).unwrap();
+        let first = Provenance::derived_from(&[root]);
+        let second = Provenance::derived_from(&[first]);
+        assert_eq!(
+            second.lineage(),
+            &[ProvenanceSource::User, ProvenanceSource::Derived]
+        );
+        let encoded = serde_json::to_value(&second).unwrap();
+        assert!(serde_json::from_value::<Provenance>(encoded).is_ok());
+    }
+
+    #[test]
+    fn oversized_derived_lineage_fails_closed_to_unknown() {
+        let parent = Provenance::from_source(ProvenanceSource::User).unwrap();
+        let parents = vec![parent; MAX_DERIVATION_PARENTS + 1];
+        let derived = Provenance::derived_from(&parents);
+        assert_eq!(derived.source(), &ProvenanceSource::Derived);
+        assert_eq!(
+            derived.lineage(),
+            &[ProvenanceSource::Unknown, ProvenanceSource::Derived]
+        );
     }
 
     #[test]

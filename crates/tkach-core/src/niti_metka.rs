@@ -16,7 +16,7 @@
 //! opaque trusted capability and is intentionally not issued by the public API
 //! in the current Strong Core.
 
-use crate::domain::{Classification, Provenance, ProvenanceSource};
+use crate::domain::{Classification, MAX_DERIVATION_PARENTS, Provenance, ProvenanceSource};
 use serde::Serialize;
 use std::fmt::{Debug, Formatter};
 use thiserror::Error;
@@ -42,13 +42,21 @@ pub struct Niti {
 }
 
 impl Niti {
+    fn unknown() -> Self {
+        Self {
+            provenance: Provenance::from_source(ProvenanceSource::Unknown)
+                .expect("static unknown provenance is valid"),
+        }
+    }
+
     /// Create Niti from a validated provenance root.
     ///
     /// # Errors
     ///
     /// Returns [`NitiMetkaError::InvalidProvenance`] if the source marker is an
     /// unrooted derived value.
-    pub fn from_source(source: ProvenanceSource) -> Result<Self, NitiMetkaError> {
+    #[cfg(test)]
+    pub(crate) fn from_source(source: ProvenanceSource) -> Result<Self, NitiMetkaError> {
         Ok(Self {
             provenance: Provenance::from_source(source)
                 .map_err(|_| NitiMetkaError::InvalidProvenance)?,
@@ -58,6 +66,11 @@ impl Niti {
     /// Create derived Niti while retaining every parent thread.
     #[must_use]
     pub fn derived_from(parents: &[&Self]) -> Self {
+        if parents.len() > MAX_DERIVATION_PARENTS {
+            return Self {
+                provenance: Provenance::derived_from(&[]),
+            };
+        }
         let provenance: Vec<Provenance> = parents
             .iter()
             .map(|parent| parent.provenance.clone())
@@ -139,7 +152,8 @@ impl<T> TaggedData<T> {
     /// # Errors
     ///
     /// Returns [`NitiMetkaError::InvalidProvenance`] for an invalid root source.
-    pub fn from_source(
+    #[cfg(test)]
+    pub(crate) fn from_source(
         value: T,
         source: ProvenanceSource,
         classification: Classification,
@@ -151,9 +165,30 @@ impl<T> TaggedData<T> {
         })
     }
 
+    /// Create a model-facing root whose unverifiable metadata is conservative.
+    ///
+    /// Public callers cannot choose a provenance source or classification.
+    /// Values that carry trusted source metadata must be created by an
+    /// authenticated crate-internal ingress boundary.
+    #[must_use]
+    pub fn from_untrusted(value: T) -> Self {
+        Self {
+            value,
+            niti: Niti::unknown(),
+            metka: Metka::new(Classification::Unknown),
+        }
+    }
+
     /// Derive a value from parents, retaining lineage and maximum classification.
     #[must_use]
     pub fn derived_from(parents: &[&Self], value: T) -> Self {
+        if parents.len() > MAX_DERIVATION_PARENTS {
+            return Self {
+                value,
+                niti: Niti::derived_from(&[]),
+                metka: Metka::new(Classification::Unknown),
+            };
+        }
         let metka = if parents.is_empty() {
             Metka::new(Classification::Unknown)
         } else {
@@ -242,7 +277,7 @@ impl DeclassificationPermit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::ResourceId;
+    use crate::domain::{ProvenanceSource, ResourceId};
     use proptest::prelude::*;
 
     fn secret_source() -> ProvenanceSource {
@@ -338,6 +373,26 @@ mod tests {
         assert_eq!(value.metka(), Metka::new(Classification::Unknown));
         assert!(
             value
+                .niti()
+                .provenance()
+                .lineage()
+                .contains(&ProvenanceSource::Unknown)
+        );
+    }
+
+    #[test]
+    fn oversized_parent_set_becomes_unknown_instead_of_laundering_classification() {
+        let parent = TaggedData::from_source(
+            "parent".to_owned(),
+            ProvenanceSource::User,
+            Classification::Secret,
+        )
+        .unwrap();
+        let parents = vec![&parent; MAX_DERIVATION_PARENTS + 1];
+        let derived = TaggedData::derived_from(&parents, "derived".to_owned());
+        assert_eq!(derived.metka().classification(), Classification::Unknown);
+        assert!(
+            derived
                 .niti()
                 .provenance()
                 .lineage()

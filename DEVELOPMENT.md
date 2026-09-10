@@ -202,6 +202,30 @@
   targets compile. A 100-run binary smoke attempt reached the Windows MSVC
   linker but could not execute because the linker reported a missing entry
   point; the existing proptest/property suite remains green.
-- Tests and review: 74 unit tests and 9 composition tests pass after the
-  hardening pass; rustfmt, clippy with warnings denied, and cargo audit pass.
-- Commit: pending red-team hardening commit.
+- Tests and review: the prior unit/property suite and 9 composition tests pass
+  after the hardening pass; rustfmt, clippy with warnings denied, and the
+  dependency checks pass.
+- Commit: `20d5f78` (`red-team: close identity lineage and logging bypasses`).
+
+## Mandate 12 вЂ” Production-oriented core hardening
+
+- Architecture: public untrusted roots no longer accept caller-supplied
+  principal, provenance, or classification metadata; public tagged-data flows
+  fix source to the model. Policy, Zaslon, Diode, provenance, derivation,
+  model-fixture, Sled, Pechat, and stream state all have explicit bounds.
+  `secret.use` is recognized only at the exact Pechat destination, and
+  protected external flow denial applies to every flow operation.
+- Security: red-team candidates for metadata relabeling, non-Export egress,
+  incorrect `NetworkSend` source, generic secret-use execution, stream-size
+  exhaustion, premature stream `Clear`, and oversized/malformed lineage were
+  reproduced or reasoned through and closed. Intermediate Zaslon scans return
+  `NeedMoreData`; only `finish()` can clear a non-empty stream.
+- Tests and review: 93 unit tests and 9 independent composition tests pass;
+  new regressions cover public metadata roots, public tagged-flow mapping,
+  direct fake-executor secret rejection, all-operation protected egress, exact
+  secret routing, bounded collections, and cumulative stream input. The fuzz
+  targets compile; Windows MSVC cannot execute the libFuzzer binary because of
+  a linker entry-point failure, while Linux CI runs the smoke target.
+- Supply chain and CI: `cargo audit` and `cargo deny check` pass with pinned
+  tool versions and an immutable checkout action reference in CI.
+- Commit: pending M12 hardening commit.

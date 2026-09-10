@@ -24,6 +24,7 @@ use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 const MAX_CONTENT_BYTES: usize = 16 * 1024;
+const MAX_RULES: usize = 1_024;
 
 /// Errors from formal Zaslon rule or content handling.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -34,6 +35,9 @@ pub enum ZaslonError {
     /// A hard-deny rule identity was repeated.
     #[error("duplicate Zaslon rule id")]
     DuplicateRuleId,
+    /// The hard-deny plane would exceed its deterministic rule budget.
+    #[error("Zaslon rule capacity exceeded")]
+    TooManyRules,
 }
 
 /// Strict canonical form used by formal content rules.
@@ -179,6 +183,9 @@ impl Zaslon {
         mut action_rules: Vec<ActionRule>,
         mut content_rules: Vec<ContentRule>,
     ) -> Result<Self, ZaslonError> {
+        if action_rules.len().saturating_add(content_rules.len()) > MAX_RULES {
+            return Err(ZaslonError::TooManyRules);
+        }
         let mut ids = std::collections::HashSet::new();
         for rule in &action_rules {
             if !ids.insert(rule.id.clone()) {
@@ -247,6 +254,7 @@ impl Zaslon {
             blocked: None,
             has_content: false,
             pending_space: false,
+            input_bytes: 0,
         }
     }
 
@@ -259,8 +267,18 @@ impl Zaslon {
         raw: &str,
     ) -> ContentDecision {
         let mut stream = self.stream(direction);
-        match stream.push_chunk(raw) {
+        let verdict = match stream.push_chunk(raw) {
+            ContentVerdict::NeedMoreData | ContentVerdict::Clear => stream.finish(),
+            blocked @ ContentVerdict::Blocked { .. } => blocked,
+        };
+        match verdict {
             ContentVerdict::Clear => ContentDecision::Clear,
+            ContentVerdict::NeedMoreData => ContentDecision::Blocked {
+                decision: Decision::new(
+                    DecisionKind::Deny,
+                    content_evidence(context, direction, None, SledReason::InvalidRequest),
+                ),
+            },
             ContentVerdict::Blocked { rule_id, reason } => ContentDecision::Blocked {
                 decision: Decision::new(
                     DecisionKind::Deny,
@@ -286,7 +304,9 @@ pub enum ContentDecision {
 /// Result of incrementally scanning content.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ContentVerdict {
-    /// No sequence has matched yet.
+    /// No sequence has matched, but the stream is not final or releasable.
+    NeedMoreData,
+    /// The explicitly finished stream contains no configured sequence.
     Clear,
     /// The stream is blocked permanently for this scan.
     Blocked {
@@ -305,6 +325,7 @@ pub struct ZaslonStream {
     blocked: Option<ContentVerdict>,
     has_content: bool,
     pending_space: bool,
+    input_bytes: usize,
 }
 
 impl Debug for ZaslonStream {
@@ -326,8 +347,19 @@ impl ZaslonStream {
             return verdict.clone();
         }
         if chunk.is_empty() {
-            return ContentVerdict::Clear;
+            return ContentVerdict::NeedMoreData;
         }
+        if chunk.len() > MAX_CONTENT_BYTES
+            || self.input_bytes.saturating_add(chunk.len()) > MAX_CONTENT_BYTES
+        {
+            let verdict = ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            };
+            self.blocked = Some(verdict.clone());
+            return verdict;
+        }
+        self.input_bytes += chunk.len();
         let mut canonical = String::with_capacity(chunk.len());
         for character in chunk.chars() {
             if !character.is_ascii() || character.is_control() || character == '\\' {
@@ -360,6 +392,23 @@ impl ZaslonStream {
                 self.blocked = Some(verdict.clone());
                 return verdict;
             }
+        }
+        ContentVerdict::NeedMoreData
+    }
+
+    /// Finish a stream and reject empty or whitespace-only content.
+    #[must_use]
+    pub fn finish(&mut self) -> ContentVerdict {
+        if let Some(verdict) = &self.blocked {
+            return verdict.clone();
+        }
+        if !self.has_content {
+            let verdict = ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            };
+            self.blocked = Some(verdict.clone());
+            return verdict;
         }
         ContentVerdict::Clear
     }
@@ -467,7 +516,7 @@ mod tests {
     };
 
     fn context() -> SecurityContext {
-        SecurityContext::untrusted_data(
+        SecurityContext::untrusted_with_metadata(
             Principal::Model,
             Provenance::from_source(ProvenanceSource::Web(
                 Identity::new("example.test").unwrap(),
@@ -514,7 +563,7 @@ mod tests {
         let mut stream = zaslon.stream(FlowDirection::Egress);
         assert_eq!(
             stream.push_chunk(&format!("prefix {sensitive_marker}")),
-            ContentVerdict::Clear
+            ContentVerdict::NeedMoreData
         );
         assert!(!format!("{zaslon:?}").contains(sensitive_marker));
         assert!(!format!("{stream:?}").contains(sensitive_marker));
@@ -553,7 +602,7 @@ mod tests {
         .unwrap();
         let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
         let mut stream = zaslon.stream(FlowDirection::Egress);
-        assert_eq!(stream.push_chunk("SECRET_"), ContentVerdict::Clear);
+        assert_eq!(stream.push_chunk("SECRET_"), ContentVerdict::NeedMoreData);
         let verdict = stream.push_chunk("TOKEN");
         assert_eq!(
             verdict,
@@ -575,7 +624,7 @@ mod tests {
         .unwrap();
         let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
         let mut stream = zaslon.stream(FlowDirection::Ingress);
-        assert_eq!(stream.push_chunk("DROP "), ContentVerdict::Clear);
+        assert_eq!(stream.push_chunk("DROP "), ContentVerdict::NeedMoreData);
         assert_eq!(
             stream.push_chunk("SECRET"),
             ContentVerdict::Blocked {
@@ -595,7 +644,7 @@ mod tests {
         .unwrap();
         let zaslon = Zaslon::new(Vec::new(), vec![rule]).unwrap();
         let mut stream = zaslon.stream(FlowDirection::Ingress);
-        assert_eq!(stream.push_chunk("DROP"), ContentVerdict::Clear);
+        assert_eq!(stream.push_chunk("DROP"), ContentVerdict::NeedMoreData);
         assert_eq!(
             stream.push_chunk(" SECRET"),
             ContentVerdict::Blocked {
@@ -622,6 +671,66 @@ mod tests {
         };
         let serialized = serde_json::to_string(&decision).unwrap();
         assert!(!serialized.contains("secret"));
+    }
+
+    #[test]
+    fn stream_finish_rejects_empty_whitespace_and_oversized_input() {
+        let zaslon = Zaslon::empty();
+        let mut empty = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(
+            empty.finish(),
+            ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            }
+        );
+        assert_eq!(
+            empty.finish(),
+            ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            }
+        );
+
+        let mut whitespace = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(whitespace.push_chunk("   "), ContentVerdict::NeedMoreData);
+        assert_eq!(
+            whitespace.finish(),
+            ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            }
+        );
+        assert!(matches!(
+            zaslon.inspect_content(FlowDirection::Ingress, &context(), "   "),
+            ContentDecision::Blocked { .. }
+        ));
+
+        let mut oversized = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(
+            oversized.push_chunk(&"a".repeat(MAX_CONTENT_BYTES + 1)),
+            ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            }
+        );
+    }
+
+    #[test]
+    fn stream_cumulative_input_budget_cannot_be_reset_by_chunking() {
+        let zaslon = Zaslon::empty();
+        let mut stream = zaslon.stream(FlowDirection::Ingress);
+        assert_eq!(
+            stream.push_chunk(&"a".repeat(MAX_CONTENT_BYTES)),
+            ContentVerdict::NeedMoreData
+        );
+        assert_eq!(
+            stream.push_chunk("b"),
+            ContentVerdict::Blocked {
+                rule_id: None,
+                reason: SledReason::InvalidRequest,
+            }
+        );
     }
 
     #[test]
@@ -660,6 +769,22 @@ mod tests {
         assert_eq!(
             Zaslon::new(vec![action], vec![content]).unwrap_err(),
             ZaslonError::DuplicateRuleId
+        );
+    }
+
+    #[test]
+    fn rule_budget_is_enforced_before_rule_indexing() {
+        let rules = (0..=MAX_RULES)
+            .map(|index| {
+                ActionRule::deny(
+                    RuleId::new(format!("action-{index}")).unwrap(),
+                    RuleMatcher::any(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            Zaslon::new(rules, Vec::new()).unwrap_err(),
+            ZaslonError::TooManyRules
         );
     }
 }

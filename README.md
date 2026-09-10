@@ -22,9 +22,11 @@ LLM providers, MCP, network services, SDKs, cloud integrations, and UI.
 ```text
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all
+cargo test --all --locked
+cargo audit
+cargo deny check
+cargo check --manifest-path fuzz/Cargo.toml --bins --locked
 ```
 
 The core is synchronous, deterministic, network-independent, and forbids
-`unsafe` Rust.
-
+`unsafe` Rust. CI also runs a bounded libFuzzer smoke target on Linux.

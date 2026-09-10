@@ -23,6 +23,9 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
+const MAX_REGISTERED_SECRETS: usize = 1_024;
+const MAX_SECRET_BYTES: usize = 1024 * 1024;
+
 /// Errors from the opaque-secret boundary.
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum PechatError {
@@ -38,6 +41,12 @@ pub enum PechatError {
     /// A fake broker registration would replace an existing handle.
     #[error("secret handle already registered")]
     DuplicateHandle,
+    /// The fake broker reached its bounded registration capacity.
+    #[error("secret broker capacity exceeded")]
+    CapacityExceeded,
+    /// A fake broker value exceeds the bounded test setup limit.
+    #[error("secret value is too large")]
+    SecretTooLarge,
 }
 
 /// An opaque identifier safe to place in model-visible context.
@@ -154,6 +163,12 @@ impl FakeBroker {
         if self.secrets.contains_key(&handle) {
             return Err(PechatError::DuplicateHandle);
         }
+        if self.secrets.len() >= MAX_REGISTERED_SECRETS {
+            return Err(PechatError::CapacityExceeded);
+        }
+        if value.len() > MAX_SECRET_BYTES {
+            return Err(PechatError::SecretTooLarge);
+        }
         self.secrets.insert(handle, SecretValue(value));
         Ok(())
     }
@@ -249,7 +264,7 @@ mod tests {
             )],
         )
         .unwrap();
-        let context = crate::domain::SecurityContext::untrusted_data(
+        let context = crate::domain::SecurityContext::untrusted_with_metadata(
             Principal::Model,
             Provenance::from_source(ProvenanceSource::Web(
                 Identity::new("broker-caller").unwrap(),
@@ -338,6 +353,24 @@ mod tests {
         assert_eq!(
             broker.register(handle, b"second".to_vec()).unwrap_err(),
             PechatError::DuplicateHandle
+        );
+    }
+
+    #[test]
+    fn broker_registration_is_bounded() {
+        let oversized = SecretHandle::new("oversized").unwrap();
+        let mut broker = FakeBroker::new();
+        assert_eq!(
+            broker.register(oversized, vec![0; MAX_SECRET_BYTES + 1]),
+            Err(PechatError::SecretTooLarge)
+        );
+        for index in 0..MAX_REGISTERED_SECRETS {
+            let handle = SecretHandle::new(format!("secret-{index}")).unwrap();
+            broker.register(handle, vec![0]).unwrap();
+        }
+        assert_eq!(
+            broker.register(SecretHandle::new("overflow").unwrap(), vec![0]),
+            Err(PechatError::CapacityExceeded)
         );
     }
 

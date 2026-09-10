@@ -24,6 +24,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use thiserror::Error;
 
+const MAX_POLICY_RULES: usize = 1_024;
+
 /// Errors found while loading a typed policy.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum PolicyError {
@@ -33,6 +35,9 @@ pub enum PolicyError {
         /// The duplicated non-secret rule identity.
         rule_id: RuleId,
     },
+    /// The policy would exceed the deterministic in-memory rule budget.
+    #[error("policy rule capacity exceeded")]
+    TooManyRules,
 }
 
 /// A rule's deterministic effect class. Higher-ranked effects take precedence.
@@ -237,6 +242,9 @@ impl Policy {
     ///
     /// Returns [`PolicyError::DuplicateRuleId`] when a rule identity repeats.
     pub fn new(id: PolicyId, rules: Vec<PolicyRule>) -> Result<Self, PolicyError> {
+        if rules.len() > MAX_POLICY_RULES {
+            return Err(PolicyError::TooManyRules);
+        }
         let mut seen = HashSet::with_capacity(rules.len());
         for rule in &rules {
             if !seen.insert(rule.id.clone()) {
@@ -264,7 +272,15 @@ impl Policy {
 #[derive(Deserialize)]
 struct PolicyWire {
     id: PolicyId,
+    #[serde(deserialize_with = "deserialize_policy_rules")]
     rules: Vec<PolicyRule>,
+}
+
+fn deserialize_policy_rules<'de, D>(deserializer: D) -> Result<Vec<PolicyRule>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    crate::domain::deserialize_bounded_vec::<D, PolicyRule, MAX_POLICY_RULES>(deserializer)
 }
 
 impl<'de> Deserialize<'de> for Policy {
@@ -394,10 +410,7 @@ impl Krosna {
             }
         }
 
-        if context.classification().is_protected()
-            && request.operation() == &Operation::NetworkSend
-            && request.destination().is_public_external()
-        {
+        if context.classification().is_protected() && request.destination().is_public_external() {
             return Self::deny(context, request, None, SledReason::FlowDenied);
         }
 
@@ -517,10 +530,13 @@ fn is_known_capability(request: &ActionRequest) -> bool {
             (request.resource().kind(), capability),
             (ResourceKind::File, "file.write") | (ResourceKind::Database, "database.write")
         ),
-        Operation::Execute => matches!(
-            (request.resource().kind(), capability),
-            (ResourceKind::Tool, "tool.execute") | (ResourceKind::Secret, "secret.use")
-        ),
+        Operation::Execute => match (request.resource().kind(), capability) {
+            (ResourceKind::Tool, "tool.execute") => true,
+            (ResourceKind::Secret, "secret.use") => {
+                request.destination() == &Destination::SecretBroker
+            }
+            _ => false,
+        },
         Operation::NetworkSend => {
             request.resource().kind() == ResourceKind::Network && capability == "network.send"
         }
@@ -568,7 +584,7 @@ mod tests {
     }
 
     fn fixture_context(classification: Classification) -> SecurityContext {
-        SecurityContext::untrusted_data(
+        SecurityContext::untrusted_with_metadata(
             Principal::Model,
             Provenance::from_source(ProvenanceSource::Web(
                 Identity::new("example.test").unwrap(),
@@ -830,6 +846,110 @@ mod tests {
     }
 
     #[test]
+    fn every_protected_external_action_is_denied_not_only_network_send() {
+        let policy = Policy::new(
+            PolicyId::new("all-actions").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-any").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let context = fixture_context(Classification::Secret);
+        let cases = [
+            (
+                Operation::Read,
+                ResourceKind::Database,
+                "customer.db",
+                "database.read",
+            ),
+            (
+                Operation::Write,
+                ResourceKind::Database,
+                "customer.db",
+                "database.write",
+            ),
+            (
+                Operation::Execute,
+                ResourceKind::Tool,
+                "shell",
+                "tool.execute",
+            ),
+        ];
+        for (operation, kind, id, capability) in cases {
+            let request = ActionRequest::new(
+                Principal::Model,
+                operation,
+                Resource::new(kind, ResourceId::new(id).unwrap()),
+                Destination::PublicExternal,
+                crate::domain::CapabilityName::new(capability).unwrap(),
+            );
+            let decision = Krosna::new(policy.clone()).evaluate(&context, &request);
+            assert_eq!(decision.kind, DecisionKind::Deny);
+            assert_eq!(decision.evidence.reason, SledReason::FlowDenied);
+        }
+    }
+
+    #[test]
+    fn secret_use_cannot_be_authorized_outside_pechat() {
+        let policy = Policy::new(
+            PolicyId::new("secret-route").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-any").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let request = ActionRequest::new(
+            Principal::Model,
+            Operation::Execute,
+            Resource::new(
+                ResourceKind::Secret,
+                ResourceId::new("github-prod").unwrap(),
+            ),
+            Destination::Model,
+            crate::domain::CapabilityName::new("secret.use").unwrap(),
+        );
+        let decision =
+            Krosna::new(policy).evaluate(&fixture_context(Classification::Public), &request);
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::UnknownDenied);
+    }
+
+    #[test]
+    fn network_send_is_mapped_to_model_source_for_diode() {
+        let policy = Policy::new(
+            PolicyId::new("network").unwrap(),
+            vec![PolicyRule::allow(
+                RuleId::new("allow-network").unwrap(),
+                RuleMatcher::any(),
+            )],
+        )
+        .unwrap();
+        let diode = Diode::new(vec![
+            FlowRule::hard_deny(
+                RuleId::new("deny-model-egress").unwrap(),
+                FlowMatcher::any()
+                    .source(FlowSource::Model)
+                    .destination(Destination::PublicExternal)
+                    .operation(FlowOperation::Export),
+            ),
+            FlowRule::allow(RuleId::new("allow-any-flow").unwrap(), FlowMatcher::any()),
+        ])
+        .unwrap();
+        let decision = Krosna::with_diode(policy, diode).evaluate(
+            &fixture_context(Classification::Public),
+            &fixture_request(Operation::NetworkSend, Destination::PublicExternal),
+        );
+        assert_eq!(decision.kind, DecisionKind::Deny);
+        assert_eq!(decision.evidence.reason, SledReason::HardDeny);
+        assert_eq!(
+            decision.evidence.rule_id.unwrap().as_str(),
+            "deny-model-egress"
+        );
+    }
+
+    #[test]
     fn configured_diode_allows_read_but_denies_protected_export() {
         let database = Resource::new(
             ResourceKind::Database,
@@ -967,7 +1087,7 @@ mod tests {
             )],
         )
         .unwrap();
-        let context = SecurityContext::untrusted_data(
+        let context = SecurityContext::untrusted_with_metadata(
             Principal::System,
             Provenance::from_source(ProvenanceSource::Web(
                 Identity::new("attacker.example").unwrap(),
@@ -1007,6 +1127,34 @@ mod tests {
             ]
         });
         assert!(serde_json::from_value::<Policy>(json).is_err());
+    }
+
+    #[test]
+    fn policy_rule_budget_is_enforced_at_constructor_and_wire_boundary() {
+        let rules = (0..=MAX_POLICY_RULES)
+            .map(|index| {
+                PolicyRule::allow(
+                    RuleId::new(format!("rule-{index}")).unwrap(),
+                    RuleMatcher::any(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            Policy::new(PolicyId::new("bounded-policy").unwrap(), rules).unwrap_err(),
+            PolicyError::TooManyRules
+        );
+
+        let wire = serde_json::json!({
+            "id": "bounded-policy",
+            "rules": (0..=MAX_POLICY_RULES)
+                .map(|index| serde_json::json!({
+                    "id": format!("rule-{index}"),
+                    "matcher": {},
+                    "kind": "Allow"
+                }))
+                .collect::<Vec<_>>()
+        });
+        assert!(serde_json::from_value::<Policy>(wire).is_err());
     }
 
     proptest! {
