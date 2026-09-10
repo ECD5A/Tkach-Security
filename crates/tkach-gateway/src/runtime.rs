@@ -637,15 +637,6 @@ impl<P: Provider> RuntimeService<P> {
         }
 
         let request_bytes = wire.request.get().as_bytes();
-        if request_bytes.len() > crate::MAX_REQUEST_BODY_BYTES {
-            self.ledger.finish();
-            return failure_response(
-                Some(request_id),
-                Some(lifecycle_id),
-                RuntimeFailure::InvalidRequest,
-                None,
-            );
-        }
         let Ok(request) = ExternalRequest::from_json(request_bytes) else {
             self.ledger.finish();
             return failure_response(
@@ -1243,6 +1234,7 @@ mod tests {
                 ..
             }
         ));
+        assert!(service.is_accepting());
         service.shutdown();
         assert!(!service.is_accepting());
         assert!(matches!(
@@ -1260,6 +1252,9 @@ mod tests {
     #[test]
     fn frame_and_response_budgets_and_debug_surfaces_are_bounded() {
         let mut service = service(complete_provider());
+        let service_debug = format!("{service:?}");
+        assert!(service_debug.contains("RuntimeService"));
+        assert!(!service_debug.contains("runtime-secret"));
         let oversized = vec![b'x'; MAX_RUNTIME_FRAME_BYTES + 1];
         assert!(matches!(
             service.handle_frame(&oversized, &CancellationToken::new()),
@@ -1273,6 +1268,7 @@ mod tests {
             &CancellationToken::new(),
         );
         let debug = format!("{response:?}");
+        assert!(debug.contains("RuntimeResponse::Success"));
         assert!(!debug.contains("runtime-secret"));
         assert!(!debug.contains("safe response"));
         assert!(response.to_json().unwrap().len() <= MAX_RUNTIME_RESPONSE_BYTES);
@@ -1310,6 +1306,32 @@ mod tests {
     }
 
     #[test]
+    fn runtime_response_json_accepts_exactly_the_transport_budget() {
+        let receipt = RuntimeReceipt {
+            request_id: RequestId::new("request-boundary").unwrap(),
+            lifecycle_id: LifecycleId::new("lifecycle-boundary").unwrap(),
+            outcome: RuntimeOutcome::Success,
+            uncertain: false,
+            effects: Vec::new(),
+        };
+        let base = RuntimeResponse::Success {
+            receipt: receipt.clone(),
+            output: Some(String::new()),
+        };
+        let base_len = base.to_json().unwrap().len();
+        let exact = RuntimeResponse::Success {
+            receipt: receipt.clone(),
+            output: Some("a".repeat(MAX_RUNTIME_RESPONSE_BYTES - base_len)),
+        };
+        assert_eq!(exact.to_json().unwrap().len(), MAX_RUNTIME_RESPONSE_BYTES);
+        let over = RuntimeResponse::Success {
+            receipt,
+            output: Some("a".repeat(MAX_RUNTIME_RESPONSE_BYTES - base_len + 1)),
+        };
+        assert_eq!(over.to_json(), Err(RuntimeFailure::ResponseTooLarge));
+    }
+
+    #[test]
     fn malformed_nested_request_fails_after_auth_without_gateway_invocation() {
         let mut service = service(complete_provider());
         let body = serde_json::to_vec(&json!({
@@ -1338,12 +1360,81 @@ mod tests {
 
     #[test]
     fn runtime_limits_reject_zero_and_oversized_values() {
+        assert_eq!(MAX_RUNTIME_FRAME_BYTES, 64 * 1024);
+        assert_eq!(MAX_RUNTIME_RESPONSE_BYTES, 128 * 1024);
         assert!(RuntimeLimits::new(0, 1).is_err());
         assert!(RuntimeLimits::new(MAX_RUNTIME_FRAME_BYTES + 1, 1).is_err());
         assert!(RuntimeLimits::new(MAX_RUNTIME_FRAME_BYTES, 0).is_err());
         assert!(RuntimeAuthenticator::new(Vec::new()).is_err());
+        let limits = RuntimeLimits::new(4096, 2).unwrap();
+        assert_eq!(limits.max_frame_bytes(), 4096);
+        assert_eq!(limits.max_active_requests(), 2);
         assert!(RequestId::new("../escape").is_err());
         assert!(LifecycleId::new(" ").is_err());
+    }
+
+    #[test]
+    fn runtime_identity_and_auth_strings_enforce_exact_bounds() {
+        let exact_id = "a".repeat(MAX_RUNTIME_ID_BYTES);
+        assert_eq!(RequestId::new(exact_id.clone()).unwrap().as_str(), exact_id);
+        assert_eq!(
+            LifecycleId::new(exact_id.clone()).unwrap().as_str(),
+            exact_id
+        );
+        assert!(RequestId::new(format!("{exact_id}a")).is_err());
+
+        let exact_auth = "b".repeat(MAX_RUNTIME_AUTH_BYTES);
+        assert_eq!(
+            deserialize_bounded_auth(
+                serde::de::value::StrDeserializer::<serde::de::value::Error>::new(&exact_auth)
+            )
+            .unwrap(),
+            exact_auth
+        );
+        let exact_owned = "c".repeat(MAX_RUNTIME_AUTH_BYTES);
+        assert_eq!(
+            deserialize_bounded_auth(serde::de::value::StringDeserializer::<
+                serde::de::value::Error,
+            >::new(exact_owned.clone()))
+            .unwrap(),
+            exact_owned
+        );
+        let oversized_auth = format!("{exact_auth}b");
+        assert!(
+            deserialize_bounded_auth(
+                serde::de::value::StrDeserializer::<serde::de::value::Error>::new(&oversized_auth)
+            )
+            .is_err()
+        );
+        assert!(
+            deserialize_bounded_auth(serde::de::value::StringDeserializer::<
+                serde::de::value::Error,
+            >::new(oversized_auth))
+            .is_err()
+        );
+        assert_eq!(
+            format!(
+                "{:?}",
+                RuntimeAuthenticator::new(b"secret".to_vec()).unwrap()
+            ),
+            "RuntimeAuthenticator(REDACTED)"
+        );
+        assert!(format!("{:?}", RequestId::new("request-id").unwrap()).contains("request-id"));
+        assert!(
+            format!("{:?}", LifecycleId::new("lifecycle-id").unwrap()).contains("lifecycle-id")
+        );
+    }
+
+    #[test]
+    fn runtime_effect_accessor_preserves_non_default_execution_id() {
+        let effect = RuntimeEffect {
+            operation: Operation::Write,
+            resource_kind: ResourceKind::File,
+            destination: Destination::Model,
+            execution_id: 37,
+            outcome: RuntimeEffectOutcome::Committed,
+        };
+        assert_eq!(effect.execution_id(), 37);
     }
 
     #[test]
@@ -1386,6 +1477,40 @@ mod tests {
             ledger.begin(
                 RequestId::new("request-over-capacity").unwrap(),
                 LifecycleId::new("lifecycle-over-capacity").unwrap(),
+                limits,
+            ),
+            Err(RuntimeFailure::ReplayCapacityExceeded)
+        );
+    }
+
+    #[test]
+    fn replay_ledger_checks_each_identity_capacity_independently() {
+        let limits = RuntimeLimits::default();
+        let mut request_full = RuntimeLedger::new();
+        for index in 0..MAX_RUNTIME_REPLAY_ENTRIES {
+            request_full
+                .request_ids
+                .insert(RequestId::new(format!("request-{index}")).unwrap());
+        }
+        assert_eq!(
+            request_full.begin(
+                RequestId::new("request-new").unwrap(),
+                LifecycleId::new("lifecycle-new").unwrap(),
+                limits,
+            ),
+            Err(RuntimeFailure::ReplayCapacityExceeded)
+        );
+
+        let mut lifecycle_full = RuntimeLedger::new();
+        for index in 0..MAX_RUNTIME_REPLAY_ENTRIES {
+            lifecycle_full
+                .lifecycle_ids
+                .insert(LifecycleId::new(format!("lifecycle-{index}")).unwrap());
+        }
+        assert_eq!(
+            lifecycle_full.begin(
+                RequestId::new("request-new").unwrap(),
+                LifecycleId::new("lifecycle-new").unwrap(),
                 limits,
             ),
             Err(RuntimeFailure::ReplayCapacityExceeded)
@@ -1441,6 +1566,7 @@ mod tests {
                     receipt.effects()[0].outcome(),
                     RuntimeEffectOutcome::Committed
                 );
+                assert_eq!(receipt.effects()[0].execution_id(), 1);
             }
             RuntimeResponse::Failure { .. } => panic!("authorized runtime write must succeed"),
         }
@@ -1497,9 +1623,12 @@ mod tests {
     fn loopback_listener_uses_authenticated_bounded_framing() {
         let service = service(complete_provider());
         let mut listener = RuntimeListener::bind("127.0.0.1:0".parse().unwrap(), service).unwrap();
+        let listener_debug = format!("{listener:?}");
+        assert!(listener_debug.contains("RuntimeListener"));
         let address = listener.local_addr().unwrap();
         let mut client = TcpStream::connect(address).unwrap();
-        let frame = frame("request-1", "lifecycle-1", "runtime-secret");
+        let mut frame = frame("request-1", "lifecycle-1", "runtime-secret");
+        frame.resize(MAX_RUNTIME_FRAME_BYTES, b' ');
         client
             .write_all(&(u32::try_from(frame.len()).unwrap()).to_be_bytes())
             .unwrap();
