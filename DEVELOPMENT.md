@@ -350,7 +350,7 @@
   Propusk. Tool data retains Niti/Metka; receipts and traces carry no raw
   secret. `FakeToolBroker` has a bounded effect log and never exposes its
   broker value to a provider.
-- Tests: 14 Gateway boundary tests cover ingress, limits, fixed catalog,
+- Tests: 20 Gateway boundary tests cover ingress, limits, fixed catalog,
   canonical hostile read-then-exfiltration, Niti/Metka preservation, egress
   stripping and stream seams, partial-effect regression, action preflight,
   Pechat reveal/use, provider malformed/timeout/failure/cancellation, replay,

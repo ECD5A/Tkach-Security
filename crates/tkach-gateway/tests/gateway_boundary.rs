@@ -21,11 +21,13 @@ use tkach_core::krosna::{Krosna, Policy, PolicyRule, RuleMatcher};
 use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 use tkach_core::zaslon::{ContentRule, Zaslon};
 use tkach_gateway::{
-    CancelledProvider, DeterministicProvider, FailureProvider, FakeToolBroker, Gateway,
-    GatewayErrorKind, HostileProvider, MAX_PROVIDER_CHUNK_BYTES, MAX_REQUEST_BODY_BYTES,
-    MalformedProvider, ModelInput, Provider, ProviderError, ProviderRequest, ProviderSink,
-    ProviderStep, ScriptedStep, TimeoutProvider, external_send_request, harmless_read_request,
-    protected_read_request, protected_write_request, secret_reveal_request,
+    CancelledProvider, DeterministicProvider, ExternalRequest, FailureProvider, FakeToolBroker,
+    Gateway, GatewayErrorKind, HostileProvider, MAX_MESSAGES, MAX_METADATA_KEY_BYTES,
+    MAX_METADATA_VALUE_BYTES, MAX_PROVIDER_CHUNK_BYTES, MAX_REQUEST_BODY_BYTES,
+    MAX_TOOL_DECLARATIONS, MalformedProvider, ModelInput, Provider, ProviderError, ProviderRequest,
+    ProviderSink, ProviderStep, ScriptedStep, TimeoutProvider, ToolDescription,
+    external_send_request, harmless_read_request, protected_read_request, protected_write_request,
+    secret_reveal_request,
 };
 
 struct SharedExecutor(Rc<RefCell<FakeToolBroker>>);
@@ -461,6 +463,11 @@ fn invalid_release_destination_fails_before_provider_invocation() {
         .run_json(&mut provider, &request_json("invalid sink"))
         .unwrap_err();
     assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
+    assert!(format!("{error:?}").contains("GatewayError"));
+    assert_eq!(
+        error.to_string(),
+        "provider lifecycle transition is invalid"
+    );
     assert_eq!(broker.borrow().effect_count(), 0);
 }
 
@@ -552,6 +559,36 @@ fn denied_batch_is_preflighted_before_any_protected_effect() {
     assert!(matches!(error.kind(), GatewayErrorKind::ActionDenied(_)));
     assert_eq!(broker.borrow().effect_count(), 0);
     assert_eq!(broker.borrow().external_send_count(), 0);
+}
+
+#[test]
+fn awaited_turns_reject_mutations_and_batches_reject_multiple_effects() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let mut awaited_write = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: Vec::new(),
+        actions: vec![protected_write_request()],
+        continuation: ProviderStep::AwaitToolResults,
+    }]);
+    let error = gateway
+        .run_json(&mut awaited_write, &request_json("await write"))
+        .unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
+    assert_eq!(broker.borrow().effect_count(), 0);
+
+    let mut multiple_effects = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: Vec::new(),
+        actions: vec![protected_write_request(), external_send_request()],
+        continuation: ProviderStep::Complete,
+    }]);
+    let error = gateway
+        .run_json(&mut multiple_effects, &request_json("two effects"))
+        .unwrap_err();
+    assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
+    assert_eq!(broker.borrow().effect_count(), 0);
 }
 
 #[test]
@@ -648,6 +685,59 @@ fn client_tool_declarations_cannot_extend_trusted_catalog() {
     assert_eq!(broker.borrow().effect_count(), 0);
 }
 
+struct RequestSurfaceProvider {
+    saw_surface: Rc<RefCell<bool>>,
+}
+
+impl Provider for RequestSurfaceProvider {
+    fn invoke(
+        &mut self,
+        request: &ProviderRequest,
+        sink: &mut dyn ProviderSink,
+    ) -> Result<ProviderStep, ProviderError> {
+        let tool_names: Vec<&str> = request.tools().iter().map(ToolDescription::name).collect();
+        *self.saw_surface.borrow_mut() = request.turn() == 0
+            && request.inputs().first().is_some_and(|input| {
+                input.text() == "inspect"
+                    && input.is_protected()
+                    && input.classification() == Classification::Unknown
+            })
+            && request
+                .metadata()
+                .first()
+                .is_some_and(|entry| entry.name() == "trace" && entry.value() == "one")
+            && tool_names
+                == [
+                    "protected_read",
+                    "protected_write",
+                    "external_send",
+                    "harmless_read",
+                    "secret_backed_use",
+                ];
+        sink.text_chunk("surface inspected")
+            .map_err(|_| ProviderError::OutputLimitExceeded)?;
+        Ok(ProviderStep::Complete)
+    }
+}
+
+#[test]
+fn provider_request_exposes_only_bounded_data_and_fixed_tool_surface() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let saw_surface = Rc::new(RefCell::new(false));
+    let mut provider = RequestSurfaceProvider {
+        saw_surface: saw_surface.clone(),
+    };
+    let body = br#"{"messages":[{"role":"data","content":"inspect"}],"metadata":[{"name":"trace","value":"one"}],"tool_declarations":[{"name":"shell"}]}"#;
+    let result = gateway.run_json(&mut provider, body).unwrap();
+    assert_eq!(result.output(), Some("surface inspected"));
+    assert!(*saw_surface.borrow());
+    assert!(broker.borrow().effects().is_empty());
+}
+
 #[test]
 fn duplicate_metadata_names_and_duplicate_action_replays_fail_closed() {
     let duplicate_metadata = br#"{"messages":[{"role":"user","content":"ok"}],"metadata":[{"name":"trace","value":"one"},{"name":"trace","value":"two"}]}"#;
@@ -683,4 +773,110 @@ fn duplicate_metadata_names_and_duplicate_action_replays_fail_closed() {
         .unwrap_err();
     assert!(matches!(error.kind(), GatewayErrorKind::InvalidLifecycle));
     assert_eq!(broker.borrow().read_count(), 1);
+}
+
+#[test]
+fn exact_wire_limits_are_accepted_and_the_next_byte_or_item_is_rejected() {
+    let exact_message = request_json(&"x".repeat(16 * 1024));
+    assert!(ExternalRequest::from_json(&exact_message).is_ok());
+    let oversized_message = request_json(&"x".repeat(16 * 1024 + 1));
+    assert!(ExternalRequest::from_json(&oversized_message).is_err());
+
+    let mut exact_body = request_json("ok");
+    exact_body.resize(MAX_REQUEST_BODY_BYTES, b' ');
+    assert!(ExternalRequest::from_json(&exact_body).is_ok());
+    exact_body.push(b' ');
+    assert!(ExternalRequest::from_json(&exact_body).is_err());
+
+    let metadata_key = "k".repeat(MAX_METADATA_KEY_BYTES);
+    let metadata_value = "v".repeat(MAX_METADATA_VALUE_BYTES);
+    let exact_metadata = format!(
+        r#"{{"messages":[{{"role":"user","content":"ok"}}],"metadata":[{{"name":"{metadata_key}","value":"{metadata_value}"}}]}}"#
+    );
+    assert!(ExternalRequest::from_json(exact_metadata.as_bytes()).is_ok());
+    let too_long_key = format!(
+        r#"{{"messages":[{{"role":"user","content":"ok"}}],"metadata":[{{"name":"{}","value":"v"}}]}}"#,
+        "k".repeat(MAX_METADATA_KEY_BYTES + 1)
+    );
+    assert!(ExternalRequest::from_json(too_long_key.as_bytes()).is_err());
+
+    let messages = (0..MAX_MESSAGES)
+        .map(|_| r#"{"role":"user","content":"x"}"#)
+        .collect::<Vec<_>>()
+        .join(",");
+    let exact_messages = format!(r#"{{"messages":[{messages}]}}"#);
+    assert!(ExternalRequest::from_json(exact_messages.as_bytes()).is_ok());
+    let too_many_messages =
+        format!(r#"{{"messages":[{messages},{{"role":"user","content":"x"}}]}}"#);
+    assert!(ExternalRequest::from_json(too_many_messages.as_bytes()).is_err());
+
+    let tools = (0..MAX_TOOL_DECLARATIONS)
+        .map(|index| format!(r#"{{"name":"tool-{index}"}}"#))
+        .collect::<Vec<_>>()
+        .join(",");
+    let exact_tools = format!(
+        r#"{{"messages":[{{"role":"user","content":"x"}}],"tool_declarations":[{tools}]}}"#
+    );
+    assert!(ExternalRequest::from_json(exact_tools.as_bytes()).is_ok());
+    let too_many_tools = format!(
+        r#"{{"messages":[{{"role":"user","content":"x"}}],"tool_declarations":[{tools},{{"name":"extra"}}]}}"#
+    );
+    assert!(ExternalRequest::from_json(too_many_tools.as_bytes()).is_err());
+}
+
+#[test]
+fn exact_provider_and_final_output_limits_are_enforced() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let exact_chunks = vec!["x".repeat(16 * 1024)];
+    let mut exact_provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: exact_chunks,
+        actions: Vec::new(),
+        continuation: ProviderStep::Complete,
+    }]);
+    let result = gateway
+        .run_json(&mut exact_provider, &request_json("exact"))
+        .unwrap();
+    assert_eq!(result.output().map(str::len), Some(16 * 1024));
+
+    let mut oversized_provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: vec!["x".repeat(MAX_PROVIDER_CHUNK_BYTES); 5],
+        actions: Vec::new(),
+        continuation: ProviderStep::Complete,
+    }]);
+    let error = gateway
+        .run_json(&mut oversized_provider, &request_json("oversized final"))
+        .unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        GatewayErrorKind::Provider(ProviderError::OutputLimitExceeded)
+    ));
+    assert!(broker.borrow().effects().is_empty());
+}
+
+#[test]
+fn gateway_results_and_diagnostics_are_nonempty_and_payload_safe() {
+    let (mut gateway, broker) = gateway(
+        Destination::Internal(Identity::new("client").unwrap()),
+        Zaslon::empty(),
+        Zaslon::empty(),
+    );
+    let gateway_debug = format!("{gateway:?}");
+    assert!(gateway_debug.contains("Gateway"));
+    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+        chunks: Vec::new(),
+        actions: vec![protected_write_request()],
+        continuation: ProviderStep::Complete,
+    }]);
+    let result = gateway
+        .run_json(&mut provider, &request_json("write"))
+        .unwrap();
+    assert_eq!(result.effects().len(), 1);
+    let result_debug = format!("{result:?}");
+    assert!(result_debug.contains("GatewayResult"));
+    assert!(!result_debug.contains("workspace/output.txt"));
+    assert_eq!(broker.borrow().effect_count(), 1);
 }
