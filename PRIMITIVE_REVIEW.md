@@ -132,3 +132,24 @@ separate migration, not a reason to weaken this phase's regression coverage.
 No security-critical runtime logic is merged or deleted in this review. The
 three removals are API/code pruning only and must be followed by the complete
 baseline test matrix and a simplification red-team pass.
+
+## Simplification red-team checkpoint
+
+The first pruning cycle was challenged after implementation:
+
+- repository search confirmed no production or test caller still depends on
+  the removed `DataLane`, `Pechat::new()`, or `ScriptedProvider` symbols;
+- Gnezdo context tests still prove DATA/None/Untrusted/Unknown state and denied
+  promotion;
+- Pechat tests still prove exact-token secret use, reveal denial, and bounded
+  broker memory;
+- Gateway/Core tests still prove Propusk-only execution, protected export
+  denial, lifecycle ordering, and no partial effect after failure;
+- targeted mutation testing of the retained Gnezdo/Pechat paths tested 55
+  mutants: 46 caught and 9 unviable, with no unexplained security survivor;
+- the post-pruning workspace baseline is 206 passing tests: two removed tests
+  covered only the deleted marker/facade APIs, while all security scenarios
+  remain covered.
+
+The reduction therefore removed vocabulary-only API surface without removing
+an enforcement point or making a safe default permissive.
