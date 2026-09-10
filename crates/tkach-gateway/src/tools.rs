@@ -1256,6 +1256,29 @@ mod tests {
     }
 
     #[test]
+    fn path_identity_check_rejects_a_different_open_file() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("tkach-gateway-identity-{suffix}"));
+        fs::create_dir_all(&base).unwrap();
+        let first = base.join("first.txt");
+        let second = base.join("second.txt");
+        fs::write(&first, b"first").unwrap();
+        fs::write(&second, b"second file").unwrap();
+
+        let opened = open_existing_no_follow(&first).unwrap();
+        assert!(path_matches_open_file(&first, &opened));
+        assert!(!path_matches_open_file(&second, &opened));
+
+        drop(opened);
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
     fn real_path_parser_rejects_escape_and_normalization_syntax() {
         for value in [
             "../output.txt",

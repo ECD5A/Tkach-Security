@@ -614,19 +614,17 @@ impl<P: Provider> RuntimeService<P> {
             return failure_response(Some(request_id), Some(lifecycle_id), failure, None);
         }
 
-        let request_bytes = match serde_json::to_vec(&wire.request) {
-            Ok(bytes) if bytes.len() <= crate::MAX_REQUEST_BODY_BYTES => bytes,
-            _ => {
-                self.ledger.finish();
-                return failure_response(
-                    Some(request_id),
-                    Some(lifecycle_id),
-                    RuntimeFailure::InvalidRequest,
-                    None,
-                );
-            }
-        };
-        let Ok(request) = ExternalRequest::from_json(&request_bytes) else {
+        let request_bytes = wire.request.get().as_bytes();
+        if request_bytes.len() > crate::MAX_REQUEST_BODY_BYTES {
+            self.ledger.finish();
+            return failure_response(
+                Some(request_id),
+                Some(lifecycle_id),
+                RuntimeFailure::InvalidRequest,
+                None,
+            );
+        }
+        let Ok(request) = ExternalRequest::from_json(request_bytes) else {
             self.ledger.finish();
             return failure_response(
                 Some(request_id),
@@ -791,7 +789,7 @@ struct RuntimeWireRequest {
     lifecycle_id: String,
     #[serde(deserialize_with = "deserialize_bounded_auth")]
     auth: String,
-    request: serde_json::Value,
+    request: Box<serde_json::value::RawValue>,
 }
 
 fn deserialize_bounded_id<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -1229,6 +1227,30 @@ mod tests {
             Err(RuntimeFailure::ConcurrencyLimit)
         );
         ledger.finish();
+    }
+
+    #[test]
+    fn replay_ledger_rejects_new_identities_at_the_fixed_capacity() {
+        let limits = RuntimeLimits::default();
+        let mut ledger = RuntimeLedger::new();
+        for index in 0..MAX_RUNTIME_REPLAY_ENTRIES {
+            ledger
+                .begin(
+                    RequestId::new(format!("request-{index}")).unwrap(),
+                    LifecycleId::new(format!("lifecycle-{index}")).unwrap(),
+                    limits,
+                )
+                .unwrap();
+            ledger.finish();
+        }
+        assert_eq!(
+            ledger.begin(
+                RequestId::new("request-over-capacity").unwrap(),
+                LifecycleId::new("lifecycle-over-capacity").unwrap(),
+                limits,
+            ),
+            Err(RuntimeFailure::ReplayCapacityExceeded)
+        );
     }
 
     #[test]
