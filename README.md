@@ -112,6 +112,21 @@ separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
+For a private container smoke deployment, build the local OCI image:
+
+```console
+docker build -t tkach:local .
+docker run --rm --network host \\
+  -e TKACH_BEARER_TOKEN=local-development-secret \\
+  -e OPENAI_API_KEY=trusted-provider-secret \\
+  tkach:local serve
+```
+
+The image runs as a non-root user, keeps the service loopback-only, and has a
+bounded `/healthz` Docker healthcheck. `--network host` is the Linux host-local
+mode; exposing the container through a bridge or proxy requires a separately
+reviewed network boundary and is not enabled by this image.
+
 The interactive menu is a responsive cross-platform Ratatui panel with a
 selected action, local status panel, keyboard footer, and the supplied dense
 Unicode block-art banner. It is embedded directly in `tkach-cli`, so the

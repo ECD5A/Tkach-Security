@@ -162,9 +162,47 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  container:
+    name: Build and smoke-test private OCI image
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build local image without pulling mutable base updates
+        env:
+          IMAGE: tkach:${{ github.ref_name }}
+        run: docker build --pull=false --tag "${IMAGE}" .
+      - name: Run loopback-only container health smoke
+        shell: bash
+        env:
+          IMAGE: tkach:${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          container_id="$(docker run --detach --network host \
+            --env TKACH_BEARER_TOKEN=release-container-token \
+            --env OPENAI_API_KEY=release-container-provider \
+            --env TKACH_HTTP_ADDR=127.0.0.1:8080 \
+            "${IMAGE}")"
+          cleanup() {
+            docker logs "${container_id}" || true
+            docker rm --force "${container_id}" >/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 20); do
+            if docker exec "${container_id}" tkach health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "container health did not become ready" >&2
+          exit 1
+
   draft-release:
     name: Create attested draft release
-    needs: build
+    needs: [build, container]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

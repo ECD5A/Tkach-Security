@@ -112,6 +112,21 @@ production gateway.
 подключением. Оно не
 развёртывает политику защиты и не
 подключает модель. `serve --demo` — отдельная неинтерактивная reference-команда.
+
+Локальный OCI-образ можно собрать без публикации наружу:
+
+```console
+docker build -t tkach:local .
+docker run --rm --network host `
+  -e TKACH_BEARER_TOKEN=local-development-secret `
+  -e OPENAI_API_KEY=trusted-provider-secret `
+  tkach:local serve
+```
+
+Образ запускается от непривилегированного пользователя, сохраняет loopback-
+ограничение и использует `tkach health` для bounded healthcheck. `--network
+host` — документированный Linux-профиль host-local; wildcard bind, TLS,
+ingress и публичная публикация OCI-образа пока не включены.
 При вводе через pipe сохраняются ограниченные строковые команды
 (`/l en`, `/l ru`, `q`); скрипты и CI используют `init`, `check` и `run --demo` напрямую.
 

@@ -153,6 +153,26 @@ accepted in request JSON, MCP arguments, or command-line arguments. `/healthz`
 is unauthenticated liveness, `/v1/run` is bearer-authenticated, and Ctrl-C
 requests a bounded stop between connections.
 
+### Private OCI image
+
+The repository includes a multi-stage `Dockerfile` for a local/private image.
+It contains only the `tkach` CLI, runs as UID 10001, defaults to the same
+loopback address, and uses `tkach health` for the bounded container
+healthcheck:
+
+```text
+docker build -t tkach:local .
+docker run --rm --network host \\
+  -e TKACH_BEARER_TOKEN=local-development-secret \\
+  -e OPENAI_API_KEY=trusted-provider-secret \\
+  tkach:local serve
+```
+
+Host networking is the explicit Linux host-local deployment profile. The image
+does not enable wildcard binding, TLS termination, a proxy, or a public
+network service. A bridge/ingress deployment needs a separate reviewed
+authenticated boundary before it can be documented as supported.
+
 ## Rust client adapter — v0.1
 
 tkach-client is an optional typed Rust client for the HTTP contract. It

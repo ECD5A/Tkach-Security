@@ -38,6 +38,9 @@ release candidate description, not a claim that a public release exists.
   release is created.
 - Keep the CLI banner inside the published `tkach-cli` crate so `cargo package`
   verifies and compiles the same embedded UI asset that source builds use.
+- Add a non-root local OCI image with an explicit loopback default and bounded
+  `tkach health` container check; wildcard ingress and image publication stay
+  outside the current security contract.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict

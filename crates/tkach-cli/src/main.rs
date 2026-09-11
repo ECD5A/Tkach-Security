@@ -16,7 +16,7 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, IsTerminal, Read, Write};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpStream};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -38,6 +38,8 @@ use tkach_provider_openai::{OpenAiConfig, OpenAiProvider};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UI_INPUT_BYTES: usize = 256;
+const HEALTHCHECK_TIMEOUT: Duration = Duration::from_millis(500);
+const MAX_HEALTHCHECK_RESPONSE_BYTES: usize = 4 * 1024;
 const STARTER_REQUEST: &str = r#"{
   "messages": [
     {"role": "user", "content": "Return a bounded response"}
@@ -50,6 +52,7 @@ const USAGE_EN: &str = r"Commands:
   tkach init [DIRECTORY]       -> create a safe starter request
   tkach check [REQUEST_JSON]   -> validate one bounded request
   tkach doctor                 -> inspect local readiness without secrets
+  tkach health                 -> check the local runtime health endpoint
   tkach run --demo             -> run the local deterministic proof
   tkach serve                  -> serve the local authenticated provider runtime
   tkach serve --demo           -> serve the local deterministic HTTP demo
@@ -184,6 +187,7 @@ enum Command {
     Check(PathBuf),
     Doctor,
     Demo,
+    Health,
     Serve,
     ServeDemo,
     Ui,
@@ -298,6 +302,7 @@ where
         [command] if command == "check" => Command::Check(PathBuf::from(".tkach/request.json")),
         [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
         [command] if command == "doctor" => Command::Doctor,
+        [command] if command == "health" => Command::Health,
         [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
         [command] if command == "serve" => Command::Serve,
         [command, flag] if command == "serve" && flag == "--demo" => Command::ServeDemo,
@@ -316,6 +321,7 @@ fn execute(command: Command, language: Language) -> Result<String, CliError> {
         Command::Init(root) => initialize(&root, language),
         Command::Check(path) => check_request(&path, language),
         Command::Doctor => Ok(doctor(language)),
+        Command::Health => run_healthcheck(),
         Command::Demo => run_demo(language),
         Command::Serve => {
             run_provider_server()?;
@@ -809,6 +815,46 @@ fn doctor(language: Language) -> String {
     )
 }
 
+fn run_healthcheck() -> Result<String, CliError> {
+    let address = env::var("TKACH_HTTP_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_owned())
+        .parse::<SocketAddr>()
+        .map_err(|_| CliError::ServerConfiguration)?;
+    if !address.ip().is_loopback() {
+        return Err(CliError::ServerConfiguration);
+    }
+    let mut stream = TcpStream::connect_timeout(&address, HEALTHCHECK_TIMEOUT)
+        .map_err(|_| CliError::ServerFailed)?;
+    stream
+        .set_read_timeout(Some(HEALTHCHECK_TIMEOUT))
+        .map_err(|_| CliError::ServerFailed)?;
+    stream
+        .set_write_timeout(Some(HEALTHCHECK_TIMEOUT))
+        .map_err(|_| CliError::ServerFailed)?;
+    stream
+        .write_all(b"GET /healthz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .map_err(|_| CliError::ServerFailed)?;
+    let mut response = Vec::new();
+    let mut limited = stream.take((MAX_HEALTHCHECK_RESPONSE_BYTES + 1) as u64);
+    limited
+        .read_to_end(&mut response)
+        .map_err(|_| CliError::ServerFailed)?;
+    if response.len() > MAX_HEALTHCHECK_RESPONSE_BYTES || !healthy_response(&response) {
+        return Err(CliError::ServerFailed);
+    }
+    Ok("health: ok".to_owned())
+}
+
+fn healthy_response(response: &[u8]) -> bool {
+    let Ok(response) = std::str::from_utf8(response) else {
+        return false;
+    };
+    let Some((headers, body)) = response.split_once("\r\n\r\n") else {
+        return false;
+    };
+    headers.lines().next() == Some("HTTP/1.1 200 OK") && body == "{\"status\":\"ok\"}"
+}
+
 fn demo_gateway() -> Result<Gateway, CliError> {
     let client = Destination::Internal(Identity::new("client").map_err(|_| CliError::DemoFailed)?);
     let flow = FlowRule::allow(
@@ -1011,6 +1057,7 @@ mod tests {
         assert!(matches!(parse_args(["init"]), Ok(Command::Init(_))));
         assert!(matches!(parse_args(["check"]), Ok(Command::Check(_))));
         assert!(matches!(parse_args(["doctor"]), Ok(Command::Doctor)));
+        assert!(matches!(parse_args(["health"]), Ok(Command::Health)));
         assert!(matches!(parse_args(["run", "--demo"]), Ok(Command::Demo)));
         assert!(matches!(
             parse_args(["serve", "--demo"]),
@@ -1254,5 +1301,21 @@ mod tests {
         assert!(report.contains("TKACH LOCAL READINESS"));
         assert!(report.contains("provider-independent, deterministic"));
         assert!(!report.contains("local-development-secret"));
+    }
+
+    #[test]
+    fn healthcheck_accepts_only_the_static_health_contract() {
+        assert!(healthy_response(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}"
+        ));
+        assert!(!healthy_response(
+            b"HTTP/1.1 200 OK\r\n\r\n{\"status\":\"degraded\"}"
+        ));
+        assert!(!healthy_response(
+            b"HTTP/1.1 503 Service Unavailable\r\n\r\n{\"status\":\"ok\"}"
+        ));
+        assert!(!healthy_response(
+            b"HTTP/1.1 200 OK\r\n\r\n{\"status\":\"ok\"}\n"
+        ));
     }
 }

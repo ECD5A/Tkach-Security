@@ -1,0 +1,15 @@
+.git
+.github
+target
+fuzz/target
+%TEMP%
+Tkach Security — MASTER_MANDATE.md
+docs/CURRENT_BASELINE.md
+docs/DEVELOPMENT.md
+docs/EVIDENCE.md
+sdk/python/build
+sdk/python/dist
+sdk/python/*.egg-info
+sdk/python/__pycache__
+tools/release/__pycache__
+*.log

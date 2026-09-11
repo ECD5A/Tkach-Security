@@ -51,6 +51,13 @@ archives for identical inputs; this does not claim byte-identical Rust
 binaries across different toolchains or operating systems. The workflow does
 not publish a public release automatically.
 
+The repository also contains a local multi-stage `Dockerfile`. It builds the
+CLI from the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
+loopback-only, and checks `/healthz` through the CLI's bounded `health`
+command. Linux host networking is the only documented host-local container
+profile; wildcard binds, TLS termination, ingress, and OCI publication remain
+separate reviewed boundaries.
+
 ## Artifact and integration boundaries
 
 The first useful binary is `tkach`, which provides bounded onboarding and a
@@ -64,8 +71,8 @@ generic executor.
 `tkach-mcp` is a stdio adapter over an already running loopback Tkach HTTP
 runtime. `tkach-http` remains a library boundary, not a production server
 binary. Consequently this repository does not yet claim a ready-to-run public
-HTTP service, TLS termination, process supervisor, or OCI image. Creating
-those artifacts without those boundaries would overstate the security contract.
+HTTP service, TLS termination, process supervisor, or published OCI image. The
+local image is a private deployment artifact, not a public network gateway.
 
 The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
