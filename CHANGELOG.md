@@ -5,6 +5,10 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Replace the terminal command prompt with arrow-key navigation, explicit path
+  entry, readable results, integration guidance and the ASCII weaver emblem.
+  Support immediate F1/l/L/д/Д language switching, safe terminal restoration,
+  bounded UTF-8 editing, resize handling and non-interactive command compatibility.
 - Prepare reproducible release artifacts, pinned CI release checks, and
   deployment diagnostics around the frozen Strong Core contract.
 - Add the bounded `tkach ui` terminal dashboard with F1/`/l` language

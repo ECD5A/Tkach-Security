@@ -83,10 +83,14 @@ Use `tkach --lang ru --help` for Russian help, or set `TKACH_LANG=ru` as the
 default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
 
-For the terminal dashboard, run `tkach ui`. It uses raw terminal events in a TTY and
-keeps a script-safe line mode in pipes: choose `1`, `2`, or `3`, press `F1`, enter `/l`, or use `/l en`
-and `/l ru` to switch the interface. `en`, `eng`, `english`, `ru`, `rus`,
-`russian`, and their case variants are accepted.
+Run `tkach` without arguments in a terminal, or `tkach ui`, to open the menu.
+Use **Up/Down** (or **1–5**) to select, **Enter** to open an action, and **Esc**
+to go back or exit. **F1**, **l/L**, and **д/Д** switch English/Russian immediately.
+While entering a path, use **F1**; letters remain part of the path.
+The menu guides starter creation, request validation, an offline demo, and integration.
+It does not deploy a security policy, start a server, or connect a model.
+Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
+scripts and CI can use `init`, `check`, and `run --demo` directly.
 
 ## Architecture
 

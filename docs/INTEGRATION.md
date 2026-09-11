@@ -38,10 +38,20 @@ check [REQUEST_JSON]` caps the file read at the Gateway's request bound and
 uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
 existing deterministic Gateway proof with a fake broker and no network or real
 side effect. `tkach --lang ru --help` or `TKACH_LANG=ru` selects the localized
-help and result messages. `tkach ui` uses raw terminal events in a TTY and
-bounded line mode in pipes; `F1` and `/l` toggle the language, while `/l en` and `/l ru` select
-it explicitly. The CLI is not a generic executor and does not create
-authority.
+help and result messages. Bare `tkach` in a terminal or `tkach ui` opens
+an interactive menu: Up/Down or 1–5 selects, Enter confirms, Esc goes back.
+F1 and l/L/д/Д switch languages; in path fields only F1 switches, so filenames
+remain editable. Path input is bounded to 256 UTF-8 bytes and never evaluated
+as a shell command. Results wrap and scroll with Up/Down. The terminal restores
+its screen, cursor and input mode on normal exit and returned errors.
+The menu requires at least 50 columns and 24 rows. `NO_COLOR` disables selection
+color. Validation accepts regular files only and runs on one background reader.
+Esc cancels waiting and discards its eventual result; a stalled OS read can
+remain until process exit, and another reader cannot start while it is pending.
+Pipes retain bounded line commands, including `/l en` and `/l ru`.
+CLI is an optional local onboarding tool, not a server launcher or a protection
+daemon. Creating a starter request does not deploy a policy or grant authority.
+Applications integrate through the Gateway library or a configured HTTP/MCP runtime.
 
 ## HTTP adapter contract — v0.1
 

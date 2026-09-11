@@ -18,8 +18,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::terminal;
+mod ui;
 use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
 use tkach_core::krosna::{Krosna, Policy};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
@@ -145,7 +144,10 @@ struct ParsedArgs {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().skip(1).collect();
+    let mut args: Vec<String> = env::args().skip(1).collect();
+    if args.is_empty() && io::stdin().is_terminal() && io::stdout().is_terminal() {
+        args.push("ui".to_owned());
+    }
     let default_language = if explicit_language_option(&args) {
         // An explicit CLI selection must remain usable even when the environment
         // contains a stale or invalid value.
@@ -276,10 +278,10 @@ fn help(language: Language) -> String {
     };
     let ui_hint = match language {
         Language::English => {
-            "Interactive UI: `tkach ui` | F1 or `/l` toggles language | `/l en|ru` selects one"
+            "Interactive UI: `tkach ui` | Up/Down + Enter | F1 or L/Д switches language"
         }
         Language::Russian => {
-            "Интерактивный UI: `tkach ui` | F1 или `/l` меняет язык | `/l en|ru` выбирает язык"
+            "Интерактивный UI: `tkach ui` | Стрелки + Enter | F1 или L/Д меняет язык"
         }
     };
     format!("Tkach Security {VERSION}\n{intro}\n\n{usage}\n\n{ui_hint}\n")
@@ -308,7 +310,7 @@ fn run_ui(language: Language) -> Result<(), CliError> {
     let terminal_input = stdin.is_terminal() && io::stdout().is_terminal();
     let mut output = io::stdout();
     if terminal_input {
-        return run_terminal_ui(&mut output, language);
+        return ui::run(&mut output, language);
     }
 
     let mut input = stdin.lock();
@@ -381,109 +383,6 @@ fn apply_ui_action(
         UiAction::Demo => {
             write_ui_result(output, run_demo(*language), *language)?;
             Ok(true)
-        }
-    }
-}
-
-struct RawModeGuard;
-
-impl RawModeGuard {
-    fn enable() -> Result<Self, CliError> {
-        terminal::enable_raw_mode().map_err(|_| CliError::Io)?;
-        Ok(Self)
-    }
-}
-
-impl Drop for RawModeGuard {
-    fn drop(&mut self) {
-        let _ = terminal::disable_raw_mode();
-    }
-}
-
-fn run_terminal_ui(output: &mut impl Write, mut language: Language) -> Result<(), CliError> {
-    let _raw_mode = RawModeGuard::enable()?;
-    loop {
-        write_ui_menu(output, language).map_err(|_| CliError::Io)?;
-        output.flush().map_err(|_| CliError::Io)?;
-        match read_terminal_action(output).map_err(|_| CliError::Io)? {
-            Ok(action) => {
-                if !apply_ui_action(action, &mut language, output)? {
-                    break;
-                }
-            }
-            Err(error) => {
-                writeln!(output, "error: {}", error.message(language)).map_err(|_| CliError::Io)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn read_terminal_action(output: &mut impl Write) -> io::Result<Result<UiAction, CliError>> {
-    let mut line = String::new();
-    loop {
-        let event = event::read()?;
-        let Event::Key(key) = event else {
-            continue;
-        };
-        if key.kind != KeyEventKind::Press {
-            continue;
-        }
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char('c' | 'C'))
-        {
-            writeln!(output)?;
-            return Ok(Ok(UiAction::Quit));
-        }
-        match key {
-            KeyEvent {
-                code: KeyCode::F(1),
-                ..
-            } => {
-                writeln!(output)?;
-                return Ok(Ok(UiAction::ToggleLanguage));
-            }
-            KeyEvent {
-                code: KeyCode::Esc, ..
-            } => {
-                writeln!(output)?;
-                return Ok(Ok(UiAction::Quit));
-            }
-            KeyEvent {
-                code: KeyCode::Enter,
-                ..
-            } => {
-                writeln!(output)?;
-                return Ok(parse_ui_action(&line));
-            }
-            KeyEvent {
-                code: KeyCode::Backspace,
-                ..
-            } if line.pop().is_some() => {
-                write!(output, "\u{8} \u{8}")?;
-                output.flush()?;
-            }
-            KeyEvent {
-                code: KeyCode::Char('/'),
-                ..
-            } if line.is_empty() => {
-                line.push('/');
-                write!(output, "/")?;
-                output.flush()?;
-            }
-            KeyEvent {
-                code: KeyCode::Char(ch),
-                ..
-            } => {
-                if line.len() >= MAX_UI_INPUT_BYTES {
-                    writeln!(output)?;
-                    return Ok(Err(CliError::Usage));
-                }
-                line.push(ch);
-                write!(output, "{ch}")?;
-                output.flush()?;
-            }
-            _ => {}
         }
     }
 }
@@ -597,7 +496,7 @@ fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
     let normalized = trimmed.to_lowercase();
     if matches!(
         normalized.as_str(),
-        "f1" | "\u{1b}op" | "\u{1b}[11~" | "\u{1b}[[a"
+        "f1" | "l" | "\u{0434}" | "\u{1b}op" | "\u{1b}[11~" | "\u{1b}[[a"
     ) {
         return Ok(UiAction::ToggleLanguage);
     }
@@ -775,7 +674,13 @@ fn is_directory_link(metadata: &fs::Metadata) -> bool {
 }
 
 fn check_request(path: &Path, language: Language) -> Result<String, CliError> {
+    if !fs::metadata(path).map_err(|_| CliError::Io)?.is_file() {
+        return Err(CliError::InvalidRequest);
+    }
     let file = File::open(path).map_err(|_| CliError::Io)?;
+    if !file.metadata().map_err(|_| CliError::Io)?.is_file() {
+        return Err(CliError::InvalidRequest);
+    }
     let mut bytes = Vec::new();
     file.take((MAX_REQUEST_BODY_BYTES + 1) as u64)
         .read_to_end(&mut bytes)
@@ -900,6 +805,9 @@ mod tests {
 
     #[test]
     fn interactive_shortcuts_accept_case_and_language_aliases() {
+        for shortcut in ["l", "L", "д", "Д"] {
+            assert_eq!(parse_ui_action(shortcut), Ok(UiAction::ToggleLanguage));
+        }
         assert_eq!(parse_ui_action("F1"), Ok(UiAction::ToggleLanguage));
         assert_eq!(
             parse_ui_action("/L РУССКИЙ"),
@@ -972,6 +880,23 @@ mod tests {
             CliError::InvalidRequest
         );
         fs::remove_file(path).expect("test file cleanup succeeds");
+    }
+
+    #[test]
+    fn check_rejects_directories() {
+        assert_eq!(
+            check_request(Path::new("."), Language::English),
+            Err(CliError::InvalidRequest)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn check_rejects_special_devices() {
+        assert_eq!(
+            check_request(Path::new("/dev/null"), Language::English),
+            Err(CliError::InvalidRequest)
+        );
     }
 
     #[cfg(unix)]
