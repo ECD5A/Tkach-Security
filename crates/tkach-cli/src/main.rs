@@ -41,8 +41,8 @@ const STARTER_REQUEST: &str = r#"{
   "tool_declarations": []
 }
 "#;
-const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach run --demo             -> run the local deterministic proof\n  tkach serve --demo           -> serve the local authenticated HTTP demo\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
-const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
+const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach doctor                 -> inspect local readiness without secrets\n  tkach run --demo             -> run the local deterministic proof\n  tkach serve --demo           -> serve the local authenticated HTTP demo\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
+const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach doctor                 -> проверить локальную готовность без секретов\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Language {
@@ -73,6 +73,13 @@ impl Language {
             Self::English => "en",
             Self::Russian => "ru",
         }
+    }
+}
+
+fn localized(language: Language, en: &'static str, ru: &'static str) -> &'static str {
+    match language {
+        Language::English => en,
+        Language::Russian => ru,
     }
 }
 
@@ -148,6 +155,7 @@ enum Command {
     Version,
     Init(PathBuf),
     Check(PathBuf),
+    Doctor,
     Demo,
     ServeDemo,
     Ui,
@@ -261,6 +269,7 @@ where
         [command, root] if command == "init" => Command::Init(PathBuf::from(root)),
         [command] if command == "check" => Command::Check(PathBuf::from(".tkach/request.json")),
         [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
+        [command] if command == "doctor" => Command::Doctor,
         [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
         [command, flag] if command == "serve" && flag == "--demo" => Command::ServeDemo,
         [command] if command == "ui" || command == "menu" => Command::Ui,
@@ -277,6 +286,7 @@ fn execute(command: Command, language: Language) -> Result<String, CliError> {
         Command::Version => Ok(format!("tkach {VERSION}")),
         Command::Init(root) => initialize(&root, language),
         Command::Check(path) => check_request(&path, language),
+        Command::Doctor => Ok(doctor(language)),
         Command::Demo => run_demo(language),
         Command::ServeDemo => {
             run_server()?;
@@ -315,6 +325,8 @@ enum UiAction {
     Help,
     Init(PathBuf),
     Check(PathBuf),
+    Doctor,
+    Integration,
     Demo,
     Quit,
 }
@@ -401,6 +413,14 @@ fn apply_ui_action(
             write_ui_result(output, check_request(&path, *language), *language)?;
             Ok(true)
         }
+        UiAction::Doctor => {
+            writeln!(output, "{}", doctor(*language)).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
+        UiAction::Integration => {
+            writeln!(output, "{}", ui::integration_text(*language)).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
         UiAction::Demo => {
             write_ui_result(output, run_demo(*language), *language)?;
             Ok(true)
@@ -421,6 +441,7 @@ fn write_ui_result(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> {
     match language {
         Language::English => {
@@ -454,11 +475,19 @@ fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> 
             )?;
             writeln!(
                 output,
+                "| [4] doctor     local readiness check                       |"
+            )?;
+            writeln!(
+                output,
+                "| [5] guide      safe integration paths                      |"
+            )?;
+            writeln!(
+                output,
                 "| [F1] or /l     switch language; /l en|ru selects one     |"
             )?;
             writeln!(
                 output,
-                "| [q]            quit                                        |"
+                "| [6/q]          quit                                        |"
             )?;
             writeln!(
                 output,
@@ -497,11 +526,19 @@ fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> 
             )?;
             writeln!(
                 output,
+                "| [4] doctor     локальная готовность                        |"
+            )?;
+            writeln!(
+                output,
+                "| [5] guide      пути интеграции                             |"
+            )?;
+            writeln!(
+                output,
                 "| [F1] или /l    сменить язык; /l en|ru выбрать язык       |"
             )?;
             writeln!(
                 output,
-                "| [q]            выйти                                       |"
+                "| [6/q]          выйти                                       |"
             )?;
             writeln!(
                 output,
@@ -539,9 +576,11 @@ fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
             argument.unwrap_or(".tkach/request.json"),
         ))),
         "3" | "demo" => Ok(UiAction::Demo),
+        "4" | "doctor" => Ok(UiAction::Doctor),
+        "5" | "guide" | "integration" => Ok(UiAction::Integration),
         "run" if argument == Some("--demo") => Ok(UiAction::Demo),
         "h" | "help" | "?" => Ok(UiAction::Help),
-        "q" | "quit" | "exit" => Ok(UiAction::Quit),
+        "6" | "q" | "quit" | "exit" => Ok(UiAction::Quit),
         _ => Err(CliError::UnknownCommand),
     }
 }
@@ -726,6 +765,88 @@ fn check_request(path: &Path, language: Language) -> Result<String, CliError> {
     })
 }
 
+fn doctor(language: Language) -> String {
+    let cwd =
+        env::current_dir().map_or_else(|_| "<unavailable>".to_owned(), |path| safe_path(&path));
+    let request_path = Path::new(".tkach/request.json");
+    let request_status = match fs::metadata(request_path) {
+        Ok(metadata) if metadata.is_file() => match check_request(request_path, language) {
+            Ok(message) => message,
+            Err(_) => match language {
+                Language::English => "present but invalid".to_owned(),
+                Language::Russian => "есть, но недействителен".to_owned(),
+            },
+        },
+        Ok(_) => match language {
+            Language::English => "path exists but is not a file".to_owned(),
+            Language::Russian => "путь существует, но это не файл".to_owned(),
+        },
+        Err(_) => match language {
+            Language::English => "not found; run `tkach init`".to_owned(),
+            Language::Russian => "не найден; запустите `tkach init`".to_owned(),
+        },
+    };
+    let configured_address = match env::var("TKACH_HTTP_ADDR") {
+        Ok(value) => value.parse::<SocketAddr>().ok(),
+        Err(env::VarError::NotPresent) => "127.0.0.1:8080".parse::<SocketAddr>().ok(),
+        Err(env::VarError::NotUnicode(_)) => None,
+    };
+    let address_status = match configured_address {
+        Some(address) if address.ip().is_loopback() => format!("OK: loopback {address}"),
+        Some(_) => match language {
+            Language::English => "FAIL: non-loopback address is rejected".to_owned(),
+            Language::Russian => "ОШИБКА: внешний адрес запрещён".to_owned(),
+        },
+        None => match language {
+            Language::English => "FAIL: TKACH_HTTP_ADDR is invalid".to_owned(),
+            Language::Russian => "ОШИБКА: TKACH_HTTP_ADDR недействителен".to_owned(),
+        },
+    };
+    let token_status = match env::var("TKACH_BEARER_TOKEN") {
+        Ok(value) if !value.is_empty() => localized(
+            language,
+            "configured (value hidden)",
+            "настроен (значение скрыто)",
+        )
+        .to_owned(),
+        Ok(_) | Err(env::VarError::NotPresent) => localized(
+            language,
+            "not set; required only for `serve --demo`",
+            "не задан; нужен только для `serve --demo`",
+        )
+        .to_owned(),
+        Err(env::VarError::NotUnicode(_)) => localized(
+            language,
+            "invalid environment encoding",
+            "недействительная кодировка окружения",
+        )
+        .to_owned(),
+    };
+    let title = match language {
+        Language::English => "TKACH LOCAL READINESS",
+        Language::Russian => "ЛОКАЛЬНАЯ ГОТОВНОСТЬ TKACH",
+    };
+    let next = match language {
+        Language::English => "Next: tkach init <directory> → tkach check → tkach run --demo",
+        Language::Russian => "Дальше: tkach init <каталог> → tkach check → tkach run --demo",
+    };
+    format!(
+        "{title}\n\n{} {VERSION}\n{} {cwd}\n{} {request_status}\n{} {address_status}\n{} {token_status}\n{} {}\n\n{}",
+        localized(language, "Version:", "Версия:"),
+        localized(language, "Directory:", "Каталог:"),
+        localized(language, "Starter request:", "Starter request:"),
+        localized(language, "Demo HTTP:", "Demo HTTP:"),
+        localized(language, "Bearer:", "Bearer:"),
+        localized(language, "Core:", "Core:"),
+        localized(
+            language,
+            "provider-independent, deterministic, no model connection",
+            "независимое от провайдера, детерминированное, без подключения модели",
+        ),
+        next
+    )
+}
+
 fn demo_gateway() -> Result<Gateway, CliError> {
     let client = Destination::Internal(Identity::new("client").map_err(|_| CliError::DemoFailed)?);
     let flow = FlowRule::allow(
@@ -826,6 +947,7 @@ mod tests {
         assert!(matches!(parse_args(["--version"]), Ok(Command::Version)));
         assert!(matches!(parse_args(["init"]), Ok(Command::Init(_))));
         assert!(matches!(parse_args(["check"]), Ok(Command::Check(_))));
+        assert!(matches!(parse_args(["doctor"]), Ok(Command::Doctor)));
         assert!(matches!(parse_args(["run", "--demo"]), Ok(Command::Demo)));
         assert!(matches!(
             parse_args(["serve", "--demo"]),
@@ -880,6 +1002,9 @@ mod tests {
         );
         assert_eq!(parse_ui_action("язык"), Ok(UiAction::ToggleLanguage));
         assert_eq!(parse_ui_action("3"), Ok(UiAction::Demo));
+        assert_eq!(parse_ui_action("4"), Ok(UiAction::Doctor));
+        assert_eq!(parse_ui_action("5"), Ok(UiAction::Integration));
+        assert_eq!(parse_ui_action("6"), Ok(UiAction::Quit));
         assert_eq!(parse_ui_action("q"), Ok(UiAction::Quit));
     }
 
@@ -1017,5 +1142,13 @@ mod tests {
             run_demo(Language::English).unwrap(),
             "demo passed: bounded Gateway response released after final gates"
         );
+    }
+
+    #[test]
+    fn doctor_is_local_and_does_not_claim_model_authority() {
+        let report = doctor(Language::English);
+        assert!(report.contains("TKACH LOCAL READINESS"));
+        assert!(report.contains("provider-independent, deterministic"));
+        assert!(!report.contains("local-development-secret"));
     }
 }

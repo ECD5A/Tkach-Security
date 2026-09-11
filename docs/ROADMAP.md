@@ -30,8 +30,8 @@ adapter. Productization is active by owner direction; the Core remains frozen.
 - v0.1 public Rust boundary contract and consumer-side API smoke test.
 - Minimal `tkach` CLI with bounded `init`, strict `check`, deterministic
   `run --demo`, explicit loopback `serve --demo` reference runtime, localized
-  help, and the bounded `tkach ui` dashboard, including no-overwrite and
-  symlink/reparse boundary tests.
+  help, local `doctor` diagnostics, and the bounded `tkach ui` dashboard,
+  including no-overwrite and symlink/reparse boundary tests.
 - Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
   including zeroizing token/header storage and response-framing regression
   tests.

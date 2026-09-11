@@ -34,13 +34,16 @@ tkach run --demo
 
 `tkach init [DIRECTORY]` creates `.tkach/request.json` with a bounded example;
 it contains no credentials, refuses to overwrite an existing starter, and
-rejects a pre-existing `.tkach` symlink, junction, or non-directory. `tkach
-check [REQUEST_JSON]` caps the file read at the Gateway's request bound and
+rejects a pre-existing `.tkach` symlink, junction, or non-directory.
+`tkach doctor` inspects the local directory, starter request, loopback address,
+and whether a bearer token is configured without printing the token. It does
+not connect a model, authorize an action, or start a server. `tkach check
+[REQUEST_JSON]` caps the file read at the Gateway's request bound and
 uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
 existing deterministic Gateway proof with a fake broker and no network or real
 side effect. `tkach --lang ru --help` or `TKACH_LANG=ru` selects the localized
 help and result messages. Bare `tkach` in a terminal or `tkach ui` opens
-an interactive menu: Up/Down or 1–5 selects, Enter confirms, Esc goes back.
+an interactive menu: Up/Down or 1–6 selects, Enter confirms, Esc goes back.
 F1 and l/L/д/Д switch languages; in path fields only F1 switches, so filenames
 remain editable. Path input is bounded to 256 UTF-8 bytes and never evaluated
 as a shell command. Results wrap and scroll with Up/Down. The terminal restores

@@ -10,7 +10,9 @@
  */
 
 //! Interactive onboarding; all effects use the existing CLI boundary.
-use super::{CliError, Language, MAX_UI_INPUT_BYTES, VERSION, check_request, initialize, run_demo};
+use super::{
+    CliError, Language, MAX_UI_INPUT_BYTES, VERSION, check_request, doctor, initialize, run_demo,
+};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
@@ -100,9 +102,9 @@ impl App {
         }
         match &mut self.screen {
             Screen::Menu => match k.code {
-                KeyCode::Up => self.selected = (self.selected + 4) % 5,
-                KeyCode::Down | KeyCode::Tab => self.selected = (self.selected + 1) % 5,
-                KeyCode::Char(c @ '1'..='5') => self.selected = c as usize - '1' as usize,
+                KeyCode::Up => self.selected = (self.selected + 5) % 6,
+                KeyCode::Down | KeyCode::Tab => self.selected = (self.selected + 1) % 6,
+                KeyCode::Char(c @ '1'..='6') => self.selected = c as usize - '1' as usize,
                 KeyCode::Enter => match self.selected {
                     0 => self.screen = Screen::Path(true, String::new()),
                     1 => self.screen = Screen::Path(false, String::new()),
@@ -110,7 +112,8 @@ impl App {
                         self.screen =
                             Screen::Result(outcome(run_demo(self.language), self.language));
                     }
-                    3 => self.screen = Screen::Integration,
+                    3 => self.screen = Screen::Result(doctor(self.language)),
+                    4 => self.screen = Screen::Integration,
                     _ => return false,
                 },
                 KeyCode::Esc | KeyCode::Char('q' | 'Q' | 'й' | 'Й') => return false,
@@ -192,6 +195,7 @@ impl App {
                     tr(l, "Initialize project", "Инициализировать проект"),
                     tr(l, "Validate request", "Проверить запрос"),
                     tr(l, "Run protected demo", "Запустить защищённое демо"),
+                    tr(l, "Local diagnostics", "Локальная диагностика"),
                     tr(l, "Integration guide", "Руководство по интеграции"),
                     tr(l, "Exit", "Выход"),
                 ]
@@ -208,52 +212,7 @@ impl App {
             }
             Screen::Path(create, value) => path_lines(l, *create, value),
             Screen::Result(value) => value.lines().map(str::to_owned).collect(),
-            Screen::Integration => [
-                tr(l, "HOW TO INTEGRATE", "КАК ПОДКЛЮЧИТЬ"),
-                "",
-                tr(
-                    l,
-                    "CLI: local setup, request validation and offline demo.",
-                    "CLI: настройка, проверка запросов и офлайн-демо.",
-                ),
-                tr(
-                    l,
-                    "Rust: embed tkach-gateway with trusted policy and brokers.",
-                    "Rust: встройте tkach-gateway с политикой и брокерами.",
-                ),
-                tr(
-                    l,
-                    "Other languages: HTTP JSON through a trusted runtime.",
-                    "Другие языки: HTTP JSON через доверенный runtime.",
-                ),
-                tr(
-                    l,
-                    "MCP: tkach-mcp is a stdio adapter to that HTTP runtime.",
-                    "MCP: tkach-mcp — stdio-адаптер к HTTP runtime.",
-                ),
-                "",
-                tr(
-                    l,
-                    "The menu does not launch a server or connect a model.",
-                    "Меню не запускает сервер и не подключает модель.",
-                ),
-                tr(
-                    l,
-                    "init creates an example request, not a deployed policy.",
-                    "init создаёт пример запроса, а не политику защиты.",
-                ),
-                tr(
-                    l,
-                    "Route every protected effect through the Gateway.",
-                    "Проводите каждое защищённое действие через Gateway.",
-                ),
-                "",
-                "docs/INTEGRATION.md",
-                "docs/PRODUCT_CONTRACT.md",
-            ]
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect(),
+            Screen::Integration => integration_lines(l),
         }
     }
 }
@@ -377,6 +336,59 @@ fn path_lines(l: Language, create: bool, value: &str) -> Vec<String> {
         )
         .into(),
     ]
+}
+
+fn integration_lines(l: Language) -> Vec<String> {
+    [
+        tr(l, "HOW TO INTEGRATE", "КАК ПОДКЛЮЧИТЬ"),
+        "",
+        tr(
+            l,
+            "CLI: local setup, request validation and offline demo.",
+            "CLI: настройка, проверка запросов и офлайн-демо.",
+        ),
+        tr(
+            l,
+            "Rust: embed tkach-gateway with trusted policy and brokers.",
+            "Rust: встройте tkach-gateway с политикой и брокерами.",
+        ),
+        tr(
+            l,
+            "Other languages: HTTP JSON through a trusted runtime.",
+            "Другие языки: HTTP JSON через доверенный runtime.",
+        ),
+        tr(
+            l,
+            "MCP: tkach-mcp is a stdio adapter to that HTTP runtime.",
+            "MCP: tkach-mcp — stdio-адаптер к HTTP runtime.",
+        ),
+        "",
+        tr(
+            l,
+            "The menu does not launch a server or connect a model.",
+            "Меню не запускает сервер и не подключает модель.",
+        ),
+        tr(
+            l,
+            "init creates an example request, not a deployed policy.",
+            "init создаёт пример запроса, а не политику защиты.",
+        ),
+        tr(
+            l,
+            "Route every protected effect through the Gateway.",
+            "Проводите каждое защищённое действие через Gateway.",
+        ),
+        "",
+        "docs/INTEGRATION.md",
+        "docs/PRODUCT_CONTRACT.md",
+    ]
+    .iter()
+    .map(|s| (*s).to_owned())
+    .collect()
+}
+
+pub(super) fn integration_text(l: Language) -> String {
+    integration_lines(l).join("\n")
 }
 
 fn outcome(result: Result<String, CliError>, l: Language) -> String {
@@ -673,7 +685,7 @@ mod tests {
         app.key(key(KeyCode::Esc));
         assert_eq!(app.screen, Screen::Menu);
         app.key(key(KeyCode::Up));
-        assert_eq!(app.selected, 4);
+        assert_eq!(app.selected, 5);
         assert!(!app.key(key(KeyCode::Enter)));
     }
     #[test]

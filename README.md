@@ -94,10 +94,11 @@ default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
 
 Run `tkach` without arguments in a terminal, or `tkach ui`, to open the menu.
-Use **Up/Down** (or **1–5**) to select, **Enter** to open an action, and **Esc**
+Use **Up/Down** (or **1–6**) to select, **Enter** to open an action, and **Esc**
 to go back or exit. **F1**, **l/L**, and **д/Д** switch English/Russian immediately.
 While entering a path, use **F1**; letters remain part of the path.
-The menu guides starter creation, request validation, an offline demo, and integration.
+The menu guides starter creation, request validation, local diagnostics, an
+offline demo, and integration.
 It does not deploy a security policy or connect a model. `serve --demo` is a
 separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);

@@ -5,6 +5,8 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add local `tkach doctor` diagnostics and a matching console menu entry for
+  bounded readiness checks without exposing credentials or connecting a model.
 - Consolidate the glossary into Architecture, remove an unused provider fixture,
   and complete source attribution for SDKs, the CLI UI module, and release tooling.
 - Centralize SDK examples, validation commands, and version policy; correct
