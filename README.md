@@ -105,14 +105,13 @@ Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
 The interactive menu is a responsive cross-platform Ratatui panel with a
-selected action, local status panel, keyboard footer, and full Tkach banner in
-roomy terminals (the 132 x 40 preset shows it without cropping). Auto mode uses
-the embedded ASCII rendering in legacy consoles and the supplied Unicode art in
-compatible terminals, so no font is downloaded at runtime. Override detection
-with `TKACH_BANNER=unicode|ascii|compact`; smaller terminals keep a compact
-header and the minimum remains 44 x 18. `NO_COLOR=1` disables selection color.
-The CLI controls layout and colors, while the terminal emulator controls the
-actual font and font size.
+selected action, local status panel, keyboard footer, and the supplied full Tkach
+Unicode banner in Linux/WSL terminals (the 132 x 40 preset shows it without
+cropping). Native Windows intentionally keeps the stable compact header because
+console font support is host-dependent. On Linux/WSL, `TKACH_BANNER=compact`
+can hide the banner; smaller terminals also use the compact header. `NO_COLOR=1`
+disables selection color. The CLI controls layout and colors, while the terminal
+emulator controls the actual font and font size.
 
 ## Architecture
 
