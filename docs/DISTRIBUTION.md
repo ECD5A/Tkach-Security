@@ -38,7 +38,7 @@ cargo doc --workspace --all-features --no-deps --locked
 cargo audit
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked
-cargo package --workspace --locked --no-verify
+cargo package --workspace --locked
 cargo run -p tkach-gateway --example quickstart --locked
 ```
 

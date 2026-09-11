@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Make CI and release preflight compile every packaged crate with strict
+  `cargo package --workspace --locked` verification instead of skipping the
+  package build step.
 - Correct the public README onboarding heading and source sentence, and record
   the evidence gate that remains before MCP Registry publication.
 - Add the explicit loopback-only `tkach serve --demo` reference runtime for

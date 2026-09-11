@@ -50,7 +50,7 @@ jobs:
       - run: cargo audit
       - run: cargo deny check
       - run: cargo +${RUST_TOOLCHAIN} check --manifest-path fuzz/Cargo.toml --bins --locked
-      - run: cargo +${RUST_TOOLCHAIN} package --workspace --no-verify --locked
+      - run: cargo +${RUST_TOOLCHAIN} package --workspace --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
       - name: Test the Python adapter
         run: python -m unittest discover -s sdk/python -p "test_*.py" -v
