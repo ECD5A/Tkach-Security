@@ -226,6 +226,29 @@ jobs:
           set -euo pipefail
           test -n "$(find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print -quit)"
           (cd release-assets && sha256sum -c ./*.sha256)
+      - name: Install pinned Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad8 # v4.0.0
+      - name: Sign release assets with GitHub OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          for artifact in release-assets/*.tar.gz release-assets/*.zip release-assets/*.sha256; do
+            cosign sign-blob --yes "${artifact}" \
+              --bundle "${artifact}.sigstore.json"
+          done
+      - name: Verify release asset signatures
+        shell: bash
+        env:
+          WORKFLOW_IDENTITY: https://github.com/ECD5A/Tkach-Security/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          set -euo pipefail
+          for artifact in release-assets/*.tar.gz release-assets/*.zip release-assets/*.sha256; do
+            cosign verify-blob "${artifact}" \
+              --bundle "${artifact}.sigstore.json" \
+              --certificate-identity "${WORKFLOW_IDENTITY}" \
+              --certificate-oidc-issuer "${OIDC_ISSUER}"
+          done
       - name: Attest release assets
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

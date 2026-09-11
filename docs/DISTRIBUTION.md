@@ -49,8 +49,10 @@ compilation.
 for a strict `vX.Y.Z` tag. It builds Linux x86_64, macOS x86_64/ARM64, and
 Windows x86_64 archives for `tkach` and `tkach-mcp`, emits SHA-256 files,
 uses `tools/release/package_release.py` to fix archive metadata to the source
-commit epoch, requests GitHub build provenance, and creates a draft GitHub
-Release after checksum verification. The helper's tests prove byte-stable
+commit epoch, signs archives and checksum manifests with keyless Sigstore via
+the exact release workflow identity, verifies those bundles, requests GitHub
+build provenance, and creates a draft GitHub Release after checksum
+verification. The helper's tests prove byte-stable
 archives for identical inputs; this does not claim byte-identical Rust
 binaries across different toolchains or operating systems. The workflow does
 not publish a public release automatically.

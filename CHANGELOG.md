@@ -46,6 +46,8 @@ release candidate description, not a claim that a public release exists.
   login or publication is performed locally.
 - Add a release version-contract gate covering all Rust crates, Python/Node
   adapters, and MCP metadata so SDK drift cannot create a mixed-version release.
+- Add keyless Sigstore blob signing and exact-identity verification for release
+  archives and checksum manifests before the draft GitHub Release is created.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict
