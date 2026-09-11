@@ -49,8 +49,8 @@ color. Validation accepts regular files only and runs on one background reader.
 Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
-For the exact tracked PNG banner, set `TKACH_LOGO_MODE=sixel` in a
-Sixel-capable terminal; ordinary terminals use the compact ASCII fallback.
+The tracked banner is rendered as a bounded RGB pixel header in ordinary color
+terminals. `TKACH_LOGO_MODE=ascii` or `NO_COLOR=1` selects the text fallback.
 CLI is an optional local onboarding tool, not a server launcher or a protection
 daemon. Creating a starter request does not deploy a policy or grant authority.
 Applications integrate through the Gateway library or a configured HTTP/MCP runtime.

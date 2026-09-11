@@ -92,10 +92,9 @@ It does not deploy a security policy, start a server, or connect a model.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
-For an exact pixel-rendered banner, run `TKACH_LOGO_MODE=sixel tkach ui` in a
-Sixel-capable terminal. Windows `cmd.exe` can use
-`set TKACH_LOGO_MODE=sixel && tkach ui`; unsupported terminals keep the compact
-ASCII fallback.
+The interactive menu renders the tracked banner as a compact RGB pixel header
+in ordinary color terminals. Set `TKACH_LOGO_MODE=ascii` or `NO_COLOR=1` for
+the text-only fallback.
 
 ## Architecture
 

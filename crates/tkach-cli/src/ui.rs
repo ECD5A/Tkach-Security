@@ -4,7 +4,9 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute, queue,
-    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
+    style::{
+        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
+    },
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
@@ -15,16 +17,23 @@ use std::{
 };
 
 const BRAND: &str = include_str!("brand.txt");
-const SIXEL_LOGO: &[u8] = include_bytes!("../assets/tkach-banner.sixel");
-const SIXEL_LOGO_ROWS: usize = 12;
+const PIXEL_LOGO: &[u8] = include_bytes!("../assets/tkach-banner.rgb");
+const PIXEL_LOGO_WIDTH: usize = 100;
+const PIXEL_LOGO_HEIGHT: usize = 20;
+const PIXEL_RENDER_MAX_WIDTH: usize = 80;
 const MIN_UI_WIDTH: u16 = 50;
 const MIN_UI_HEIGHT: u16 = 24;
 
-fn sixel_mode() -> bool {
-    matches!(
-        std::env::var("TKACH_LOGO_MODE").ok().as_deref(),
-        Some("sixel" | "SIXEL" | "1")
-    )
+fn pixel_mode() -> bool {
+    std::env::var_os("NO_COLOR").is_none()
+        && !matches!(
+            std::env::var("TKACH_LOGO_MODE")
+                .ok()
+                .as_deref()
+                .map(str::to_ascii_lowercase)
+                .as_deref(),
+            Some("ascii" | "text" | "0")
+        )
 }
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
@@ -172,34 +181,21 @@ impl App {
                 );
                 lines.push(String::new());
                 for (i, label) in [
-                    tr(l, "Create a starter request", "Создать стартовый запрос"),
-                    tr(l, "Validate a request file", "Проверить файл запроса"),
-                    tr(
-                        l,
-                        "Run the offline Gateway demo",
-                        "Запустить локальное демо Gateway",
-                    ),
-                    tr(l, "How to integrate Tkach", "Как подключить Ткач"),
+                    tr(l, "Initialize project", "Инициализировать проект"),
+                    tr(l, "Validate request", "Проверить запрос"),
+                    tr(l, "Run protected demo", "Запустить защищённое демо"),
+                    tr(l, "Integration guide", "Руководство по интеграции"),
                     tr(l, "Exit", "Выход"),
                 ]
                 .iter()
                 .enumerate()
                 {
                     lines.push(format!(
-                        "{} [{}]  {label}",
+                        "{} {:02}  {label}",
                         if i == self.selected { ">" } else { " " },
                         i + 1
                     ));
                 }
-                lines.push(String::new());
-                lines.push(
-                    tr(
-                        l,
-                        "Local tools. Background protection is not enabled.",
-                        "Локальные инструменты. Фоновая защита не включена.",
-                    )
-                    .into(),
-                );
                 lines
             }
             Screen::Path(create, value) => path_lines(l, *create, value),
@@ -443,11 +439,47 @@ fn fit_lines(lines: Vec<String>, width: usize, editing: bool) -> Vec<String> {
         .collect()
 }
 
+fn pixel_logo_size(columns: u16) -> (usize, usize) {
+    let width = PIXEL_RENDER_MAX_WIDTH.min(usize::from(columns.saturating_sub(1)));
+    let mut height = (width * PIXEL_LOGO_HEIGHT / PIXEL_LOGO_WIDTH).max(2);
+    height -= height % 2;
+    (width, height)
+}
+
+fn pixel_color(x: usize, y: usize) -> Color {
+    let offset = (y * PIXEL_LOGO_WIDTH + x) * 3;
+    Color::Rgb {
+        r: PIXEL_LOGO[offset],
+        g: PIXEL_LOGO[offset + 1],
+        b: PIXEL_LOGO[offset + 2],
+    }
+}
+
+fn render_pixel_logo(out: &mut impl Write, columns: u16) -> io::Result<usize> {
+    let (width, height) = pixel_logo_size(columns);
+    for row in 0..height / 2 {
+        queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
+        for x in 0..width {
+            let source_x = x * PIXEL_LOGO_WIDTH / width;
+            let top_y = row * 2 * PIXEL_LOGO_HEIGHT / height;
+            let bottom_y = (row * 2 + 1) * PIXEL_LOGO_HEIGHT / height;
+            queue!(
+                out,
+                SetForegroundColor(pixel_color(source_x, top_y)),
+                SetBackgroundColor(pixel_color(source_x, bottom_y)),
+                Print('\u{2580}')
+            )?;
+        }
+        queue!(out, ResetColor)?;
+    }
+    Ok(height / 2)
+}
+
 fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
     let (w, h) = terminal::size()?;
     queue!(out, ResetColor, Clear(ClearType::All))?;
-    let use_sixel = matches!(app.screen, Screen::Menu)
-        && sixel_mode()
+    let use_pixels = matches!(app.screen, Screen::Menu)
+        && pixel_mode()
         && w >= MIN_UI_WIDTH
         && h >= MIN_UI_HEIGHT;
     let mut lines = app.lines();
@@ -460,7 +492,7 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
             )
             .into(),
         ];
-    } else if use_sixel {
+    } else if use_pixels {
         lines.drain(..BRAND.lines().count());
     }
     let lines = fit_lines(
@@ -468,18 +500,25 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
         usize::from(w.saturating_sub(1)),
         matches!(app.screen, Screen::Path(..)),
     );
-    let logo_rows = if use_sixel { SIXEL_LOGO_ROWS } else { 0 };
+    let logo_rows = if use_pixels {
+        pixel_logo_size(w).1 / 2 + 1
+    } else {
+        0
+    };
     let available = usize::from(h.saturating_sub(2)).saturating_sub(logo_rows);
     app.scroll = app.scroll.min(lines.len().saturating_sub(available));
-    if use_sixel {
-        out.write_all(SIXEL_LOGO)?;
+    if use_pixels {
+        render_pixel_logo(out, w)?;
         queue!(out, MoveTo(0, u16::try_from(logo_rows).unwrap_or(0)))?;
     }
     for (row, line) in lines.iter().skip(app.scroll).take(available).enumerate() {
         queue!(out, MoveTo(0, u16::try_from(row + logo_rows).unwrap_or(0)))?;
         if std::env::var_os("NO_COLOR").is_none() {
             let absolute_row = app.scroll + row;
-            if matches!(app.screen, Screen::Menu) && absolute_row < BRAND.lines().count() {
+            if matches!(app.screen, Screen::Menu)
+                && !use_pixels
+                && absolute_row < BRAND.lines().count()
+            {
                 queue!(
                     out,
                     SetForegroundColor(Color::Cyan),
@@ -587,9 +626,10 @@ mod tests {
     }
 
     #[test]
-    fn exact_logo_asset_is_a_complete_sixel_document() {
-        assert!(SIXEL_LOGO.starts_with(b"\x1bPq"));
-        assert!(SIXEL_LOGO.ends_with(b"\x1b\\"));
+    fn pixel_logo_asset_and_scaling_are_bounded() {
+        assert_eq!(PIXEL_LOGO.len(), PIXEL_LOGO_WIDTH * PIXEL_LOGO_HEIGHT * 3);
+        assert_eq!(pixel_logo_size(101), (80, 16));
+        assert_eq!(pixel_logo_size(81), (80, 16));
     }
     #[test]
     fn selection_does_not_execute_and_escape_cancels() {

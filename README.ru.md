@@ -99,10 +99,9 @@ demo passed: bounded Gateway response released after final gates
 `TKACH_LANG=ru` как язык интерфейса по умолчанию. `--lang en|ru` меняет только
 язык интерфейса, но не policy, полномочия, лимиты или поведение выполнения.
 
-Для точного пиксельного баннера запустите `TKACH_LOGO_MODE=sixel tkach ui` в
-терминале с поддержкой Sixel. В Windows `cmd.exe` используйте
-`set TKACH_LOGO_MODE=sixel && tkach ui`; в неподдерживаемом терминале останется
-компактный ASCII-fallback.
+Интерактивное меню рисует tracked-баннер компактными RGB-пикселями прямо в
+обычном цветном терминале. Для текстового fallback задайте
+`TKACH_LOGO_MODE=ascii` или `NO_COLOR=1`.
 
 ## Архитектура
 
