@@ -50,6 +50,9 @@ release candidate description, not a claim that a public release exists.
   archives and checksum manifests before the draft GitHub Release is created.
 - Add a copyable generic HTTP smoke path for `/healthz` and authenticated
   `/v1/run`, keeping the language adapters as thin carriers over that contract.
+- Align the dependency license allowlist with the audited transitive `Zlib`
+  license used by the terminal UI stack; advisory, source, and ban gates stay
+  unchanged.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict
