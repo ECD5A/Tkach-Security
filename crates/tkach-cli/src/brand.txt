@@ -1,10 +1,4 @@
-\                  /\
- \                /_ >
-  \           ___/ /
-   \     ____/    /
-    \___/___    /
-        \  /\  /
-         \/ / /
-           / /
-          / /
-         /_/
+ .--\ /--.    T K A C H   S E C U R I T Y
+/    V    \   A R C H I T E C T E D  D E F E N S E
+\   / \   /   F R O M  F I R S T  P R I N C I P L E S
+ '--.__.--'

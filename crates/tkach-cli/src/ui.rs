@@ -4,7 +4,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute, queue,
-    style::{Color, Print, ResetColor, SetForegroundColor},
+    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
@@ -15,6 +15,17 @@ use std::{
 };
 
 const BRAND: &str = include_str!("brand.txt");
+const SIXEL_LOGO: &[u8] = include_bytes!("../assets/tkach-banner.sixel");
+const SIXEL_LOGO_ROWS: usize = 12;
+const MIN_UI_WIDTH: u16 = 50;
+const MIN_UI_HEIGHT: u16 = 24;
+
+fn sixel_mode() -> bool {
+    matches!(
+        std::env::var("TKACH_LOGO_MODE").ok().as_deref(),
+        Some("sixel" | "SIXEL" | "1")
+    )
+}
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
         Language::English => en,
@@ -140,6 +151,8 @@ impl App {
         }
         true
     }
+    // Keep the localized screen copy together so the terminal contract is easy to audit.
+    #[allow(clippy::too_many_lines)]
     fn lines(&self) -> Vec<String> {
         let l = self.language;
         match &self.screen {
@@ -148,7 +161,7 @@ impl App {
             }
             Screen::Menu => {
                 let mut lines = BRAND.lines().map(str::to_owned).collect::<Vec<_>>();
-                lines.push(format!("TKACH SECURITY  v{VERSION}  [{}]", l.label()));
+                lines.push(format!("v{VERSION}  |  {}  |  LOCAL", l.label()));
                 lines.push(
                     tr(
                         l,
@@ -173,7 +186,7 @@ impl App {
                 .enumerate()
                 {
                     lines.push(format!(
-                        "{} {}  {label}",
+                        "{} [{}]  {label}",
                         if i == self.selected { ">" } else { " " },
                         i + 1
                     ));
@@ -433,8 +446,12 @@ fn fit_lines(lines: Vec<String>, width: usize, editing: bool) -> Vec<String> {
 fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
     let (w, h) = terminal::size()?;
     queue!(out, ResetColor, Clear(ClearType::All))?;
+    let use_sixel = matches!(app.screen, Screen::Menu)
+        && sixel_mode()
+        && w >= MIN_UI_WIDTH
+        && h >= MIN_UI_HEIGHT;
     let mut lines = app.lines();
-    if w < 50 || h < 24 {
+    if w < MIN_UI_WIDTH || h < MIN_UI_HEIGHT {
         lines = vec![
             tr(
                 app.language,
@@ -443,18 +460,38 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
             )
             .into(),
         ];
+    } else if use_sixel {
+        lines.drain(..BRAND.lines().count());
     }
     let lines = fit_lines(
         lines,
         usize::from(w.saturating_sub(1)),
         matches!(app.screen, Screen::Path(..)),
     );
-    let available = usize::from(h.saturating_sub(2));
+    let logo_rows = if use_sixel { SIXEL_LOGO_ROWS } else { 0 };
+    let available = usize::from(h.saturating_sub(2)).saturating_sub(logo_rows);
     app.scroll = app.scroll.min(lines.len().saturating_sub(available));
+    if use_sixel {
+        out.write_all(SIXEL_LOGO)?;
+        queue!(out, MoveTo(0, u16::try_from(logo_rows).unwrap_or(0)))?;
+    }
     for (row, line) in lines.iter().skip(app.scroll).take(available).enumerate() {
-        queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
-        if std::env::var_os("NO_COLOR").is_none() && line.starts_with('>') {
-            queue!(out, SetForegroundColor(Color::Cyan))?;
+        queue!(out, MoveTo(0, u16::try_from(row + logo_rows).unwrap_or(0)))?;
+        if std::env::var_os("NO_COLOR").is_none() {
+            let absolute_row = app.scroll + row;
+            if matches!(app.screen, Screen::Menu) && absolute_row < BRAND.lines().count() {
+                queue!(
+                    out,
+                    SetForegroundColor(Color::Cyan),
+                    SetAttribute(Attribute::Bold)
+                )?;
+            } else if line.starts_with('>') {
+                queue!(
+                    out,
+                    SetForegroundColor(Color::Cyan),
+                    SetAttribute(Attribute::Bold)
+                )?;
+            }
         }
         queue!(
             out,
@@ -463,7 +500,8 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
                     .take(usize::from(w.saturating_sub(1)))
                     .collect::<String>()
             ),
-            ResetColor
+            ResetColor,
+            SetAttribute(Attribute::Reset)
         )?;
     }
     if h > 0 {
@@ -512,7 +550,7 @@ pub(super) fn run(out: &mut impl Write, language: Language) -> Result<(), CliErr
             Event::Key(key) if key.kind == KeyEventKind::Press => {
                 let (width, height) = terminal::size().map_err(|_| CliError::Io)?;
                 // Do not execute an invisible selection while the window is too small.
-                if (width < 50 || height < 24) && !resize_key(key) {
+                if (width < MIN_UI_WIDTH || height < MIN_UI_HEIGHT) && !resize_key(key) {
                     continue;
                 }
                 if !app.key(key) {
@@ -546,6 +584,12 @@ mod tests {
             app.key(key(code));
             assert_eq!(app.language, Language::English);
         }
+    }
+
+    #[test]
+    fn exact_logo_asset_is_a_complete_sixel_document() {
+        assert!(SIXEL_LOGO.starts_with(b"\x1bPq"));
+        assert!(SIXEL_LOGO.ends_with(b"\x1b\\"));
     }
     #[test]
     fn selection_does_not_execute_and_escape_cancels() {
