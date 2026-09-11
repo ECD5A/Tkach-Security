@@ -27,6 +27,10 @@ Every breaking change requires release notes, updated examples, and a fresh
 security/regression review. Version changes do not authorize weakening the
 security contract.
 
+CI and the tag preflight run `tools/release/check_versions.py` so every Rust
+crate, the Python and Node adapters, and the MCP manifest share one exact
+version. Go remains module-versioned by its repository release tag.
+
 ## Local release preflight
 
 Run the complete [contributor checks](../CONTRIBUTING.md#required-checks)

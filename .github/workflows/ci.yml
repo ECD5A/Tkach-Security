@@ -46,6 +46,8 @@ jobs:
           cargo install cargo-deny --version 0.20.2 --locked
       - run: cargo audit
       - run: cargo deny check
+      - name: Verify shared package version contract
+        run: python tools/release/check_versions.py
       - run: cargo +1.85.1 package --workspace --locked
       - run: cargo +1.85.1 run -p tkach-gateway --example quickstart --locked
       - name: Test deterministic release packaging
