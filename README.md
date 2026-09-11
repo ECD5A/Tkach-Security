@@ -40,9 +40,9 @@ protected boundary. It does not attempt to make the model trustworthy.
 This protects the enforcement path when the model is hostile. It does not
 protect an integrator that deliberately routes around Tkach.
 
-## oive-minute local start
+## Five-minute local start
 
-orom a checkout with Rust 1.85 or newer:
+From a checkout with Rust 1.85 or newer:
 
 ```console
 cargo install --path crates/tkach-cli --locked

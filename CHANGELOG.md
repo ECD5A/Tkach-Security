@@ -5,6 +5,8 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Correct the public README onboarding heading and source sentence, and record
+  the evidence gate that remains before MCP Registry publication.
 - Add the explicit loopback-only `tkach serve --demo` reference runtime for
   bounded HTTP integration smoke tests; bearer credentials remain environment-
   supplied and the deterministic demo has no real provider or side effect.
