@@ -1,4 +1,10 @@
-# Tkach Security
+<p align="right">
+  <a href="README.ru.md">Русская версия</a>
+</p>
+
+<p align="center">
+  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
+</p>
 
 <div align="center">
 
@@ -9,14 +15,7 @@
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache 2.0 license">
 <img src="https://img.shields.io/badge/status-Strong%20Core%20release%20candidate-5b6ee1" alt="Strong Core release candidate">
 
-<br>
-<a href="README.ru.md">Русский</a>
-
 </div>
-
-<p align="center">
-  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
-</p>
 
 Tkach Security is a deterministic typed boundary around systems that use
 probabilistic or compromised models.

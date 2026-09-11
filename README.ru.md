@@ -1,4 +1,10 @@
-# Tkach Security
+<p align="right">
+  <a href="README.md">English version</a>
+</p>
+
+<p align="center">
+  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
+</p>
 
 <div align="center">
 
@@ -9,14 +15,7 @@
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Лицензия Apache 2.0">
 <img src="https://img.shields.io/badge/status-Strong%20Core%20release%20candidate-5b6ee1" alt="Кандидат Strong Core release">
 
-<br>
-<a href="README.md">English</a>
-
 </div>
-
-<p align="center">
-  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
-</p>
 
 Tkach Security — детерминированная типизированная граница безопасности для
 систем, использующих вероятностные или скомпрометированные модели.
