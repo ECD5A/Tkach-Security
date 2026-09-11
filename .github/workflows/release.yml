@@ -62,6 +62,7 @@ jobs:
           cargo +${RUST_TOOLCHAIN} install --path crates/tkach-cli --locked --root "${install_root}/cli"
           cargo +${RUST_TOOLCHAIN} install --path crates/tkach-mcp --locked --root "${install_root}/mcp"
           "${install_root}/cli/bin/tkach" --version
+          "${install_root}/mcp/bin/tkach-mcp" --version
           printf '' | TKACH_HTTP_ADDR=127.0.0.1:8080 TKACH_BEARER_TOKEN=release-smoke-token \
             "${install_root}/mcp/bin/tkach-mcp"
       - name: Test the Python adapter

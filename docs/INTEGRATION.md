@@ -285,6 +285,10 @@ TKACH_BEARER_TOKEN=trusted-runtime-token
 tkach-mcp
 ~~~
 
+For diagnostics, `tkach-mcp --version` and `tkach-mcp --help` do not read
+credentials or connect to the runtime. Any other argument is rejected before
+environment configuration; normal operation uses no arguments and stdio.
+
 This is stdio only. It is not Streamable HTTP, TLS, process isolation, a
 public service, a replacement for human consent in the MCP host, or an Official
 MCP Registry publication. The host remains responsible for consent and for
