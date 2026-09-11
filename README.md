@@ -104,9 +104,8 @@ separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
-The interactive menu renders the tracked banner as a compact RGB pixel header
-in ordinary color terminals. Set `TKACH_LOGO_MODE=ascii` or `NO_COLOR=1` for
-the text-only fallback.
+The interactive menu is intentionally compact and text-first. Set `NO_COLOR=1`
+to disable selection color; the CLI remains usable in terminals without color.
 
 ## Architecture
 

@@ -53,8 +53,8 @@ color. Validation accepts regular files only and runs on one background reader.
 Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
-The tracked banner is rendered as a bounded RGB pixel header in ordinary color
-terminals. `TKACH_LOGO_MODE=ascii` or `NO_COLOR=1` selects the text fallback.
+The interactive menu is intentionally compact and text-first. `NO_COLOR=1`
+disables selection color for terminals where color is unavailable or unwanted.
 CLI is an optional local onboarding tool. Creating a starter request does not
 deploy a policy or grant authority. `tkach serve --demo` is a separate,
 deterministic reference runtime for local HTTP smoke tests; it is not a

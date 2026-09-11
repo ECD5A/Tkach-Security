@@ -447,18 +447,6 @@ fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> 
         Language::English => {
             writeln!(
                 output,
-                "\n+------------------------------------------------------------+"
-            )?;
-            writeln!(
-                output,
-                "| TKACH SECURITY                                             |"
-            )?;
-            writeln!(
-                output,
-                "| Architected defense from first principles                  |"
-            )?;
-            writeln!(
-                output,
                 "+------------------------------------------------------------+"
             )?;
             writeln!(
@@ -496,18 +484,6 @@ fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> 
             write!(output, "tkach[en]> ")
         }
         Language::Russian => {
-            writeln!(
-                output,
-                "\n+------------------------------------------------------------+"
-            )?;
-            writeln!(
-                output,
-                "| TKACH SECURITY                                             |"
-            )?;
-            writeln!(
-                output,
-                "| Architected defense from first principles                  |"
-            )?;
             writeln!(
                 output,
                 "+------------------------------------------------------------+"
@@ -1006,6 +982,19 @@ mod tests {
         assert_eq!(parse_ui_action("5"), Ok(UiAction::Integration));
         assert_eq!(parse_ui_action("6"), Ok(UiAction::Quit));
         assert_eq!(parse_ui_action("q"), Ok(UiAction::Quit));
+    }
+
+    #[test]
+    fn line_menu_stays_logo_free_and_functional() {
+        for language in [Language::English, Language::Russian] {
+            let mut output = Vec::new();
+            write_ui_menu(&mut output, language).expect("line menu renders");
+            let output = String::from_utf8(output).expect("menu output is UTF-8");
+            assert!(!output.contains("TKACH SECURITY"));
+            assert!(!output.contains("Architected defense"));
+            assert!(output.contains("[1]"));
+            assert!(output.contains("[6/q]"));
+        }
     }
 
     #[test]

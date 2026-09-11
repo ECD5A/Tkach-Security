@@ -17,9 +17,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute, queue,
-    style::{
-        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
-    },
+    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{
@@ -29,22 +27,9 @@ use std::{
     time::Duration,
 };
 
-const BRAND: &str = include_str!("brand.txt");
-const PIXEL_RENDER_MAX_WIDTH: usize = 96;
 const MIN_UI_WIDTH: u16 = 50;
 const MIN_UI_HEIGHT: u16 = 24;
 
-fn pixel_mode() -> bool {
-    std::env::var_os("NO_COLOR").is_none()
-        && !matches!(
-            std::env::var("TKACH_LOGO_MODE")
-                .ok()
-                .as_deref()
-                .map(str::to_ascii_lowercase)
-                .as_deref(),
-            Some("ascii" | "text" | "0")
-        )
-}
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
         Language::English => en,
@@ -180,7 +165,7 @@ impl App {
                 vec![tr(l, "Checking... Esc: cancel.", "Проверка... Esc: отмена.").into()]
             }
             Screen::Menu => {
-                let mut lines = BRAND.lines().map(str::to_owned).collect::<Vec<_>>();
+                let mut lines = Vec::new();
                 lines.push(format!("v{VERSION}  |  {}  |  LOCAL", l.label()));
                 lines.push(
                     tr(
@@ -459,71 +444,9 @@ fn fit_lines(lines: Vec<String>, width: usize, editing: bool) -> Vec<String> {
         .collect()
 }
 
-fn pixel_logo_size(columns: u16) -> (usize, usize) {
-    let source_width = BRAND
-        .lines()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(1);
-    let source_height = BRAND.lines().count().max(1);
-    let width = PIXEL_RENDER_MAX_WIDTH.min(usize::from(columns.saturating_sub(1)));
-    let mut height = (width * source_height / source_width).max(2);
-    height -= height % 2;
-    (width, height)
-}
-
-fn brand_color(x: usize, y: usize) -> Color {
-    let line = BRAND.lines().nth(y).unwrap_or_default();
-    let glyph = line.chars().nth(x).unwrap_or(' ');
-    match glyph {
-        '0' => Color::Rgb {
-            r: 96,
-            g: 96,
-            b: 96,
-        },
-        '1' => Color::Rgb { r: 8, g: 8, b: 8 },
-        _ if glyph.is_whitespace() => Color::Rgb {
-            r: 255,
-            g: 255,
-            b: 255,
-        },
-        _ => Color::Rgb { r: 8, g: 8, b: 8 },
-    }
-}
-
-fn render_pixel_logo(out: &mut impl Write, columns: u16) -> io::Result<usize> {
-    let (width, height) = pixel_logo_size(columns);
-    let source_width = BRAND
-        .lines()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(1);
-    let source_height = BRAND.lines().count().max(1);
-    for row in 0..height / 2 {
-        queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
-        for x in 0..width {
-            let source_x = x * source_width / width;
-            let top_y = row * 2 * source_height / height;
-            let bottom_y = (row * 2 + 1) * source_height / height;
-            queue!(
-                out,
-                SetForegroundColor(brand_color(source_x, top_y)),
-                SetBackgroundColor(brand_color(source_x, bottom_y)),
-                Print('\u{2580}')
-            )?;
-        }
-        queue!(out, ResetColor)?;
-    }
-    Ok(height / 2)
-}
-
 fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
     let (w, h) = terminal::size()?;
     queue!(out, ResetColor, Clear(ClearType::All))?;
-    let use_pixels = matches!(app.screen, Screen::Menu)
-        && pixel_mode()
-        && w >= MIN_UI_WIDTH
-        && h >= MIN_UI_HEIGHT;
     let mut lines = app.lines();
     if w < MIN_UI_WIDTH || h < MIN_UI_HEIGHT {
         lines = vec![
@@ -534,45 +457,22 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
             )
             .into(),
         ];
-    } else if use_pixels {
-        lines.drain(..BRAND.lines().count());
     }
     let lines = fit_lines(
         lines,
         usize::from(w.saturating_sub(1)),
         matches!(app.screen, Screen::Path(..)),
     );
-    let logo_rows = if use_pixels {
-        pixel_logo_size(w).1 / 2 + 1
-    } else {
-        0
-    };
-    let available = usize::from(h.saturating_sub(2)).saturating_sub(logo_rows);
+    let available = usize::from(h.saturating_sub(2));
     app.scroll = app.scroll.min(lines.len().saturating_sub(available));
-    if use_pixels {
-        render_pixel_logo(out, w)?;
-        queue!(out, MoveTo(0, u16::try_from(logo_rows).unwrap_or(0)))?;
-    }
     for (row, line) in lines.iter().skip(app.scroll).take(available).enumerate() {
-        queue!(out, MoveTo(0, u16::try_from(row + logo_rows).unwrap_or(0)))?;
-        if std::env::var_os("NO_COLOR").is_none() {
-            let absolute_row = app.scroll + row;
-            if matches!(app.screen, Screen::Menu)
-                && !use_pixels
-                && absolute_row < BRAND.lines().count()
-            {
-                queue!(
-                    out,
-                    SetForegroundColor(Color::Cyan),
-                    SetAttribute(Attribute::Bold)
-                )?;
-            } else if line.starts_with('>') {
-                queue!(
-                    out,
-                    SetForegroundColor(Color::Cyan),
-                    SetAttribute(Attribute::Bold)
-                )?;
-            }
+        queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
+        if std::env::var_os("NO_COLOR").is_none() && line.starts_with('>') {
+            queue!(
+                out,
+                SetForegroundColor(Color::Cyan),
+                SetAttribute(Attribute::Bold)
+            )?;
         }
         queue!(
             out,
@@ -667,13 +567,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn supplied_brand_matrix_and_scaling_are_bounded() {
-        assert!(BRAND.lines().count() >= 30);
-        assert!(BRAND.lines().map(str::len).max().unwrap_or(0) >= 250);
-        assert_eq!(pixel_logo_size(101), (96, 10));
-        assert_eq!(pixel_logo_size(81), (80, 8));
-    }
     #[test]
     fn selection_does_not_execute_and_escape_cancels() {
         let mut app = App::new(Language::English);
