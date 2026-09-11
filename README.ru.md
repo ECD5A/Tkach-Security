@@ -166,6 +166,7 @@ production gateway.
 - типизированный Rust HTTP-клиент;
 - source-level Python HTTP-адаптер только на стандартной библиотеке;
 - dependency-free Node.js-адаптер с TypeScript declarations;
+- dependency-free Go-адаптер;
 - MCP stdio-адаптер поверх локального HTTP runtime;
 - небольшой CLI для безопасного onboarding и детерминированной проверки.
 - отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции.

@@ -158,6 +158,7 @@ Available today:
 - a typed Rust HTTP client;
 - a source-level standard-library Python HTTP adapter;
 - a dependency-free Node.js adapter with TypeScript declarations;
+- a dependency-free Go adapter;
 - an MCP stdio adapter over the local HTTP runtime;
 - a small CLI for safe onboarding and a deterministic proof.
 - an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.

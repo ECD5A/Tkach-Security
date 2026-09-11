@@ -215,6 +215,36 @@ response framing, never retries, and contains no policy or authority logic.
 The declaration file supports TypeScript consumers without adding a package
 manager dependency. It is not published to npm yet.
 
+## Go adapter — v0.1
+
+The dependency-free Go module at [`sdk/go`](../sdk/go) follows the same local
+HTTP contract:
+
+```text
+cd sdk/go
+go test ./...
+go vet ./...
+```
+
+```go
+client, err := tkachclient.NewClient("127.0.0.1", 8080, "local-development-secret")
+if err != nil {
+    return err
+}
+defer client.Close()
+if err := client.Health(); err != nil {
+    return err
+}
+response, err := client.Run("request-1", "lifecycle-1", map[string]any{
+    "messages": []map[string]string{{"role": "user", "content": "hello"}},
+})
+```
+
+It accepts numeric loopback IPs only, bounds JSON and response framing,
+rejects chunked/ambiguous/oversized responses, never retries, and returns only
+transport observations. It is not TLS, process isolation, a public service, or
+a published Go module yet.
+
 ## MCP stdio adapter — v0.1
 
 tkach-mcp is a separate protocol adapter over tkach-client. It implements the

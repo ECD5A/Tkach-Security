@@ -52,6 +52,12 @@ jobs:
         run: python -m unittest discover -s sdk/python -p "test_*.py" -v
       - name: Test the dependency-free Node adapter
         run: node --test sdk/javascript/test_tkach_client.mjs
+      - name: Test the dependency-free Go adapter
+        working-directory: sdk/go
+        run: go test ./...
+      - name: Vet the dependency-free Go adapter
+        working-directory: sdk/go
+        run: go vet ./...
 
   fuzz:
     runs-on: ubuntu-latest
