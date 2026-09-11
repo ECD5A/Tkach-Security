@@ -40,6 +40,7 @@ cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked
 cargo package --workspace --locked
 cargo run -p tkach-gateway --example quickstart --locked
+python -m unittest discover -s tools/release -p "test_*.py" -v
 ```
 
 The release process must additionally verify the exact tag, clean worktree,
@@ -50,8 +51,12 @@ the Windows development host only proves target compilation.
 `.github/workflows/release.yml` performs this release-environment preflight only
 for a strict `vX.Y.Z` tag. It builds Linux x86_64, macOS x86_64/ARM64, and
 Windows x86_64 archives for `tkach` and `tkach-mcp`, emits SHA-256 files,
-requests GitHub build provenance, and creates a draft GitHub Release after
-checksum verification. It does not publish a public release automatically.
+uses `tools/release/package_release.py` to fix archive metadata to the source
+commit epoch, requests GitHub build provenance, and creates a draft GitHub
+Release after checksum verification. The helper's tests prove byte-stable
+archives for identical inputs; this does not claim byte-identical Rust
+binaries across different toolchains or operating systems. The workflow does
+not publish a public release automatically.
 
 ## Artifact and integration boundaries
 

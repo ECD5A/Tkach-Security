@@ -8,6 +8,9 @@ release candidate description, not a claim that a public release exists.
 - Add local Python and Node package metadata with no runtime dependencies or
   install hooks; CI verifies wheel/npm bundle shape while public publication
   remains owner-controlled.
+- Replace timestamp-sensitive release archive commands with the tested,
+  source-epoch-based deterministic packaging helper and retain explicit limits
+  on binary reproducibility claims.
 - Make CI and release preflight compile every packaged crate with strict
   `cargo package --workspace --locked` verification instead of skipping the
   package build step.
