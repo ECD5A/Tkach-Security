@@ -186,6 +186,35 @@ It has no policy, authority, provider, executor, secret-broker, or public-networ
 surface. It is not published to PyPI yet; callers may vendor this small module
 or use the HTTP contract directly.
 
+## JavaScript / TypeScript adapter — v0.1
+
+The dependency-free Node adapter at [`sdk/javascript`](../sdk/javascript) has
+an `.mjs` runtime and a matching `.d.ts` declaration surface:
+
+```text
+node --test sdk/javascript/test_tkach_client.mjs
+```
+
+```javascript
+import { TkachClient } from "./sdk/javascript/tkach_client.mjs";
+
+const tkach = new TkachClient("127.0.0.1", 8080, "local-development-secret");
+try {
+  await tkach.health();
+  const response = await tkach.run("request-1", "lifecycle-1", {
+    messages: [{ role: "user", content: "hello" }],
+  });
+  console.log(response.statusCode, response.body.toString("utf8"));
+} finally {
+  tkach.close();
+}
+```
+
+The runtime accepts numeric loopback IPs only, enforces bounded JSON and
+response framing, never retries, and contains no policy or authority logic.
+The declaration file supports TypeScript consumers without adding a package
+manager dependency. It is not published to npm yet.
+
 ## MCP stdio adapter — v0.1
 
 tkach-mcp is a separate protocol adapter over tkach-client. It implements the

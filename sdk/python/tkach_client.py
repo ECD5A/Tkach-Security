@@ -198,7 +198,11 @@ def _validate_identifier(value: str) -> None:
 
 
 def _read_response(response: http.client.HTTPResponse) -> ClientResponse:
-    if len(response.msg.as_bytes()) > MAX_HTTP_HEADER_BYTES:
+    status_line = (
+        f"HTTP/{response.version // 10}.{response.version % 10} "
+        f"{response.status} {response.reason}\r\n"
+    ).encode("latin-1", "replace")
+    if len(status_line) + len(response.msg.as_bytes()) > MAX_HTTP_HEADER_BYTES:
         raise TkachClientError(ErrorCode.RESPONSE_TOO_LARGE)
     transfer_encoding = response.headers.get_all("Transfer-Encoding") or []
     if transfer_encoding:

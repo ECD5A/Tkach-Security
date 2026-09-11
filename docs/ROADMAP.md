@@ -74,8 +74,8 @@ this order:
   behavior (done for the local library boundary) plus a deterministic
   loopback-only CLI reference runtime;
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
-  reviewed; the Rust client and source-level standard-library Python adapter
-  are done;
+  reviewed; the Rust client, source-level standard-library Python adapter, and
+  dependency-free Node runtime with TypeScript declarations are done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks;
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,

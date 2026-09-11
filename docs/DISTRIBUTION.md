@@ -65,11 +65,11 @@ binary. Consequently this repository does not yet claim a ready-to-run public
 HTTP service, TLS termination, process supervisor, or OCI image. Creating
 those artifacts without those boundaries would overstate the security contract.
 
-The HTTP JSON contract is the language-neutral integration point. A source-level
-standard-library Python adapter is included under `sdk/python`; JavaScript/
-TypeScript and Go clients may wrap the same contract later. None of these
-adapters may duplicate Core policy, authority, provider, executor, or
-secret-handling logic, and no Python package has been published to PyPI.
+The HTTP JSON contract is the language-neutral integration point. Source-level
+standard-library Python and dependency-free Node.js/TypeScript adapters are
+included under `sdk/`; a Go client may wrap the same contract later. None of
+these adapters may duplicate Core policy, authority, provider, executor, or
+secret-handling logic, and no Python or npm package has been published.
 
 ## External publication status
 
