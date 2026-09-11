@@ -59,10 +59,13 @@ remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
 The interactive menu is a responsive Ratatui panel with a selected action,
 local status panel, keyboard footer, and the supplied Unicode brand banner when
-the terminal is large enough. A 132 x 40 terminal shows the complete banner;
-smaller supported terminals use the compact header. `NO_COLOR=1` disables
-selection color where it is unavailable or unwanted. The terminal emulator
-owns font selection and size; the CLI owns layout, borders, and colors.
+the terminal is large enough and likely to support its glyphs. Legacy consoles
+receive a dependency-free embedded ASCII rendering; no runtime font download or
+installation occurs. `TKACH_BANNER=unicode|ascii|compact` overrides detection.
+A 132 x 40 terminal shows either complete large rendering; smaller supported
+terminals use the compact header. `NO_COLOR=1` disables selection color where
+it is unavailable or unwanted. The terminal emulator owns font selection and
+size; the CLI owns layout, borders, and colors.
 CLI is an optional local onboarding tool. Creating a starter request does not
 deploy a policy or grant authority. `tkach serve --demo` is a separate,
 deterministic reference runtime for local HTTP smoke tests; it is not a

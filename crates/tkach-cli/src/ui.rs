@@ -38,10 +38,10 @@ use std::{
 const MIN_UI_WIDTH: u16 = 44;
 const MIN_UI_HEIGHT: u16 = 18;
 const DASHBOARD_WIDTH: u16 = 72;
-const FULL_BANNER_WIDTH: u16 = 128;
-const FULL_BANNER_HEIGHT: u16 = 20;
-const BRAND_SPLIT_COLUMN: usize = 30;
-const BRAND_BANNER: [&str; 9] = [
+const UNICODE_BANNER_WIDTH: u16 = 128;
+const UNICODE_BANNER_HEIGHT: u16 = 18;
+const UNICODE_SPLIT_COLUMN: usize = 30;
+const UNICODE_BANNER: [&str; 9] = [
     "   ⠈    ⠈         ⠈",
     "                ⣀⡀                        ⣶⣶⣶⣶⣶⠆⣶⡆⢀⣶⡞    ⢀⣶⣶      ⢠⣶⣶⣶⣶⡄ ⢰⣶  ⣶⡇   ⢰⣶⣶⣶⣶ ⣶⣶⣶⣶⡆⢰⣶⣶⣶⣷ ⣶⡆ ⢰⣾ ⣶⣶⣶⣶⣆⢰⣶⠆⣶⣶⣶⣶⣾⢲⣶⡀ ⣴⡞",
     "     ⠙⠲⣶⣤⣤⣄⣀⡀⢠⣶⣾⡟⠁           ⣿⡇     ⣿⣧⣿⠏       ⣼⡟⢿⣇  ⢸ ⣿  ⠛⠃  ⢸⣿⣀⣀⣿⡇   ⢺⣿⣀⣘⡛ ⣿⣇⣀⣀ ⣿⣿ ⠘⠛ ⣿⡇ ⢸⣿ ⣿⡇ ⣿⡇⢸⣿  ⢸⣿   ⠹⣷⣼⡟",
@@ -52,6 +52,25 @@ const BRAND_BANNER: [&str; 9] = [
     "               ⢸⠏           A r c h i t e c t e d  d e f e n s e  f r o m  f i r s t  p r i n c i p l e s",
     "   ⠐      ⠈       ⠐                                                                            ⢀⣠⣼⣷⣿",
 ];
+const ASCII_BANNER_WIDTH: u16 = 105;
+const ASCII_BANNER_HEIGHT: u16 = 16;
+const ASCII_SPLIT_COLUMN: usize = 22;
+const ASCII_BANNER: [&str; 7] = [
+    "\\            /^\\     ##### #   #  ###   #### #   #     #### #####  #### #   # ####  ##### ##### #   #",
+    " \\________  /  /       #   #  #  #   # #     #   #    #     #     #     #   # #   #   #     #    # # ",
+    "          \\/  /        #   ###   ##### #     #####     ###  ####  #     #   # ####    #     #     #  ",
+    "          /\\_/         #   #  #  #   # #     #   #        # #     #     #   # #  #    #     #     #  ",
+    "         /  |          #   #   # #   #  #### #   #    ####  #####  ####  ###  #   # #####   #     #  ",
+    "         |  --------------------------------------------------------------------------------------",
+    "         |  A r c h i t e c t e d  d e f e n s e  f r o m  f i r s t  p r i n c i p l e s",
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BannerMode {
+    Compact,
+    Ascii,
+    Unicode,
+}
 
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
@@ -501,6 +520,12 @@ fn settings_lines(l: Language, selected: usize, monochrome: bool) -> Vec<String>
             "Настройки действуют только в текущей сессии CLI.",
         )
         .into(),
+        tr(
+            l,
+            "Startup banner: TKACH_BANNER=auto|unicode|ascii|compact.",
+            "Баннер запуска: TKACH_BANNER=auto|unicode|ascii|compact.",
+        )
+        .into(),
         String::new(),
         tr(
             l,
@@ -520,6 +545,11 @@ pub(super) fn settings_text(l: Language) -> String {
             l,
             "Color: set NO_COLOR=1 before launch",
             "Цвет: задайте NO_COLOR=1 перед запуском",
+        ),
+        tr(
+            l,
+            "Banner: TKACH_BANNER=auto|unicode|ascii|compact",
+            "Баннер: TKACH_BANNER=auto|unicode|ascii|compact",
         ),
         tr(
             l,
@@ -564,6 +594,11 @@ fn help_lines(l: Language) -> Vec<String> {
             l,
             "Esc             back or exit",
             "Esc             назад или выход",
+        ),
+        tr(
+            l,
+            "TKACH_BANNER    auto | unicode | ascii | compact",
+            "TKACH_BANNER    auto | unicode | ascii | compact",
         ),
         "",
         tr(l, "SAFETY", "БЕЗОПАСНОСТЬ"),
@@ -747,44 +782,110 @@ fn screen_title(l: Language, screen: &Screen) -> &'static str {
     }
 }
 
-fn banner_line(index: usize, text: &'static str, no_color: bool) -> Line<'static> {
+fn split_banner_line(
+    text: &'static str,
+    split_column: usize,
+    right_style: Style,
+    no_color: bool,
+) -> Line<'static> {
+    let split = text
+        .char_indices()
+        .nth(split_column)
+        .map_or(text.len(), |(byte, _)| byte);
+    let (mark, lettering) = text.split_at(split);
+    Line::from(vec![
+        Span::styled(mark, accent_style(no_color)),
+        Span::styled(lettering, right_style),
+    ])
+}
+
+fn unicode_banner_line(index: usize, text: &'static str, no_color: bool) -> Line<'static> {
     if matches!(index, 0 | 8) {
         return Line::from(Span::styled(text, accent_style(no_color)));
     }
-    let split = text
-        .char_indices()
-        .nth(BRAND_SPLIT_COLUMN)
-        .map_or(text.len(), |(byte, _)| byte);
-    let (mark, lettering) = text.split_at(split);
     let lettering_style = match index {
         6 => muted_style(no_color),
         7 => slogan_style(no_color),
         _ => wordmark_style(no_color),
     };
+    split_banner_line(text, UNICODE_SPLIT_COLUMN, lettering_style, no_color)
+}
+
+fn ascii_banner_line(index: usize, text: &'static str, no_color: bool) -> Line<'static> {
+    let lettering_style = match index {
+        5 => muted_style(no_color),
+        6 => slogan_style(no_color),
+        _ => wordmark_style(no_color),
+    };
+    split_banner_line(text, ASCII_SPLIT_COLUMN, lettering_style, no_color)
+}
+
+fn likely_unicode_terminal() -> bool {
+    if cfg!(windows) {
+        return ["WT_SESSION", "TERM_PROGRAM", "ConEmuANSI", "ANSICON"]
+            .iter()
+            .any(|name| std::env::var_os(name).is_some())
+            || std::env::var_os("TERM").is_some_and(|term| term != "dumb");
+    }
+    let locale = std::env::var("LC_ALL")
+        .or_else(|_| std::env::var("LC_CTYPE"))
+        .or_else(|_| std::env::var("LANG"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    locale.contains("utf-8") || locale.contains("utf8")
+}
+
+fn choose_banner(preference: Option<&str>, unicode_capable: bool, area: Rect) -> BannerMode {
+    let unicode_fits = area.width >= UNICODE_BANNER_WIDTH && area.height >= UNICODE_BANNER_HEIGHT;
+    let ascii_fits = area.width >= ASCII_BANNER_WIDTH && area.height >= ASCII_BANNER_HEIGHT;
+    match preference.unwrap_or("auto").to_ascii_lowercase().as_str() {
+        "unicode" if unicode_fits => BannerMode::Unicode,
+        "ascii" if ascii_fits => BannerMode::Ascii,
+        "compact" | "off" | "unicode" | "ascii" => BannerMode::Compact,
+        _ if unicode_capable && unicode_fits => BannerMode::Unicode,
+        _ if ascii_fits => BannerMode::Ascii,
+        _ => BannerMode::Compact,
+    }
+}
+
+fn banner_mode(area: Rect) -> BannerMode {
+    let preference = std::env::var("TKACH_BANNER").ok();
+    choose_banner(preference.as_deref(), likely_unicode_terminal(), area)
+}
+
+fn banner_title(app: &App, no_color: bool) -> Line<'static> {
     Line::from(vec![
-        Span::styled(mark, accent_style(no_color)),
-        Span::styled(lettering, lettering_style),
+        Span::styled(format!(" v{VERSION} "), muted_style(no_color)),
+        Span::styled(" CORE: FAIL-CLOSED ", success_style(no_color)),
+        Span::styled(" LOCAL ", accent_style(no_color)),
+        Span::styled(
+            format!(" {} ", app.language.label().to_ascii_uppercase()),
+            muted_style(no_color),
+        ),
     ])
 }
 
-fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, full_banner: bool) {
-    if full_banner {
-        let title = Line::from(vec![
-            Span::styled(format!(" v{VERSION} "), muted_style(no_color)),
-            Span::styled(" CORE: FAIL-CLOSED ", success_style(no_color)),
-            Span::styled(" LOCAL ", accent_style(no_color)),
-            Span::styled(
-                format!(" {} ", app.language.label().to_ascii_uppercase()),
-                muted_style(no_color),
-            ),
-        ]);
-        let lines = BRAND_BANNER
-            .iter()
-            .enumerate()
-            .map(|(index, line)| banner_line(index, line, no_color))
-            .collect::<Vec<_>>();
+fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, mode: BannerMode) {
+    let banner = match mode {
+        BannerMode::Unicode => Some(
+            UNICODE_BANNER
+                .iter()
+                .enumerate()
+                .map(|(index, line)| unicode_banner_line(index, line, no_color))
+                .collect::<Vec<_>>(),
+        ),
+        BannerMode::Ascii => Some(
+            ASCII_BANNER
+                .iter()
+                .enumerate()
+                .map(|(index, line)| ascii_banner_line(index, line, no_color))
+                .collect::<Vec<_>>(),
+        ),
+        BannerMode::Compact => None,
+    };
+    if let Some(lines) = banner {
         frame.render_widget(
-            Paragraph::new(lines).block(panel_block(title, no_color)),
+            Paragraph::new(lines).block(panel_block(banner_title(app, no_color), no_color)),
             area,
         );
         return;
@@ -963,8 +1064,12 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
         return;
     }
 
-    let full_banner = inner.width >= FULL_BANNER_WIDTH && inner.height >= FULL_BANNER_HEIGHT;
-    let header_height = if full_banner { 11 } else { 4 };
+    let mode = banner_mode(inner);
+    let header_height = match mode {
+        BannerMode::Unicode => 11,
+        BannerMode::Ascii => 9,
+        BannerMode::Compact => 4,
+    };
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -974,7 +1079,7 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
             Constraint::Length(1),
         ])
         .split(inner);
-    render_header(frame, layout[0], app, no_color, full_banner);
+    render_header(frame, layout[0], app, no_color, mode);
     if app.screen == Screen::Menu && area.width >= DASHBOARD_WIDTH {
         let body = Layout::default()
             .direction(Direction::Horizontal)
@@ -1074,23 +1179,48 @@ mod tests {
     }
 
     #[test]
-    fn supplied_brand_banner_fits_the_large_terminal_preset() {
-        assert_eq!(BRAND_BANNER.len(), 9);
-        let maximum_width = BRAND_BANNER
+    fn embedded_banners_fit_their_terminal_presets() {
+        assert_eq!(UNICODE_BANNER.len(), 9);
+        let unicode_width = UNICODE_BANNER
             .iter()
             .map(|line| line.chars().count())
             .max()
             .unwrap();
-        assert_eq!(maximum_width, 124);
-        assert!(BRAND_BANNER[7].contains("A r c h i t e c t e d"));
-        assert_eq!(maximum_width + 4, usize::from(FULL_BANNER_WIDTH));
-        assert!(BRAND_BANNER.iter().all(|line| line.chars().all(|character| {
+        assert_eq!(unicode_width, 124);
+        assert!(UNICODE_BANNER[7].contains("A r c h i t e c t e d"));
+        assert_eq!(unicode_width + 4, usize::from(UNICODE_BANNER_WIDTH));
+        assert!(UNICODE_BANNER.iter().all(|line| line.chars().all(|character| {
             !character.is_control()
                 && !matches!(
                     character,
                     '\u{061C}' | '\u{200E}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'
                 )
         })));
+
+        let ascii_width = ASCII_BANNER.iter().map(|line| line.len()).max().unwrap();
+        assert_eq!(ascii_width, 101);
+        assert_eq!(ascii_width + 4, usize::from(ASCII_BANNER_WIDTH));
+        assert!(ASCII_BANNER.iter().all(|line| line.is_ascii()));
+    }
+
+    #[test]
+    fn banner_selection_fails_cleanly_to_supported_rendering() {
+        let large = Rect::new(0, 0, UNICODE_BANNER_WIDTH, UNICODE_BANNER_HEIGHT);
+        assert_eq!(choose_banner(None, true, large), BannerMode::Unicode);
+        assert_eq!(choose_banner(None, false, large), BannerMode::Ascii);
+        assert_eq!(choose_banner(Some("ascii"), true, large), BannerMode::Ascii);
+        assert_eq!(
+            choose_banner(Some("compact"), true, large),
+            BannerMode::Compact
+        );
+        assert_eq!(
+            choose_banner(Some("unicode"), true, Rect::new(0, 0, 127, 18)),
+            BannerMode::Compact
+        );
+        assert_eq!(
+            choose_banner(None, false, Rect::new(0, 0, 104, 40)),
+            BannerMode::Compact
+        );
     }
 
     #[test]
