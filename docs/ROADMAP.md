@@ -2,7 +2,8 @@
 
 This is the compact public project map. Current behavior is defined by the
 Product Contract, Architecture, Security Model, and executable test suite.
-Private checkpoint records remain local engineering material.
+Release-readiness decisions are recorded only when they become part of the
+public contract or a published release.
 
 ## CURRENT
 

@@ -15,9 +15,11 @@ use std::env;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufRead, Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::{self, BufRead, IsTerminal, Read, Write};
+use std::path::{Component, Path, PathBuf};
 
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::terminal;
 use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
 use tkach_core::krosna::{Krosna, Policy};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
@@ -27,7 +29,7 @@ use tkach_gateway::{
     MAX_REQUEST_BODY_BYTES, ProviderStep, ScriptedStep,
 };
 
-const VERSION: &str = "0.1.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UI_INPUT_BYTES: usize = 256;
 const STARTER_REQUEST: &str = r#"{
   "messages": [
@@ -143,14 +145,21 @@ struct ParsedArgs {
 }
 
 fn main() {
-    let language = match Language::from_env() {
-        Ok(language) => language,
-        Err(error) => {
-            eprintln!("error: {}", error.message(Language::English));
-            std::process::exit(2);
+    let args: Vec<String> = env::args().skip(1).collect();
+    let default_language = if explicit_language_option(&args) {
+        // An explicit CLI selection must remain usable even when the environment
+        // contains a stale or invalid value.
+        Language::English
+    } else {
+        match Language::from_env() {
+            Ok(language) => language,
+            Err(error) => {
+                eprintln!("error: {}", error.message(Language::English));
+                std::process::exit(2);
+            }
         }
     };
-    match parse_args_with_default(env::args().skip(1), language) {
+    match parse_args_with_default(args, default_language) {
         Ok(parsed) => match parsed.command {
             Command::Ui => {
                 if let Err(error) = run_ui(parsed.language) {
@@ -167,10 +176,43 @@ fn main() {
             },
         },
         Err(error) => {
-            eprintln!("error: {}", error.message(language));
+            eprintln!("error: {}", error.message(default_language));
             std::process::exit(2);
         }
     }
+}
+
+fn explicit_language_option(args: &[String]) -> bool {
+    args.iter()
+        .any(|arg| arg == "--lang" || arg.starts_with("--lang="))
+}
+
+fn parse_language_options(args: &[String]) -> Result<(Option<Language>, Vec<String>), CliError> {
+    let mut language = None;
+    let mut command_args = Vec::with_capacity(args.len());
+    let mut index = 0;
+    while index < args.len() {
+        let arg = &args[index];
+        if arg == "--lang" {
+            if language.is_some() || index + 1 == args.len() {
+                return Err(CliError::Usage);
+            }
+            language = Some(Language::parse(&args[index + 1])?);
+            index += 2;
+            continue;
+        }
+        if let Some(value) = arg.strip_prefix("--lang=") {
+            if language.is_some() {
+                return Err(CliError::Usage);
+            }
+            language = Some(Language::parse(value)?);
+            index += 1;
+            continue;
+        }
+        command_args.push(arg.clone());
+        index += 1;
+    }
+    Ok((language, command_args))
 }
 
 #[cfg(test)]
@@ -191,16 +233,8 @@ where
     S: Into<String>,
 {
     let args: Vec<String> = args.into_iter().map(Into::into).collect();
-    let (language, command_args) = if args.first().map(String::as_str) == Some("--lang") {
-        if args.len() < 2 {
-            return Err(CliError::Usage);
-        }
-        (Language::parse(&args[1])?, args[2..].to_vec())
-    } else if let Some(value) = args.first().and_then(|arg| arg.strip_prefix("--lang=")) {
-        (Language::parse(value)?, args[1..].to_vec())
-    } else {
-        (default_language, args)
-    };
+    let (explicit_language, command_args) = parse_language_options(&args)?;
+    let language = explicit_language.unwrap_or(default_language);
     let command = match command_args.as_slice() {
         [] => Command::Help,
         [arg] if arg == "--help" || arg == "-h" => Command::Help,
@@ -269,48 +303,38 @@ enum UiInput {
     InvalidUtf8,
 }
 
-fn run_ui(mut language: Language) -> Result<(), CliError> {
+fn run_ui(language: Language) -> Result<(), CliError> {
     let stdin = io::stdin();
-    let mut input = stdin.lock();
+    let terminal_input = stdin.is_terminal() && io::stdout().is_terminal();
     let mut output = io::stdout();
+    if terminal_input {
+        return run_terminal_ui(&mut output, language);
+    }
 
+    let mut input = stdin.lock();
+    run_line_ui(&mut input, &mut output, language)
+}
+
+fn run_line_ui(
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    mut language: Language,
+) -> Result<(), CliError> {
     loop {
-        write_ui_menu(&mut output, language).map_err(|_| CliError::Io)?;
+        write_ui_menu(output, language).map_err(|_| CliError::Io)?;
         output.flush().map_err(|_| CliError::Io)?;
-        match read_ui_input(&mut input).map_err(|_| CliError::Io)? {
+        match read_ui_input(input).map_err(|_| CliError::Io)? {
             UiInput::End => break,
-            UiInput::TooLong => {
+            UiInput::TooLong | UiInput::InvalidUtf8 => {
                 writeln!(output, "error: {}", CliError::Usage.message(language))
                     .map_err(|_| CliError::Io)?;
-            }
-            UiInput::InvalidUtf8 => {
-                writeln!(output, "error: {}", CliError::Usage.message(language))
-                    .map_err(|_| CliError::Io)?;
+                break;
             }
             UiInput::Line(line) => match parse_ui_action(&line) {
-                Ok(UiAction::Quit) => break,
-                Ok(UiAction::ToggleLanguage) => {
-                    language = match language {
-                        Language::English => Language::Russian,
-                        Language::Russian => Language::English,
-                    };
-                    writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
-                }
-                Ok(UiAction::SetLanguage(selected)) => {
-                    language = selected;
-                    writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
-                }
-                Ok(UiAction::Help) => {
-                    write!(output, "{}", help(language)).map_err(|_| CliError::Io)?;
-                }
-                Ok(UiAction::Init(path)) => {
-                    write_ui_result(&mut output, initialize(&path, language), language)?;
-                }
-                Ok(UiAction::Check(path)) => {
-                    write_ui_result(&mut output, check_request(&path, language), language)?;
-                }
-                Ok(UiAction::Demo) => {
-                    write_ui_result(&mut output, run_demo(language), language)?;
+                Ok(action) => {
+                    if !apply_ui_action(action, &mut language, output)? {
+                        break;
+                    }
                 }
                 Err(error) => {
                     writeln!(output, "error: {}", error.message(language))
@@ -320,6 +344,148 @@ fn run_ui(mut language: Language) -> Result<(), CliError> {
         }
     }
     Ok(())
+}
+
+fn apply_ui_action(
+    action: UiAction,
+    language: &mut Language,
+    output: &mut impl Write,
+) -> Result<bool, CliError> {
+    match action {
+        UiAction::Quit => Ok(false),
+        UiAction::ToggleLanguage => {
+            *language = match *language {
+                Language::English => Language::Russian,
+                Language::Russian => Language::English,
+            };
+            writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
+        UiAction::SetLanguage(selected) => {
+            *language = selected;
+            writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
+        UiAction::Help => {
+            write!(output, "{}", help(*language)).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
+        UiAction::Init(path) => {
+            write_ui_result(output, initialize(&path, *language), *language)?;
+            Ok(true)
+        }
+        UiAction::Check(path) => {
+            write_ui_result(output, check_request(&path, *language), *language)?;
+            Ok(true)
+        }
+        UiAction::Demo => {
+            write_ui_result(output, run_demo(*language), *language)?;
+            Ok(true)
+        }
+    }
+}
+
+struct RawModeGuard;
+
+impl RawModeGuard {
+    fn enable() -> Result<Self, CliError> {
+        terminal::enable_raw_mode().map_err(|_| CliError::Io)?;
+        Ok(Self)
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = terminal::disable_raw_mode();
+    }
+}
+
+fn run_terminal_ui(output: &mut impl Write, mut language: Language) -> Result<(), CliError> {
+    let _raw_mode = RawModeGuard::enable()?;
+    loop {
+        write_ui_menu(output, language).map_err(|_| CliError::Io)?;
+        output.flush().map_err(|_| CliError::Io)?;
+        match read_terminal_action(output).map_err(|_| CliError::Io)? {
+            Ok(action) => {
+                if !apply_ui_action(action, &mut language, output)? {
+                    break;
+                }
+            }
+            Err(error) => {
+                writeln!(output, "error: {}", error.message(language)).map_err(|_| CliError::Io)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn read_terminal_action(output: &mut impl Write) -> io::Result<Result<UiAction, CliError>> {
+    let mut line = String::new();
+    loop {
+        let event = event::read()?;
+        let Event::Key(key) = event else {
+            continue;
+        };
+        if key.kind != KeyEventKind::Press {
+            continue;
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && matches!(key.code, KeyCode::Char('c' | 'C'))
+        {
+            writeln!(output)?;
+            return Ok(Ok(UiAction::Quit));
+        }
+        match key {
+            KeyEvent {
+                code: KeyCode::F(1),
+                ..
+            } => {
+                writeln!(output)?;
+                return Ok(Ok(UiAction::ToggleLanguage));
+            }
+            KeyEvent {
+                code: KeyCode::Esc, ..
+            } => {
+                writeln!(output)?;
+                return Ok(Ok(UiAction::Quit));
+            }
+            KeyEvent {
+                code: KeyCode::Enter,
+                ..
+            } => {
+                writeln!(output)?;
+                return Ok(parse_ui_action(&line));
+            }
+            KeyEvent {
+                code: KeyCode::Backspace,
+                ..
+            } if line.pop().is_some() => {
+                write!(output, "\u{8} \u{8}")?;
+                output.flush()?;
+            }
+            KeyEvent {
+                code: KeyCode::Char('/'),
+                ..
+            } if line.is_empty() => {
+                line.push('/');
+                write!(output, "/")?;
+                output.flush()?;
+            }
+            KeyEvent {
+                code: KeyCode::Char(ch),
+                ..
+            } => {
+                if line.len() >= MAX_UI_INPUT_BYTES {
+                    writeln!(output)?;
+                    return Ok(Err(CliError::Usage));
+                }
+                line.push(ch);
+                write!(output, "{ch}")?;
+                output.flush()?;
+            }
+            _ => {}
+        }
+    }
 }
 
 fn write_ui_result(
@@ -462,11 +628,10 @@ fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
 
 fn read_ui_input(reader: &mut impl BufRead) -> io::Result<UiInput> {
     let mut bytes = Vec::new();
-    let mut too_long = false;
     loop {
         let mut byte = [0_u8; 1];
         if reader.read(&mut byte)? == 0 {
-            if bytes.is_empty() && !too_long {
+            if bytes.is_empty() {
                 return Ok(UiInput::End);
             }
             break;
@@ -477,14 +642,12 @@ fn read_ui_input(reader: &mut impl BufRead) -> io::Result<UiInput> {
         if byte[0] == b'\r' {
             continue;
         }
-        if bytes.len() < MAX_UI_INPUT_BYTES {
-            bytes.push(byte[0]);
-        } else {
-            too_long = true;
+        if bytes.len() >= MAX_UI_INPUT_BYTES {
+            // Do not drain an unbounded pipe. The line-mode UI terminates after
+            // an oversized command, so unread bytes cannot become later commands.
+            return Ok(UiInput::TooLong);
         }
-    }
-    if too_long {
-        return Ok(UiInput::TooLong);
+        bytes.push(byte[0]);
     }
     Ok(match String::from_utf8(bytes) {
         Ok(line) => UiInput::Line(line),
@@ -492,9 +655,64 @@ fn read_ui_input(reader: &mut impl BufRead) -> io::Result<UiInput> {
     })
 }
 
+fn reject_link_components(path: &Path) -> Result<(), CliError> {
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        let should_check = match component {
+            Component::Prefix(prefix) => {
+                current.push(prefix.as_os_str());
+                false
+            }
+            Component::RootDir => {
+                current.push(component.as_os_str());
+                true
+            }
+            Component::CurDir => {
+                if current.as_os_str().is_empty() {
+                    current.push(component.as_os_str());
+                }
+                true
+            }
+            Component::ParentDir => return Err(CliError::Io),
+            Component::Normal(name) => {
+                current.push(name);
+                true
+            }
+        };
+        if !should_check {
+            continue;
+        }
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if is_directory_link(&metadata) || !metadata.is_dir() => {
+                return Err(CliError::Io);
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(_) => return Err(CliError::Io),
+        }
+    }
+    Ok(())
+}
+
+fn safe_path(path: &Path) -> String {
+    path.to_string_lossy()
+        .chars()
+        .map(|character| {
+            if character.is_ascii() && !character.is_ascii_control() {
+                character.to_string()
+            } else {
+                format!("\\u{{{:04X}}}", character as u32)
+            }
+        })
+        .collect()
+}
+
 fn initialize(root: &Path, language: Language) -> Result<String, CliError> {
+    reject_link_components(root)?;
     fs::create_dir_all(root).map_err(|_| CliError::Io)?;
+    reject_link_components(root)?;
     let directory = root.join(".tkach");
+    reject_link_components(&directory)?;
     match fs::symlink_metadata(&directory) {
         Ok(metadata) if is_directory_link(&metadata) || !metadata.is_dir() => {
             return Err(CliError::Io);
@@ -502,6 +720,7 @@ fn initialize(root: &Path, language: Language) -> Result<String, CliError> {
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             fs::create_dir(&directory).map_err(|_| CliError::Io)?;
+            reject_link_components(&directory)?;
         }
         Err(_) => return Err(CliError::Io),
     }
@@ -528,13 +747,13 @@ fn initialize(root: &Path, language: Language) -> Result<String, CliError> {
     Ok(match language {
         Language::English => format!(
             "initialized {}\n  -> next: tkach check {}\n  -> demo: tkach run --demo",
-            directory.display(),
-            request_path.display()
+            safe_path(&directory),
+            safe_path(&request_path)
         ),
         Language::Russian => format!(
             "инициализировано {}\n  -> дальше: tkach check {}\n  -> демо: tkach run --demo",
-            directory.display(),
-            request_path.display()
+            safe_path(&directory),
+            safe_path(&request_path)
         ),
     })
 }
@@ -666,6 +885,16 @@ mod tests {
             .expect("equals language flag is accepted");
         assert_eq!(parsed.language, Language::Russian);
         assert!(matches!(parsed.command, Command::Demo));
+
+        let parsed = parse_args_with_default(["run", "--demo", "--lang", "ru"], Language::English)
+            .expect("language option is accepted after the command");
+        assert_eq!(parsed.language, Language::Russian);
+        assert!(matches!(parsed.command, Command::Demo));
+        assert_eq!(
+            parse_args_with_default(["--lang", "ru", "--lang", "en"], Language::English)
+                .unwrap_err(),
+            CliError::Usage
+        );
         assert_eq!(Language::parse("fr").unwrap_err(), CliError::Language);
     }
 
@@ -698,6 +927,17 @@ mod tests {
             read_ui_input(&mut input).expect("invalid UTF-8 read succeeds"),
             UiInput::InvalidUtf8
         ));
+    }
+
+    #[test]
+    fn safe_path_escapes_terminal_controls_and_non_ascii() {
+        let path = Path::new("safe\u{1b}[31m\n\u{2603}");
+        assert_eq!(safe_path(path), "safe\\u{001B}[31m\\u{000A}\\u{2603}");
+    }
+
+    #[test]
+    fn cli_version_is_sourced_from_package_metadata() {
+        assert_eq!(VERSION, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
@@ -757,6 +997,32 @@ mod tests {
 
         fs::remove_dir_all(root).expect("test root cleanup succeeds");
         fs::remove_dir_all(outside).expect("test outside directory cleanup succeeds");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn init_rejects_a_symlink_in_an_existing_parent_component() {
+        use std::os::unix::fs::symlink;
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock is after the Unix epoch")
+            .as_nanos();
+        let base = env::temp_dir().join(format!("tkach-cli-parent-{suffix}"));
+        let outside = env::temp_dir().join(format!("tkach-cli-parent-outside-{suffix}"));
+        let linked_root = base.join("linked").join("nested");
+        fs::create_dir_all(&base).expect("test base creation succeeds");
+        fs::create_dir_all(&outside).expect("test outside creation succeeds");
+        symlink(&outside, base.join("linked")).expect("test parent symlink creation succeeds");
+
+        assert_eq!(
+            initialize(&linked_root, Language::English).unwrap_err(),
+            CliError::Io
+        );
+        assert!(!outside.join("nested/.tkach/request.json").exists());
+
+        fs::remove_dir_all(base).expect("test base cleanup succeeds");
+        fs::remove_dir_all(outside).expect("test outside cleanup succeeds");
     }
 
     #[test]

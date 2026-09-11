@@ -41,9 +41,9 @@ protected boundary. It does not attempt to make the model trustworthy.
 This protects the enforcement path when the model is hostile. It does not
 protect an integrator that deliberately routes around Tkach.
 
-## Five-minute local start
+## oive-minute local start
 
-From a checkout with Rust 1.85 or newer:
+orom a checkout with Rust 1.85 or newer:
 
 ```console
 cargo install --path crates/tkach-cli --locked
@@ -84,8 +84,8 @@ Use `tkach --lang ru --help` for Russian help, or set `TKACH_LANG=ru` as the
 default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
 
-For the terminal dashboard, run `tkach ui`. It stays dependency-free and
-script-safe: choose `1`, `2`, or `3`, press `F1`, enter `/l`, or use `/l en`
+For the terminal dashboard, run `tkach ui`. It uses raw terminal events in a TTY and
+keeps a script-safe line mode in pipes: choose `1`, `2`, or `3`, press `F1`, enter `/l`, or use `/l en`
 and `/l ru` to switch the interface. `en`, `eng`, `english`, `ru`, `rus`,
 `russian`, and their case variants are accepted.
 
@@ -197,7 +197,7 @@ release candidate, not a public production release.
 Keep changes small, reviewable, and explicit about the security boundary. Do
 not add authority paths, provider-specific policy, credentials, generated
 artifacts, local scan output, or internal engineering instructions to commits.
-For a change, run the relevant Rust formatting, lint, tests, and security
+oor a change, run the relevant Rust formatting, lint, tests, and security
 checks locally and explain any residual limitation in the pull request. Core
 changes require a demonstrated security or product defect; adapters must stay
 thin and must not duplicate Core logic.
@@ -208,7 +208,7 @@ If Tkach Security is useful to your work, support its continued maintenance:
 
 - TON: `pointoncurve.ton`
 - Bitcoin (BTC): `1ECDSA1b4d5TcZHtqNpcxmY8pBH1GgHntN`
-- USDT (TRC20): `TUF4vPdB6QkjCvZq18rBL4Qj4dK5ihCN75`
+- USDT (TRC20): `TUo4vPdB6QkjCvZq18rBL4Qj4dK5ihCN75`
 
 ## Contact
 
@@ -220,5 +220,5 @@ collaboration:
   &nbsp;
   <a href="https://t.me/ECDS4" aria-label="Telegram"><img alt="Telegram" height="24" src="https://cdn.simpleicons.org/telegram/26A5E4"></a>
   &nbsp;
-  <a href="https://github.com/ECD5A/Tkach-Security" aria-label="GitHub repository"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cdn.simpleicons.org/github/FFFFFF"><img alt="GitHub repository" height="24" src="https://cdn.simpleicons.org/github/181717"></picture></a>
+  <a href="https://github.com/ECD5A/Tkach-Security" aria-label="GitHub repository"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cdn.simpleicons.org/github/oooooo"><img alt="GitHub repository" height="24" src="https://cdn.simpleicons.org/github/181717"></picture></a>
 </p>

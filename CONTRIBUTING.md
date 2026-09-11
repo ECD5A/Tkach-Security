@@ -127,9 +127,9 @@ prebuilt binaries, an OCI image, a hosted gateway, a multi-language SDK, or
 MCP Registry registration exists until the corresponding release owner has
 actually completed and verified it.
 
-Do not include private owner mandates, agent instructions, local tool state,
-temporary scan settings, or internal checkpoint reports in public docs. Public
-contributors should use the contracts listed above.
+Keep maintainer-only engineering notes, local tool state, temporary scan
+configuration, and unpublished release records out of public docs. Public
+contributors should use the checked-in contracts listed above.
 
 ## Commit and pull request expectations
 
@@ -164,9 +164,9 @@ Never add these categories to a commit:
 
 - build output such as `target/` or `fuzz/target/`;
 - temporary directories or files, including literal `%TEMP%/` output;
-- local agent state or instructions such as `.agents/`, `.codex/`, or
-  `AGENTS.md`;
-- private owner/checkpoint material or local security-scan output;
+- local engineering material, tool state, or unpublished release records;
+
+
 - `.env` files, API keys, tokens, private keys, certificates, dumps, or logs
   containing sensitive data.
 

@@ -72,8 +72,8 @@ workloads. It covers prompt injection, authority forgery, DATA-to-CONTROL
 attempts, scope escalation, protected export, secret reveal, replay, malformed
 provider output, timeout/failure/cancellation, and premature release. The
 oracle counts typed effects, reads, external sends, decisions, provider turns,
-and secret-surface occurrences; it does not trust provider text. The latest
-checkpoint reports zero defined false allows and no raw fake secret in result,
+and secret-surface occurrences; it does not trust provider text. The checked-in proof suite
+reports zero defined false allows and no raw fake secret in result,
 error, trace, or broker-debug surfaces. This is bounded evidence for the
 offline fake environment, not a claim that semantic model compromise or a
 host-level bypass is solved.

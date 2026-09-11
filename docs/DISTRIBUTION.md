@@ -77,5 +77,5 @@ Not performed in this workspace:
 - MCP Registry registration.
 
 Those actions require owner-controlled credentials, repository settings, a
-reviewed release tag, and final platform/registry verification. No push or
-external publication is authorized by this document.
+reviewed release tag, and final platform/registry verification. This runbook
+describes release work; it does not grant publication authority.

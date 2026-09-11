@@ -1,8 +1,8 @@
 # Architecture
 
 This document describes the current implemented architecture. For the active
-phase and compact project map, see `ROADMAP.md`. Historical checkpoint material
-is kept in the local engineering workspace, not in the public documentation.
+phase and compact project map, see `ROADMAP.md`. Maintainer-only engineering
+records are intentionally outside the public documentation set.
 
 ## Implemented baseline
 
