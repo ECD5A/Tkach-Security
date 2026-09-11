@@ -49,7 +49,7 @@ enum BannerMode {
     Raster { width: u16, rows: u16 },
 }
 
-const BANNER_PNG: &[u8] = include_bytes!("../../../assets/tkach-banner.png");
+const BANNER_PNG: &[u8] = include_bytes!("../assets/tkach-banner.png");
 const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄    ▄     ▄▄▄▄  ▄   ▄▄      ▄▄▄   ▄▄▄▄   ▄▄▄▄  ▄   ▄  ▄ ▄▄   ▄  ▄▄▄▄▄ ▄    ▄
                ▄▄       ▀▀██▀▀ █  █▀    ███   ██▀▀██ ██  ██     █▀▀▀█ ▀█▀▀▀▀ █▀▀▀█▄ █   █  █▀▀▀█  █ ▀▀██▀▀ ▀█  ██
    ▀▀██▄▄▄  ▄██▀          ██   █▄█▀    ▄█▀█▄  ██     █▄▄▄██     █▄▄▄  ██▄▄▄  █   ▀  █   █  █▄  █  █   ██    ▀███

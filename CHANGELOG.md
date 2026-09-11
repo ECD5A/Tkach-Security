@@ -36,6 +36,8 @@ release candidate description, not a claim that a public release exists.
   on binary reproducibility claims.
 - Make the tag preflight smoke-install both CLI and MCP binaries before a draft
   release is created.
+- Keep the CLI banner inside the published `tkach-cli` crate so `cargo package`
+  verifies and compiles the same embedded UI asset that source builds use.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict
