@@ -516,6 +516,7 @@ fn real_executor_rejects_symlinked_files_and_parents() {
     );
 
     fs::remove_file(sandbox.path().join("workspace/input.txt")).unwrap();
+    fs::remove_file(sandbox.path().join("workspace/inside.txt")).unwrap();
     fs::remove_dir(sandbox.path().join("workspace")).unwrap();
     symlink(
         outside.path().join("workspace"),

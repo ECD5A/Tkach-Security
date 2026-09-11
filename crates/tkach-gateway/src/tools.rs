@@ -659,11 +659,6 @@ fn is_windows_reparse_point(metadata: &fs::Metadata) -> bool {
     metadata.file_attributes() & 0x400 != 0
 }
 
-#[cfg(not(windows))]
-const fn is_windows_reparse_point(_metadata: &fs::Metadata) -> bool {
-    false
-}
-
 fn is_successful_http_response(response: &[u8]) -> bool {
     let Some(line_end) = response.windows(2).position(|window| window == b"\r\n") else {
         return false;
