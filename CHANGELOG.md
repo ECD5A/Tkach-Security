@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Unify the TTY and pipe CLI menus around one compact, logo-free text contract;
+  reduce the TTY minimum to 44 x 14 and fall back to line mode when raw
+  terminal features are unavailable.
 - Remove the oversized CLI logo renderer and its dedicated asset; keep the
   interactive menu compact and usable in small terminals.
 - Add local `tkach doctor` diagnostics and a matching console menu entry for

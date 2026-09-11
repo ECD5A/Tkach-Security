@@ -343,7 +343,22 @@ fn run_ui(language: Language) -> Result<(), CliError> {
     let terminal_input = stdin.is_terminal() && io::stdout().is_terminal();
     let mut output = io::stdout();
     if terminal_input {
-        return ui::run(&mut output, language);
+        match ui::run(&mut output, language) {
+            Ok(()) => return Ok(()),
+            Err(CliError::Io) => {
+                writeln!(
+                    output,
+                    "{}",
+                    localized(
+                        language,
+                        "Interactive terminal mode is unavailable; using line mode.",
+                        "Интерактивный режим терминала недоступен; включён строковый режим.",
+                    )
+                )
+                .map_err(|_| CliError::Io)?;
+            }
+            Err(error) => return Err(error),
+        }
     }
 
     let mut input = stdin.lock();
@@ -441,88 +456,20 @@ fn write_ui_result(
     }
 }
 
-#[allow(clippy::too_many_lines)]
 fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> {
-    match language {
-        Language::English => {
-            writeln!(
-                output,
-                "+------------------------------------------------------------+"
-            )?;
-            writeln!(
-                output,
-                "| [1] init       create a safe starter request              |"
-            )?;
-            writeln!(
-                output,
-                "| [2] check      validate a bounded request                 |"
-            )?;
-            writeln!(
-                output,
-                "| [3] demo       run the deterministic Gateway proof        |"
-            )?;
-            writeln!(
-                output,
-                "| [4] doctor     local readiness check                       |"
-            )?;
-            writeln!(
-                output,
-                "| [5] guide      safe integration paths                      |"
-            )?;
-            writeln!(
-                output,
-                "| [F1] or /l     switch language; /l en|ru selects one     |"
-            )?;
-            writeln!(
-                output,
-                "| [6/q]          quit                                        |"
-            )?;
-            writeln!(
-                output,
-                "+------------------------------------------------------------+"
-            )?;
-            write!(output, "tkach[en]> ")
-        }
-        Language::Russian => {
-            writeln!(
-                output,
-                "+------------------------------------------------------------+"
-            )?;
-            writeln!(
-                output,
-                "| [1] init       создать безопасный starter request         |"
-            )?;
-            writeln!(
-                output,
-                "| [2] check      проверить ограниченный request             |"
-            )?;
-            writeln!(
-                output,
-                "| [3] demo       запустить проверку Gateway                  |"
-            )?;
-            writeln!(
-                output,
-                "| [4] doctor     локальная готовность                        |"
-            )?;
-            writeln!(
-                output,
-                "| [5] guide      пути интеграции                             |"
-            )?;
-            writeln!(
-                output,
-                "| [F1] или /l    сменить язык; /l en|ru выбрать язык       |"
-            )?;
-            writeln!(
-                output,
-                "| [6/q]          выйти                                       |"
-            )?;
-            writeln!(
-                output,
-                "+------------------------------------------------------------+"
-            )?;
-            write!(output, "tkach[ru]> ")
-        }
+    for line in ui::menu_lines(language, None) {
+        writeln!(output, "{line}")?;
     }
+    writeln!(
+        output,
+        "{}",
+        localized(
+            language,
+            "F1 or /l: switch language | q: quit",
+            "F1 или /l: сменить язык | q: выйти",
+        )
+    )?;
+    write!(output, "tkach[{}]> ", language.label())
 }
 
 fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
@@ -990,10 +937,16 @@ mod tests {
             let mut output = Vec::new();
             write_ui_menu(&mut output, language).expect("line menu renders");
             let output = String::from_utf8(output).expect("menu output is UTF-8");
+            for line in ui::menu_lines(language, None) {
+                assert!(
+                    output.contains(&line),
+                    "line menu drifted from TTY menu: {line}"
+                );
+            }
             assert!(!output.contains("TKACH SECURITY"));
             assert!(!output.contains("Architected defense"));
-            assert!(output.contains("[1]"));
-            assert!(output.contains("[6/q]"));
+            assert!(output.contains("01"));
+            assert!(output.contains("06"));
         }
     }
 

@@ -27,8 +27,8 @@ use std::{
     time::Duration,
 };
 
-const MIN_UI_WIDTH: u16 = 50;
-const MIN_UI_HEIGHT: u16 = 24;
+const MIN_UI_WIDTH: u16 = 44;
+const MIN_UI_HEIGHT: u16 = 14;
 
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
@@ -36,6 +36,49 @@ fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
         Language::Russian => ru,
     }
 }
+
+fn menu_items(l: Language) -> [(&'static str, &'static str); 6] {
+    match l {
+        Language::English => [
+            ("init", "create starter"),
+            ("check", "validate request"),
+            ("demo", "run offline demo"),
+            ("doctor", "local diagnostics"),
+            ("guide", "integration guide"),
+            ("quit", "exit"),
+        ],
+        Language::Russian => [
+            ("init", "создать запрос"),
+            ("check", "проверить запрос"),
+            ("demo", "запустить демо"),
+            ("doctor", "локальная диагностика"),
+            ("guide", "руководство"),
+            ("quit", "выход"),
+        ],
+    }
+}
+
+pub(super) fn menu_lines(l: Language, selected: Option<usize>) -> Vec<String> {
+    let mut lines = vec![
+        format!("Tkach local panel  |  v{VERSION}  |  {}", l.label()),
+        tr(
+            l,
+            "The model proposes. Tkach authorizes.",
+            "Модель предлагает. Ткач авторизует.",
+        )
+        .into(),
+        String::new(),
+    ];
+    for (index, (command, description)) in menu_items(l).iter().enumerate() {
+        let marker = if selected == Some(index) { ">" } else { " " };
+        lines.push(format!(
+            "{marker} {:02}  {command:<7} {description}",
+            index + 1
+        ));
+    }
+    lines
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum Screen {
     Menu,
@@ -164,37 +207,7 @@ impl App {
             Screen::Checking => {
                 vec![tr(l, "Checking... Esc: cancel.", "Проверка... Esc: отмена.").into()]
             }
-            Screen::Menu => {
-                let mut lines = Vec::new();
-                lines.push(format!("v{VERSION}  |  {}  |  LOCAL", l.label()));
-                lines.push(
-                    tr(
-                        l,
-                        "The model proposes. Tkach authorizes.",
-                        "Модель предлагает. Ткач авторизует.",
-                    )
-                    .into(),
-                );
-                lines.push(String::new());
-                for (i, label) in [
-                    tr(l, "Initialize project", "Инициализировать проект"),
-                    tr(l, "Validate request", "Проверить запрос"),
-                    tr(l, "Run protected demo", "Запустить защищённое демо"),
-                    tr(l, "Local diagnostics", "Локальная диагностика"),
-                    tr(l, "Integration guide", "Руководство по интеграции"),
-                    tr(l, "Exit", "Выход"),
-                ]
-                .iter()
-                .enumerate()
-                {
-                    lines.push(format!(
-                        "{} {:02}  {label}",
-                        if i == self.selected { ">" } else { " " },
-                        i + 1
-                    ));
-                }
-                lines
-            }
+            Screen::Menu => menu_lines(l, Some(self.selected)),
             Screen::Path(create, value) => path_lines(l, *create, value),
             Screen::Result(value) => value.lines().map(str::to_owned).collect(),
             Screen::Integration => integration_lines(l),
@@ -452,8 +465,8 @@ fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
         lines = vec![
             tr(
                 app.language,
-                "Resize terminal to at least 50 x 24.",
-                "Увеличьте окно до 50 x 24.",
+                "Resize terminal to at least 44 x 14.",
+                "Увеличьте окно до 44 x 14.",
             )
             .into(),
         ];
@@ -565,6 +578,12 @@ mod tests {
             app.key(key(code));
             assert_eq!(app.language, Language::English);
         }
+    }
+
+    #[test]
+    fn menu_contract_is_shared_by_the_tty_renderer() {
+        let app = App::new(Language::English);
+        assert_eq!(app.lines(), menu_lines(Language::English, Some(0)));
     }
 
     #[test]

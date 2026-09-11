@@ -48,8 +48,10 @@ F1 and l/L/д/Д switch languages; in path fields only F1 switches, so filenames
 remain editable. Path input is bounded to 256 UTF-8 bytes and never evaluated
 as a shell command. Results wrap and scroll with Up/Down. The terminal restores
 its screen, cursor and input mode on normal exit and returned errors.
-The menu requires at least 50 columns and 24 rows. `NO_COLOR` disables selection
-color. Validation accepts regular files only and runs on one background reader.
+The menu requires at least 44 columns and 14 rows. `NO_COLOR` disables selection
+color. If raw terminal mode is unavailable, the CLI falls back to the same
+line-oriented menu contract. Validation accepts regular files only and runs on
+one background reader.
 Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
