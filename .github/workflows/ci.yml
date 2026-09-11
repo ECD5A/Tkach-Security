@@ -2,7 +2,23 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - '**/*.rst'
+      - '**/*.adoc'
+      - '**/*.txt'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - '**/*.rst'
+      - '**/*.adoc'
+      - '**/*.txt'
+      - 'docs/**'
+      - 'LICENSE'
 
 permissions:
   contents: read
