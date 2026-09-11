@@ -48,6 +48,8 @@ release candidate description, not a claim that a public release exists.
   adapters, and MCP metadata so SDK drift cannot create a mixed-version release.
 - Add keyless Sigstore blob signing and exact-identity verification for release
   archives and checksum manifests before the draft GitHub Release is created.
+- Add a copyable generic HTTP smoke path for `/healthz` and authenticated
+  `/v1/run`, keeping the language adapters as thin carriers over that contract.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict

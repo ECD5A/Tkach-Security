@@ -153,6 +153,21 @@ accepted in request JSON, MCP arguments, or command-line arguments. `/healthz`
 is unauthenticated liveness, `/v1/run` is bearer-authenticated, and Ctrl-C
 requests a bounded stop between connections.
 
+Any language can use the same HTTP contract directly. The health route is
+unauthenticated liveness; the run route requires the trusted bearer proof:
+
+~~~text
+curl --fail http://127.0.0.1:8080/healthz
+curl --fail --silent --show-error \
+  -H 'Authorization: Bearer <trusted-runtime-token>' \
+  -H 'Content-Type: application/json' \
+  --data '{"request_id":"request-1","lifecycle_id":"lifecycle-1","request":{"messages":[{"role":"user","content":"hello"}],"metadata":[],"tool_declarations":[]}}' \
+  http://127.0.0.1:8080/v1/run
+~~~
+
+The placeholder token must be supplied by trusted host configuration. Do not
+put it in model-controlled request data, shell history, or committed examples.
+
 ### Private OCI image
 
 The repository includes a multi-stage `Dockerfile` for a local/private image.
