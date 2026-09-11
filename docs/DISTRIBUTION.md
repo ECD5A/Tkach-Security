@@ -69,7 +69,9 @@ The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
 are included under `sdk/`. None of
 these adapters may duplicate Core policy, authority, provider, executor, or
-secret-handling logic, and no Python or npm package has been published.
+secret-handling logic. The Python and Node adapters include local package
+metadata and are checked as installable source bundles; no Python, npm, or Go
+package has been published.
 
 ## MCP Registry readiness gate
 

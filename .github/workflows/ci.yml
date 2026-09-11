@@ -50,8 +50,13 @@ jobs:
       - run: cargo +1.85.1 run -p tkach-gateway --example quickstart --locked
       - name: Test the standard-library Python adapter
         run: python -m unittest discover -s sdk/python -p "test_*.py" -v
+      - name: Build the local Python package
+        run: python -m pip wheel --no-deps sdk/python --wheel-dir "$RUNNER_TEMP/tkach-python-wheel"
       - name: Test the dependency-free Node adapter
         run: node --test sdk/javascript/test_tkach_client.mjs
+      - name: Validate the local Node package
+        working-directory: sdk/javascript
+        run: npm pack --dry-run --ignore-scripts
       - name: Test the dependency-free Go adapter
         working-directory: sdk/go
         run: go test ./...

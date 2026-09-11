@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add local Python and Node package metadata with no runtime dependencies or
+  install hooks; CI verifies wheel/npm bundle shape while public publication
+  remains owner-controlled.
 - Make CI and release preflight compile every packaged crate with strict
   `cargo package --workspace --locked` verification instead of skipping the
   package build step.

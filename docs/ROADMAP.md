@@ -39,6 +39,9 @@ adapter. Productization is active by owner direction; the Core remains frozen.
   explicit tkach_run tool, strict JSON-RPC limits, and no stdout diagnostics.
 - Loopback-only bounded HTTP/1.1 adapter over `RuntimeService`, with strict
   `/v1/run` and static `/healthz` contracts plus transport regression tests.
+- Local Python wheel and Node package metadata for the thin HTTP carriers,
+  including clean-machine bundle checks without runtime dependencies or
+  install hooks; external PyPI/npm publication remains deferred.
 
 ## NEXT
 
@@ -74,9 +77,9 @@ this order:
   behavior (done for the local library boundary) plus a deterministic
   loopback-only CLI reference runtime;
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
-  reviewed; the Rust client, source-level standard-library Python adapter, and
-  dependency-free Node runtime with TypeScript declarations, and Go module are
-  done;
+  reviewed; the Rust client, source-level standard-library Python adapter with
+  local wheel metadata, dependency-free Node runtime with TypeScript
+  declarations and local package metadata, and Go module are done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks;
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,

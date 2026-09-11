@@ -4,6 +4,15 @@ This is a dependency-free Node.js carrier for the reviewed local HTTP
 contract. `tkach_client.mjs` is the runtime; `tkach_client.d.ts` provides the
 TypeScript declarations without reimplementing Tkach Core.
 
+Install the local package while the public npm release is still deferred:
+
+```text
+npm install ./sdk/javascript
+```
+
+The package has no install or postinstall hook and ships only the runtime,
+declarations, and this README.
+
 ```js
 import { TkachClient } from "./tkach_client.mjs";
 

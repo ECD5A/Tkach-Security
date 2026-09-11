@@ -162,6 +162,12 @@ languages can use the same strict HTTP contract directly.
 The source-level adapter at [`sdk/python`](../sdk/python) is standard-library
 only and follows the same HTTP contract without reimplementing Core policy:
 
+Install it locally while PyPI publication remains deferred:
+
+```text
+python -m pip install ./sdk/python
+```
+
 ```text
 PYTHONPATH=sdk/python python -m unittest discover -s sdk/python -p "test_*.py" -v
 ```
@@ -190,6 +196,12 @@ or use the HTTP contract directly.
 
 The dependency-free Node adapter at [`sdk/javascript`](../sdk/javascript) has
 an `.mjs` runtime and a matching `.d.ts` declaration surface:
+
+Install it locally while npm publication remains deferred:
+
+```text
+npm install ./sdk/javascript
+```
 
 ```text
 node --test sdk/javascript/test_tkach_client.mjs

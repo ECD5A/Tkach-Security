@@ -3,6 +3,12 @@
 This is a deliberately small, standard-library-only client for the reviewed
 local HTTP contract. It is not a Python reimplementation of Tkach Core.
 
+Install the local package while the public PyPI release is still deferred:
+
+```text
+python -m pip install ./sdk/python
+```
+
 ```python
 from tkach_client import TkachClient
 

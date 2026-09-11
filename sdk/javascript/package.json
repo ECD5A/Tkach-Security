@@ -1,0 +1,30 @@
+{
+  "name": "tkach-security-client",
+  "version": "0.1.0",
+  "description": "Thin, bounded Node.js client for the Tkach Security loopback HTTP contract",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./tkach_client.d.ts",
+      "import": "./tkach_client.mjs"
+    }
+  },
+  "types": "./tkach_client.d.ts",
+  "files": [
+    "README.md",
+    "tkach_client.d.ts",
+    "tkach_client.mjs"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ECD5A/Tkach-Security.git",
+    "directory": "sdk/javascript"
+  },
+  "scripts": {
+    "test": "node --test test_tkach_client.mjs"
+  }
+}
