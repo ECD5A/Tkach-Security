@@ -41,6 +41,9 @@ release candidate description, not a claim that a public release exists.
 - Add a non-root local OCI image with an explicit loopback default and bounded
   `tkach health` container check; wildcard ingress and image publication stay
   outside the current security contract.
+- Add an MCP Registry draft manifest and Cargo package README with the visible
+  ownership marker required for a future `tkach-mcp` publication; no registry
+  login or publication is performed locally.
 - Add safe `tkach-mcp --version`/`--help` diagnostics with strict rejection of
   undocumented arguments before credential loading.
 - Make CI and release preflight compile every packaged crate with strict

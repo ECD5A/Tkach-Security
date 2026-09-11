@@ -260,6 +260,29 @@ TKACH_BEARER_TOKEN=trusted-runtime-token
 tkach-mcp
 ~~~
 
+After the matching `tkach-mcp` version is published to crates.io, an MCP host
+can launch it as a stdio server. For example, a Claude-compatible host config
+uses the adapter command and trusted environment values (replace the token
+through the host's secret-management mechanism; do not commit a real token):
+
+~~~json
+{
+  "mcpServers": {
+    "tkach": {
+      "command": "tkach-mcp",
+      "env": {
+        "TKACH_HTTP_ADDR": "127.0.0.1:8080",
+        "TKACH_BEARER_TOKEN": "<trusted-runtime-token>"
+      }
+    }
+  }
+}
+~~~
+
+The adapter is intentionally not a standalone model provider: start
+`tkach serve` in the trusted local host first. A host that cannot keep the
+token outside model-controlled data must not enable this integration.
+
 For diagnostics, `tkach-mcp --version` and `tkach-mcp --help` do not read
 credentials or connect to the runtime. Any other argument is rejected before
 environment configuration; normal operation uses no arguments and stdio.

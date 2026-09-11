@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ECD5A/tkach-security",
+  "title": "Tkach Security",
+  "description": "Fail-closed MCP adapter for untrusted model output over a local Tkach runtime.",
+  "repository": {
+    "url": "https://github.com/ECD5A/Tkach-Security",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "cargo",
+      "identifier": "tkach-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "TKACH_HTTP_ADDR",
+          "description": "Loopback address of the already running Tkach HTTP runtime.",
+          "format": "string",
+          "default": "127.0.0.1:8080",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "TKACH_BEARER_TOKEN",
+          "description": "Trusted bearer proof for the local runtime.",
+          "format": "string",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

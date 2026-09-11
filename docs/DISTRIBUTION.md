@@ -95,11 +95,17 @@ than they are.
 When that boundary is ready, the release owner must use the current official
 Registry workflow rather than hand-editing registry data:
 
-1. publish and verify the installable MCP package or release artifact;
-2. create and validate `server.json` with the official `mcp-publisher` CLI;
+1. publish and verify the installable `tkach-mcp` Cargo package;
+2. validate the repository draft `server.json` with the official
+   `mcp-publisher validate` command;
 3. authenticate the package namespace and repository ownership;
 4. publish through `mcp-publisher publish` and verify the returned Registry
    record.
+
+The draft uses the current Cargo package contract and the visible
+`mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. It is
+not evidence of publication: the Cargo package and the repository are still
+owner-controlled and may remain private.
 
 The authoritative workflow and schema are maintained by the
 [MCP Registry publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),
