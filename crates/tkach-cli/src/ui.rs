@@ -14,11 +14,19 @@ use super::{
     CliError, Language, MAX_UI_INPUT_BYTES, VERSION, check_request, doctor, initialize, run_demo,
 };
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, Show},
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
-    execute, queue,
-    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
-    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+    execute,
+    style::ResetColor,
+    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{
+    Frame, Terminal,
+    backend::CrosstermBackend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
 use std::{
     io::{self, Write},
@@ -457,85 +465,259 @@ fn fit_lines(lines: Vec<String>, width: usize, editing: bool) -> Vec<String> {
         .collect()
 }
 
-fn draw(out: &mut impl Write, app: &mut App) -> io::Result<()> {
-    let (w, h) = terminal::size()?;
-    queue!(out, ResetColor, Clear(ClearType::All))?;
-    let mut lines = app.lines();
-    if w < MIN_UI_WIDTH || h < MIN_UI_HEIGHT {
-        lines = vec![
+fn accent_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default().add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    }
+}
+
+fn muted_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default()
+    } else {
+        Style::default().fg(Color::DarkGray)
+    }
+}
+
+fn selected_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    }
+}
+
+fn panel_block<'a>(title: impl Into<Line<'a>>, no_color: bool) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(accent_style(no_color))
+        .title(title)
+}
+
+fn screen_title(l: Language, screen: &Screen) -> &'static str {
+    match screen {
+        Screen::Menu => tr(l, "STATUS", "СОСТОЯНИЕ"),
+        Screen::Path(true, _) => tr(l, "INITIALIZE", "ИНИЦИАЛИЗАЦИЯ"),
+        Screen::Path(false, _) => tr(l, "VALIDATE", "ПРОВЕРКА"),
+        Screen::Result(_) => tr(l, "RESULT", "РЕЗУЛЬТАТ"),
+        Screen::Integration => tr(l, "INTEGRATION", "ИНТЕГРАЦИЯ"),
+        Screen::Checking => tr(l, "CHECKING", "ПРОВЕРКА"),
+    }
+}
+
+fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool) {
+    let header = Paragraph::new(vec![
+        Line::from(vec![
+            Span::styled("TKACH", accent_style(no_color)),
+            Span::styled(" // LOCAL SECURITY PANEL", muted_style(no_color)),
+        ]),
+        Line::from(vec![
+            Span::styled(format!("v{VERSION}"), muted_style(no_color)),
+            Span::raw("  |  "),
+            Span::styled("FAIL-CLOSED", accent_style(no_color)),
+            Span::raw("  |  "),
+            Span::styled(
+                app.language.label().to_ascii_uppercase(),
+                muted_style(no_color),
+            ),
+        ]),
+    ])
+    .block(panel_block(" CONTROL ", no_color));
+    frame.render_widget(header, area);
+}
+
+fn render_menu_panel(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool) {
+    let items = menu_items(app.language)
+        .iter()
+        .enumerate()
+        .map(|(index, (command, description))| {
+            let style = if index == app.selected {
+                selected_style(no_color)
+            } else {
+                Style::default()
+            };
+            ListItem::new(Line::from(Span::styled(
+                format!(" {:02}  {command:<7} {description} ", index + 1),
+                style,
+            )))
+        })
+        .collect::<Vec<_>>();
+    let menu = List::new(items).block(panel_block(
+        tr(app.language, " ACTIONS ", " ДЕЙСТВИЯ "),
+        no_color,
+    ));
+    frame.render_widget(menu, area);
+}
+
+fn render_status_panel(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool) {
+    let lines = vec![
+        Line::from(Span::styled(
             tr(
+                app.language,
+                "The model proposes. Tkach authorizes.",
+                "Модель предлагает. Ткач авторизует.",
+            ),
+            accent_style(no_color),
+        )),
+        Line::from(""),
+        Line::from(tr(
+            app.language,
+            "• model output stays data",
+            "• вывод модели остаётся данными",
+        )),
+        Line::from(tr(
+            app.language,
+            "• no provider or network is started",
+            "• провайдер и сеть не запускаются",
+        )),
+        Line::from(tr(
+            app.language,
+            "• protected effects stay behind Gateway",
+            "• защищённые действия идут через Gateway",
+        )),
+        Line::from(""),
+        Line::from(Span::styled(
+            tr(
+                app.language,
+                "LOCAL ONBOARDING / SAFE BY DEFAULT",
+                "ЛОКАЛЬНАЯ НАСТРОЙКА / БЕЗОПАСНО ПО УМОЛЧАНИЮ",
+            ),
+            muted_style(no_color),
+        )),
+    ];
+    let panel = Paragraph::new(lines)
+        .wrap(Wrap { trim: true })
+        .block(panel_block(
+            screen_title(app.language, &app.screen),
+            no_color,
+        ));
+    frame.render_widget(panel, area);
+}
+
+fn render_text_screen(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool) {
+    let lines = fit_lines(
+        app.lines(),
+        usize::from(area.width.saturating_sub(2)),
+        matches!(app.screen, Screen::Path(..)),
+    )
+    .into_iter()
+    .skip(app.scroll)
+    .map(|line| Line::from(visible(&line)))
+    .collect::<Vec<_>>();
+    let panel = Paragraph::new(lines)
+        .wrap(Wrap { trim: false })
+        .block(panel_block(
+            screen_title(app.language, &app.screen),
+            no_color,
+        ));
+    frame.render_widget(panel, area);
+}
+
+fn footer_text(l: Language, screen: &Screen) -> &'static str {
+    match screen {
+        Screen::Menu => tr(
+            l,
+            "↑↓/Tab move   Enter select   1-6 quick action   F1/L/Д language   Esc quit",
+            "↑↓/Tab выбор   Enter открыть   1-6 быстро   F1/L/Д язык   Esc выход",
+        ),
+        Screen::Path(..) => tr(
+            l,
+            "Type path   Enter confirm   F1 language   Esc cancel",
+            "Введите путь   Enter подтвердить   F1 язык   Esc отмена",
+        ),
+        _ => tr(
+            l,
+            "↑↓ scroll   Enter/Esc back   F1/L/Д language",
+            "↑↓ прокрутка   Enter/Esc назад   F1/L/Д язык",
+        ),
+    }
+}
+
+fn draw_frame(frame: &mut Frame<'_>, app: &App) {
+    let area = frame.area();
+    let no_color = std::env::var_os("NO_COLOR").is_some();
+    let outer = panel_block(" TKACH SECURITY ", no_color);
+    let inner = outer.inner(area);
+    frame.render_widget(outer, area);
+
+    if area.width < MIN_UI_WIDTH || area.height < MIN_UI_HEIGHT {
+        let message = Paragraph::new(vec![
+            Line::from(Span::styled(
+                tr(app.language, "WINDOW TOO SMALL", "ОКНО СЛИШКОМ МАЛО"),
+                accent_style(no_color),
+            )),
+            Line::from(""),
+            Line::from(tr(
                 app.language,
                 "Resize terminal to at least 44 x 14.",
                 "Увеличьте окно до 44 x 14.",
-            )
-            .into(),
-        ];
+            )),
+        ])
+        .alignment(Alignment::Center)
+        .block(panel_block(" UI ", no_color));
+        frame.render_widget(message, inner);
+        return;
     }
-    let lines = fit_lines(
-        lines,
-        usize::from(w.saturating_sub(1)),
-        matches!(app.screen, Screen::Path(..)),
-    );
-    let available = usize::from(h.saturating_sub(2));
-    app.scroll = app.scroll.min(lines.len().saturating_sub(available));
-    for (row, line) in lines.iter().skip(app.scroll).take(available).enumerate() {
-        queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
-        if std::env::var_os("NO_COLOR").is_none() && line.starts_with('>') {
-            queue!(
-                out,
-                SetForegroundColor(Color::Cyan),
-                SetAttribute(Attribute::Bold)
-            )?;
-        }
-        queue!(
-            out,
-            Print(
-                line.chars()
-                    .take(usize::from(w.saturating_sub(1)))
-                    .collect::<String>()
-            ),
-            ResetColor,
-            SetAttribute(Attribute::Reset)
-        )?;
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(5),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+    render_header(frame, layout[0], app, no_color);
+    if app.screen == Screen::Menu {
+        let body = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
+            .split(layout[1]);
+        render_menu_panel(frame, body[0], app, no_color);
+        render_status_panel(frame, body[1], app, no_color);
+    } else {
+        render_text_screen(frame, layout[1], app, no_color);
     }
-    if h > 0 {
-        let footer = match app.screen {
-            Screen::Menu => tr(
-                app.language,
-                "Up/Down  Enter  F1/L/Д: EN-RU  Esc: exit",
-                "Стрелки  Enter  F1/L/Д: EN-RU  Esc: выход",
-            ),
-            Screen::Path(..) => tr(
-                app.language,
-                "F1: EN-RU  Enter: confirm  Esc: cancel",
-                "F1: EN-RU  Enter: подтвердить  Esc: отмена",
-            ),
-            _ => tr(
-                app.language,
-                "F1/L/Д: EN-RU  Up/Down: scroll  Enter/Esc: back",
-                "F1/L/Д: EN-RU  Стрелки: прокрутка  Enter/Esc: назад",
-            ),
-        };
-        queue!(
-            out,
-            MoveTo(0, h - 1),
-            Print(
-                footer
-                    .chars()
-                    .take(usize::from(w.saturating_sub(1)))
-                    .collect::<String>()
-            )
-        )?;
-    }
-    out.flush()
+    let status = Paragraph::new(Line::from(Span::styled(
+        tr(
+            app.language,
+            "READY / local-only / no model connection",
+            "ГОТОВО / только локально / без подключения к модели",
+        ),
+        muted_style(no_color),
+    )));
+    frame.render_widget(status, layout[2]);
+    let footer = Paragraph::new(Line::from(Span::styled(
+        footer_text(app.language, &app.screen),
+        muted_style(no_color),
+    )));
+    frame.render_widget(footer, layout[3]);
+}
+
+fn draw_terminal<W: Write>(
+    terminal: &mut Terminal<CrosstermBackend<W>>,
+    app: &App,
+) -> io::Result<()> {
+    terminal.draw(|frame| draw_frame(frame, app)).map(|_| ())
 }
 pub(super) fn run(out: &mut impl Write, language: Language) -> Result<(), CliError> {
     let _guard = Guard::enter(out).map_err(|_| CliError::Io)?;
     let mut app = App::new(language);
-    draw(out, &mut app).map_err(|_| CliError::Io)?;
+    let backend = CrosstermBackend::new(out);
+    let mut terminal = Terminal::new(backend).map_err(|_| CliError::Io)?;
+    terminal.clear().map_err(|_| CliError::Io)?;
+    draw_terminal(&mut terminal, &app).map_err(|_| CliError::Io)?;
     loop {
         if app.poll_check() {
-            draw(out, &mut app).map_err(|_| CliError::Io)?;
+            draw_terminal(&mut terminal, &app).map_err(|_| CliError::Io)?;
         }
         if !event::poll(Duration::from_millis(50)).map_err(|_| CliError::Io)? {
             continue;
@@ -554,7 +736,7 @@ pub(super) fn run(out: &mut impl Write, language: Language) -> Result<(), CliErr
             Event::Resize(..) => {}
             _ => continue,
         }
-        draw(out, &mut app).map_err(|_| CliError::Io)?;
+        draw_terminal(&mut terminal, &app).map_err(|_| CliError::Io)?;
     }
 }
 #[cfg(test)]

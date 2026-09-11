@@ -55,8 +55,10 @@ one background reader.
 Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
-The interactive menu is intentionally compact and text-first. `NO_COLOR=1`
-disables selection color for terminals where color is unavailable or unwanted.
+The interactive menu is a compact Ratatui panel with a selected action, local
+status panel, and keyboard footer. `NO_COLOR=1` disables selection color for
+terminals where color is unavailable or unwanted. The terminal emulator owns
+font selection; the CLI owns layout, borders, and colors.
 CLI is an optional local onboarding tool. Creating a starter request does not
 deploy a policy or grant authority. `tkach serve --demo` is a separate,
 deterministic reference runtime for local HTTP smoke tests; it is not a

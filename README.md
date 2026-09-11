@@ -104,8 +104,10 @@ separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
-The interactive menu is intentionally compact and text-first. Set `NO_COLOR=1`
-to disable selection color; the CLI remains usable in terminals without color.
+The interactive menu is a compact cross-platform Ratatui panel with a selected
+action, local status panel, and keyboard footer. `NO_COLOR=1` disables selection
+color; the CLI remains usable in terminals without color. The CLI controls
+layout and colors, while the terminal emulator controls the actual font.
 
 ## Architecture
 

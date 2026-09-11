@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Replace the flat CLI screen with a compact Ratatui panel: shared TTY/pipe
+  actions, retro terminal theme, selected-state contrast, status panel, and
+  keyboard footer remain local and provider-independent.
 - Unify the TTY and pipe CLI menus around one compact, logo-free text contract;
   reduce the TTY minimum to 44 x 14 and fall back to line mode when raw
   terminal features are unavailable.
