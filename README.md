@@ -79,6 +79,16 @@ $ tkach run --demo
 demo passed: bounded Gateway response released after final gates
 ```
 
+For a local HTTP smoke test, start the explicit deterministic reference runtime
+with a bearer token supplied outside the command line:
+
+```console
+TKACH_BEARER_TOKEN=local-development-secret TKACH_HTTP_ADDR=127.0.0.1:8080 tkach serve --demo
+```
+
+It exposes only loopback `/healthz` and authenticated `/v1/run`, performs no
+real model call or protected side effect, and is not a production gateway.
+
 Use `tkach --lang ru --help` for Russian help, or set `TKACH_LANG=ru` as the
 default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
@@ -88,7 +98,8 @@ Use **Up/Down** (or **1–5**) to select, **Enter** to open an action, and **Esc
 to go back or exit. **F1**, **l/L**, and **д/Д** switch English/Russian immediately.
 While entering a path, use **F1**; letters remain part of the path.
 The menu guides starter creation, request validation, an offline demo, and integration.
-It does not deploy a security policy, start a server, or connect a model.
+It does not deploy a security policy or connect a model. `serve --demo` is a
+separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
@@ -133,7 +144,7 @@ authority outside the Core.
 | `tkach-core` | Strong Core: Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka, Klyuchnik, and Sled |
 | `tkach-gateway` | Bounded lifecycle, provider orchestration, protected execution boundary, and final release |
 | `tkach-provider-openai` | Optional bounded non-streaming OpenAI Responses adapter; provider output remains hostile DATA |
-| `tkach-cli` | Local `init`, `check`, and deterministic `run --demo` onboarding |
+| `tkach-cli` | Local `init`, `check`, deterministic `run --demo`, and loopback `serve --demo` reference runtime |
 | `tkach-http` | Loopback-only HTTP/1.1 carrier around an existing runtime service |
 | `tkach-client` | Bounded Rust client for the reviewed local HTTP contract |
 | `tkach-mcp` | Separate stdio MCP adapter exposing one delegated `tkach_run` tool |
@@ -147,6 +158,7 @@ Available today:
 - a typed Rust HTTP client;
 - an MCP stdio adapter over the local HTTP runtime;
 - a small CLI for safe onboarding and a deterministic proof.
+- an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.
 
 Not claimed yet:
 

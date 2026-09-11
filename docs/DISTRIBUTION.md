@@ -56,12 +56,14 @@ checksum verification. It does not publish a public release automatically.
 ## Artifact and integration boundaries
 
 The first useful binary is `tkach`, which provides bounded onboarding and a
-deterministic demo. `tkach-mcp` is a stdio adapter over an already running
-loopback Tkach HTTP runtime. `tkach-http` is currently a library boundary, not
-a production server binary. Consequently this repository does not yet claim a
-ready-to-run public HTTP service, TLS termination, process supervisor, or OCI
-image. Creating those artifacts without those boundaries would overstate the
-security contract.
+deterministic demo. `tkach serve --demo` is a loopback-only reference runtime
+for local HTTP smoke tests; it accepts its bearer token only from trusted
+environment configuration and contains no real provider or effect integration.
+`tkach-mcp` is a stdio adapter over an already running loopback Tkach HTTP
+runtime. `tkach-http` remains a library boundary, not a production server
+binary. Consequently this repository does not yet claim a ready-to-run public
+HTTP service, TLS termination, process supervisor, or OCI image. Creating
+those artifacts without those boundaries would overstate the security contract.
 
 The HTTP JSON contract is the language-neutral integration point. A future
 Python, JavaScript/TypeScript, or Go client may wrap it, but must not duplicate

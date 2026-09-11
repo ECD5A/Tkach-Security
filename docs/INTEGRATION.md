@@ -51,17 +51,20 @@ remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
 The tracked banner is rendered as a bounded RGB pixel header in ordinary color
 terminals. `TKACH_LOGO_MODE=ascii` or `NO_COLOR=1` selects the text fallback.
-CLI is an optional local onboarding tool, not a server launcher or a protection
-daemon. Creating a starter request does not deploy a policy or grant authority.
-Applications integrate through the Gateway library or a configured HTTP/MCP runtime.
+CLI is an optional local onboarding tool. Creating a starter request does not
+deploy a policy or grant authority. `tkach serve --demo` is a separate,
+deterministic reference runtime for local HTTP smoke tests; it is not a
+protection daemon or a production gateway. Applications integrate through the
+Gateway library or a separately reviewed HTTP/MCP runtime.
 
 ## HTTP adapter contract — v0.1
 
 `tkach-http` is a thin language-neutral carrier around an existing
-`tkach_gateway::RuntimeService<P>`. It is a library adapter, not a configured
-server binary. A trusted host embeds it and supplies the existing Gateway,
-provider, executor, and runtime authenticator; HTTP never gets direct access
-to those internals.
+`tkach_gateway::RuntimeService<P>`. The crate remains a library adapter: a
+trusted host supplies the existing Gateway, provider, executor, and runtime
+authenticator; HTTP never gets direct access to those internals. The CLI also
+offers `serve --demo`, but that command wires only the deterministic demo
+Gateway and exists for local integration smoke tests.
 
 The v0.1 listener is intentionally local and sequential:
 
@@ -90,8 +93,29 @@ This contract is suitable for a local trusted host and language clients that
 can issue ordinary HTTP/1.1 requests. It is not TLS, process/OS isolation,
 durable replay, cancellation-on-disconnect, a public gateway, or a replacement
 for the Core/Gateway authority model. The Rust client below is a thin reviewed
-carrier; MCP, other-language SDKs, and a distributable server binary require
+carrier. The reference CLI server is loopback-only, sequential, bearer-
+authenticated, and deterministic; it must not be exposed as a public service.
+MCP, other-language SDKs, and a distributable production server require
 separate review.
+
+### Local HTTP smoke runtime
+
+The reference runtime is intentionally explicit and does not accept a token on
+the command line:
+
+```text
+TKACH_BEARER_TOKEN=local-development-secret \
+TKACH_HTTP_ADDR=127.0.0.1:8080 \
+tkach serve --demo
+```
+
+On PowerShell, set the same variables with `$env:TKACH_BEARER_TOKEN` and
+`$env:TKACH_HTTP_ADDR` before starting the command. The address must parse as a
+loopback `SocketAddr`; DNS names, LAN addresses, and wildcard binds are
+rejected. `/healthz` is unauthenticated liveness only. `/v1/run` requires the
+configured bearer token and is backed by the deterministic bounded demo
+provider, so it performs no real model call or protected side effect. The
+process handles one bounded request per connection and stops with Ctrl-C.
 
 ## Rust client adapter — v0.1
 

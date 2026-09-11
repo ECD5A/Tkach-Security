@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add the explicit loopback-only `tkach serve --demo` reference runtime for
+  bounded HTTP integration smoke tests; bearer credentials remain environment-
+  supplied and the deterministic demo has no real provider or side effect.
 - Replace the terminal command prompt with arrow-key navigation, explicit path
   entry, readable results, integration guidance and the ASCII weaver emblem.
   Support immediate F1/l/L/д/Д language switching, safe terminal restoration,

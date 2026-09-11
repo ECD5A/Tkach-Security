@@ -84,14 +84,25 @@ $ tkach run --demo
 demo passed: bounded Gateway response released after final gates
 ```
 
+Для локальной проверки HTTP запустите отдельный детерминированный reference
+runtime; bearer-токен передаётся не в аргументе команды, а через окружение:
+
+```console
+TKACH_BEARER_TOKEN=local-development-secret TKACH_HTTP_ADDR=127.0.0.1:8080 tkach serve --demo
+```
+
+Он открывает только loopback `/healthz` и аутентифицированный `/v1/run`, не
+вызывает настоящую модель и не выполняет защищённых побочных эффектов. Это не
+production gateway.
+
 Запустите `tkach` без аргументов в терминале или `tkach ui`, чтобы открыть меню.
 **Стрелки вверх/вниз** (или **1–5**) выбирают пункт, **Enter** открывает действие,
 **Esc** возвращает назад или закрывает меню. **F1**, **l/L** и **д/Д** сразу
 переключают русский и английский. При вводе пути используйте **F1**:
 буквы остаются частью пути.
 Меню помогает создать стартовый запрос, проверить файл, запустить офлайн-демо
-и разобраться с подключением. Оно не развёртывает политику защиты,
-не запускает сервер и не подключает модель.
+и разобраться с подключением. Оно не развёртывает политику защиты и не
+подключает модель. `serve --demo` — отдельная неинтерактивная reference-команда.
 При вводе через pipe сохраняются ограниченные строковые команды
 (`/l en`, `/l ru`, `q`); скрипты и CI используют `init`, `check` и `run --demo` напрямую.
 
@@ -140,7 +151,7 @@ demo passed: bounded Gateway response released after final gates
 | `tkach-core` | Strong Core: Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka, Klyuchnik и Sled |
 | `tkach-gateway` | Ограниченный lifecycle, orchestration провайдера, граница защищённого выполнения и финальный выпуск |
 | `tkach-provider-openai` | Необязательный ограниченный non-streaming адаптер OpenAI Responses; вывод провайдера остаётся враждебными DATA |
-| `tkach-cli` | Локальный onboarding: `init`, `check` и детерминированный `run --demo` |
+| `tkach-cli` | Локальный onboarding: `init`, `check`, детерминированный `run --demo` и loopback reference runtime `serve --demo` |
 | `tkach-http` | Только loopback HTTP/1.1 carrier вокруг существующего runtime service |
 | `tkach-client` | Ограниченный Rust-клиент для проверенного локального HTTP-контракта |
 | `tkach-mcp` | Отдельный MCP stdio-адаптер с одним делегированным инструментом `tkach_run` |
@@ -155,6 +166,7 @@ demo passed: bounded Gateway response released after final gates
 - типизированный Rust HTTP-клиент;
 - MCP stdio-адаптер поверх локального HTTP runtime;
 - небольшой CLI для безопасного onboarding и детерминированной проверки.
+- отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции.
 
 Пока не заявляется:
 

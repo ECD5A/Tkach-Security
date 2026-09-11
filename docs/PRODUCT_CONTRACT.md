@@ -66,6 +66,8 @@ The integrator must ensure that:
 - runtime authentication material is supplied only by trusted deployment code;
   the transport is loopback-only unless a separately reviewed deployment
   carrier adds authenticated IPC/TLS and preserves the same frame contract;
+- the CLI `tkach serve --demo` profile is used only as a local deterministic
+  smoke runtime; it is not the integrator's production server or effect host;
 - the trusted runtime authenticator's stored proof is treated as sensitive
   configuration and is zeroized on drop; caller-owned transport buffers and
   host memory remain outside that guarantee;
@@ -90,6 +92,8 @@ Tkach Security does not:
 - provide durable replay protection across restart, cluster-wide exactly-once
   effects, or forceful interruption of a blocking synchronous call;
 - make the current OpenAI adapter a production gateway;
+- turn the deterministic `tkach serve --demo` reference runtime into a
+  production gateway, TLS terminator, or general-purpose service;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
 - provide streaming, Streamable HTTP, Anthropic, multi-language SDK, UI, or

@@ -1183,6 +1183,7 @@ dependencies = [
  "crossterm",
  "tkach-core",
  "tkach-gateway",
+ "tkach-http",
 ]
 
 [[package]]

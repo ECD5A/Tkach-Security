@@ -29,8 +29,9 @@ adapter. Productization is active by owner direction; the Core remains frozen.
   Quickstart execution are enforced by the contributor checks and CI workflow.
 - v0.1 public Rust boundary contract and consumer-side API smoke test.
 - Minimal `tkach` CLI with bounded `init`, strict `check`, deterministic
-  `run --demo`, localized help, and the bounded `tkach ui` dashboard, including
-  no-overwrite and symlink/reparse boundary tests.
+  `run --demo`, explicit loopback `serve --demo` reference runtime, localized
+  help, and the bounded `tkach ui` dashboard, including no-overwrite and
+  symlink/reparse boundary tests.
 - Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
   including zeroizing token/header storage and response-framing regression
   tests.
@@ -70,7 +71,8 @@ this order:
 
 - stable API contract (done) and minimal `tkach` CLI (done);
 - language-neutral HTTP/API adapter with bounded schemas and health/diagnostic
-  behavior (done for the local library boundary);
+  behavior (done for the local library boundary) plus a deterministic
+  loopback-only CLI reference runtime;
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
   reviewed; the first Rust client is done;
 - SemVer crate/package metadata, crates.io publication, changelog, release

@@ -16,6 +16,7 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, IsTerminal, Read, Write};
+use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 
 mod ui;
@@ -25,8 +26,10 @@ use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo}
 use tkach_core::zaslon::Zaslon;
 use tkach_gateway::{
     DeterministicProvider, ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway,
-    MAX_REQUEST_BODY_BYTES, ProviderStep, ScriptedStep,
+    MAX_REQUEST_BODY_BYTES, ProviderStep, RuntimeAuthenticator, RuntimeLimits, RuntimeService,
+    ScriptedStep,
 };
+use tkach_http::{HttpListener, HttpTransportError};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UI_INPUT_BYTES: usize = 256;
@@ -38,8 +41,8 @@ const STARTER_REQUEST: &str = r#"{
   "tool_declarations": []
 }
 "#;
-const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach run --demo             -> run the local deterministic proof\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
-const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
+const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach run --demo             -> run the local deterministic proof\n  tkach serve --demo           -> serve the local authenticated HTTP demo\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
+const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Language {
@@ -82,6 +85,8 @@ enum CliError {
     AlreadyInitialized,
     InvalidRequest,
     DemoFailed,
+    ServerConfiguration,
+    ServerFailed,
 }
 
 impl Display for CliError {
@@ -106,6 +111,10 @@ impl CliError {
                 "request is invalid or exceeds the bounded schema"
             }
             (Self::DemoFailed, Language::English) => "local demo failed closed",
+            (Self::ServerConfiguration, Language::English) => {
+                "server configuration is invalid or TKACH_BEARER_TOKEN is missing"
+            }
+            (Self::ServerFailed, Language::English) => "local HTTP server stopped unexpectedly",
             (Self::Usage, Language::Russian) => "неверное использование; запустите `tkach --help`",
             (Self::UnknownCommand, Language::Russian) => {
                 "неизвестная команда; запустите `tkach --help`"
@@ -121,6 +130,12 @@ impl CliError {
                 "request недействителен или превышает ограниченную схему"
             }
             (Self::DemoFailed, Language::Russian) => "локальное демо завершилось с отказом",
+            (Self::ServerConfiguration, Language::Russian) => {
+                "неверная настройка server или отсутствует TKACH_BEARER_TOKEN"
+            }
+            (Self::ServerFailed, Language::Russian) => {
+                "локальный HTTP server остановился неожиданно"
+            }
         }
     }
 }
@@ -134,6 +149,7 @@ enum Command {
     Init(PathBuf),
     Check(PathBuf),
     Demo,
+    ServeDemo,
     Ui,
 }
 
@@ -246,8 +262,9 @@ where
         [command] if command == "check" => Command::Check(PathBuf::from(".tkach/request.json")),
         [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
         [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
+        [command, flag] if command == "serve" && flag == "--demo" => Command::ServeDemo,
         [command] if command == "ui" || command == "menu" => Command::Ui,
-        [command] if command == "run" => return Err(CliError::Usage),
+        [command] if command == "run" || command == "serve" => return Err(CliError::Usage),
         [command] if command == "help" => Command::Help,
         _ => return Err(CliError::UnknownCommand),
     };
@@ -261,6 +278,10 @@ fn execute(command: Command, language: Language) -> Result<String, CliError> {
         Command::Init(root) => initialize(&root, language),
         Command::Check(path) => check_request(&path, language),
         Command::Demo => run_demo(language),
+        Command::ServeDemo => {
+            run_server()?;
+            Ok(String::new())
+        }
         Command::Ui => Err(CliError::Usage),
     }
 }
@@ -705,7 +726,7 @@ fn check_request(path: &Path, language: Language) -> Result<String, CliError> {
     })
 }
 
-fn run_demo(language: Language) -> Result<String, CliError> {
+fn demo_gateway() -> Result<Gateway, CliError> {
     let client = Destination::Internal(Identity::new("client").map_err(|_| CliError::DemoFailed)?);
     let flow = FlowRule::allow(
         RuleId::new("allow-cli-demo-release").map_err(|_| CliError::DemoFailed)?,
@@ -722,18 +743,53 @@ fn run_demo(language: Language) -> Result<String, CliError> {
     )
     .map_err(|_| CliError::DemoFailed)?;
     let kernel = Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo);
-    let mut gateway = Gateway::new(
+    Ok(Gateway::new(
         kernel,
         Zaslon::empty(),
         Zaslon::empty(),
         client,
         FakeToolBroker::new(),
-    );
-    let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+    ))
+}
+
+fn demo_provider() -> DeterministicProvider {
+    DeterministicProvider::new(vec![ScriptedStep {
         chunks: vec!["bounded response".to_owned()],
         actions: Vec::new(),
         continuation: ProviderStep::Complete,
-    }]);
+    }])
+}
+
+fn run_server() -> Result<(), CliError> {
+    let token = env::var("TKACH_BEARER_TOKEN")
+        .map_err(|_| CliError::ServerConfiguration)?
+        .into_bytes();
+    let address = env::var("TKACH_HTTP_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_owned())
+        .parse::<SocketAddr>()
+        .map_err(|_| CliError::ServerConfiguration)?;
+    let authenticator =
+        RuntimeAuthenticator::new(token).map_err(|_| CliError::ServerConfiguration)?;
+    let service = RuntimeService::new(
+        demo_gateway()?,
+        demo_provider(),
+        authenticator,
+        RuntimeLimits::default(),
+    );
+    let mut listener = HttpListener::bind(address, service).map_err(|error| match error {
+        HttpTransportError::NonLoopbackBind => CliError::ServerConfiguration,
+        HttpTransportError::Io | HttpTransportError::ResponseTooLarge => CliError::ServerFailed,
+    })?;
+    let local_address = listener.local_addr().map_err(|_| CliError::ServerFailed)?;
+    eprintln!(
+        "tkach demo runtime listening at http://{local_address}; /healthz is public, /v1/run requires TKACH_BEARER_TOKEN; press Ctrl-C to stop"
+    );
+    listener.serve_forever().map_err(|_| CliError::ServerFailed)
+}
+
+fn run_demo(language: Language) -> Result<String, CliError> {
+    let mut gateway = demo_gateway()?;
+    let mut provider = demo_provider();
     let request = ExternalRequest::new(
         vec![
             ExternalMessage::new(ExternalRole::User, "return a bounded response".to_owned())
@@ -771,7 +827,12 @@ mod tests {
         assert!(matches!(parse_args(["init"]), Ok(Command::Init(_))));
         assert!(matches!(parse_args(["check"]), Ok(Command::Check(_))));
         assert!(matches!(parse_args(["run", "--demo"]), Ok(Command::Demo)));
+        assert!(matches!(
+            parse_args(["serve", "--demo"]),
+            Ok(Command::ServeDemo)
+        ));
         assert_eq!(parse_args(["run"]).unwrap_err(), CliError::Usage);
+        assert_eq!(parse_args(["serve"]).unwrap_err(), CliError::Usage);
         assert_eq!(
             parse_args(["help", "unexpected"]).unwrap_err(),
             CliError::UnknownCommand

@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::thread;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tkach_gateway::{
@@ -39,6 +40,7 @@ pub const MAX_HTTP_HEADER_BYTES: usize = 16 * 1024;
 pub const MAX_HTTP_BODY_BYTES: usize = MAX_RUNTIME_FRAME_BYTES - MAX_RUNTIME_AUTH_BYTES - 256;
 
 const HTTP_IO_TIMEOUT: Duration = Duration::from_millis(500);
+const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(10);
 const HEALTH_BODY: &[u8] = br#"{"status":"ok"}"#;
 const INVALID_HTTP_BODY: &[u8] = br#"{"error":"invalid_http_request"}"#;
 const HEADERS_TOO_LARGE_BODY: &[u8] = br#"{"error":"request_headers_too_large"}"#;
@@ -146,6 +148,74 @@ impl<P: Provider> HttpListener<P> {
             .set_write_timeout(Some(HTTP_IO_TIMEOUT))
             .map_err(|_| HttpTransportError::Io)?;
         serve_connection(&mut stream, &mut self.service)
+    }
+
+    /// Serve bounded connections until a trusted host requests shutdown.
+    ///
+    /// The stop predicate is checked between connections, never in the middle
+    /// of a synchronous provider or effect call. An individual client that
+    /// disconnects, times out, or sends an incomplete request is isolated and
+    /// does not terminate the listener. The listener remains sequential and
+    /// loopback-only.
+    ///
+    /// # Errors
+    ///
+    /// Returns a static transport error if the listener itself cannot be
+    /// polled/configured, or if a bounded response violates the transport
+    /// contract. Per-connection I/O failures are discarded after the socket is
+    /// closed and the next connection is accepted.
+    pub fn serve_until<F>(&mut self, mut should_stop: F) -> Result<(), HttpTransportError>
+    where
+        F: FnMut() -> bool,
+    {
+        self.listener
+            .set_nonblocking(true)
+            .map_err(|_| HttpTransportError::Io)?;
+        let result = loop {
+            if should_stop() {
+                break Ok(());
+            }
+            let accepted = match self.listener.accept() {
+                Ok(accepted) => accepted,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(ACCEPT_POLL_INTERVAL);
+                    continue;
+                }
+                Err(_) => break Err(HttpTransportError::Io),
+            };
+            let (mut stream, _) = accepted;
+            if stream.set_nonblocking(false).is_err()
+                || stream.set_read_timeout(Some(HTTP_IO_TIMEOUT)).is_err()
+                || stream.set_write_timeout(Some(HTTP_IO_TIMEOUT)).is_err()
+            {
+                continue;
+            }
+            match serve_connection(&mut stream, &mut self.service) {
+                Ok(()) | Err(HttpTransportError::Io) => {}
+                Err(error) => break Err(error),
+            }
+        };
+        let restored = self.listener.set_nonblocking(false);
+        match (result, restored) {
+            (Err(error), _) => Err(error),
+            (Ok(()), Ok(())) => Ok(()),
+            (Ok(()), Err(_)) => Err(HttpTransportError::Io),
+        }
+    }
+
+    /// Serve indefinitely, isolating per-connection failures.
+    ///
+    /// A process supervisor or trusted host should terminate the process or
+    /// call [`Self::serve_until`] when controlled shutdown is required.
+    /// There is no implicit retry of a runtime request; this method only
+    /// continues accepting a new transport connection after a socket failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns a static transport error when the listener cannot continue or
+    /// a bounded response violates the HTTP contract.
+    pub fn serve_forever(&mut self) -> Result<(), HttpTransportError> {
+        self.serve_until(|| false)
     }
 }
 
@@ -596,6 +666,8 @@ mod tests {
     use super::*;
     use std::io::Read;
     use std::net::TcpStream;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::thread;
     use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
     use tkach_core::krosna::{Krosna, Policy};
@@ -703,6 +775,39 @@ mod tests {
         assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(response.contains("safe response"));
         assert!(!response.contains("runtime-secret"));
+    }
+
+    #[test]
+    fn serve_until_isolates_dropped_clients_and_stops_between_connections() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_for_client = Arc::clone(&stop);
+        let mut listener =
+            HttpListener::bind("127.0.0.1:0".parse().unwrap(), service(provider())).unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = thread::spawn(move || {
+            let dropped = TcpStream::connect(address).unwrap();
+            drop(dropped);
+
+            let mut client = TcpStream::connect(address).unwrap();
+            client
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            client
+                .write_all(run_request("runtime-secret", &request_json()).as_bytes())
+                .unwrap();
+            let mut response = String::new();
+            client.read_to_string(&mut response).unwrap();
+            stop_for_client.store(true, Ordering::Release);
+            response
+        });
+
+        assert!(
+            listener
+                .serve_until(|| stop.load(Ordering::Acquire))
+                .is_ok()
+        );
+        let response = client.join().unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
     }
 
     #[test]
