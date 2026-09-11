@@ -91,6 +91,13 @@ runtime; bearer-токен передаётся не в аргументе ко�
 TKACH_BEARER_TOKEN=local-development-secret TKACH_HTTP_ADDR=127.0.0.1:8080 tkach serve --demo
 ```
 
+Для реального локального runtime используйте `tkach serve`: ему нужны
+`TKACH_BEARER_TOKEN` и `OPENAI_API_KEY`, модель задаётся через `OPENAI_MODEL`,
+а доверенный OpenAI-compatible HTTPS endpoint — через `OPENAI_BASE_URL`.
+Профиль по умолчанию read-only: защищённые model-proposed effects запрещены,
+секреты принимаются только через окружение, а `/healthz` остаётся публичным
+только для liveness.
+
 Он открывает только loopback `/healthz` и аутентифицированный `/v1/run`, не
 вызывает настоящую модель и не выполняет защищённых побочных эффектов. Это не
 production gateway.

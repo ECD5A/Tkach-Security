@@ -18,18 +18,23 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 mod ui;
 use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
 use tkach_core::krosna::{Krosna, Policy};
+use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::zaslon::Zaslon;
 use tkach_gateway::{
     DeterministicProvider, ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway,
     MAX_REQUEST_BODY_BYTES, ProviderStep, RuntimeAuthenticator, RuntimeLimits, RuntimeService,
-    ScriptedStep,
+    ScriptedStep, ToolResult,
 };
 use tkach_http::{HttpListener, HttpTransportError};
+use tkach_provider_openai::{OpenAiConfig, OpenAiProvider};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const MAX_UI_INPUT_BYTES: usize = 256;
@@ -41,7 +46,29 @@ const STARTER_REQUEST: &str = r#"{
   "tool_declarations": []
 }
 "#;
-const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach doctor                 -> inspect local readiness without secrets\n  tkach run --demo             -> run the local deterministic proof\n  tkach serve --demo           -> serve the local authenticated HTTP demo\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
+const USAGE_EN: &str = r"Commands:
+  tkach init [DIRECTORY]       -> create a safe starter request
+  tkach check [REQUEST_JSON]   -> validate one bounded request
+  tkach doctor                 -> inspect local readiness without secrets
+  tkach run --demo             -> run the local deterministic proof
+  tkach serve                  -> serve the local authenticated provider runtime
+  tkach serve --demo           -> serve the local deterministic HTTP demo
+  tkach --help                 -> show this guide
+  tkach --version              -> print the version
+
+Flow:
+  init -> check -> trusted runtime -> Gateway -> bounded result
+
+Serve configuration:
+  TKACH_BEARER_TOKEN           -> required runtime bearer proof
+  TKACH_HTTP_ADDR              -> loopback address (default 127.0.0.1:8080)
+  OPENAI_API_KEY               -> provider credential, never a CLI argument
+  OPENAI_MODEL                 -> trusted model label (default gpt-4.1-mini)
+  OPENAI_BASE_URL              -> optional HTTPS OpenAI-compatible endpoint
+
+Options:
+  --lang en|ru                 -> choose the interface language
+  TKACH_LANG=en|ru             -> choose the default language";
 const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach doctor                 -> проверить локальную готовность без секретов\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -157,6 +184,7 @@ enum Command {
     Check(PathBuf),
     Doctor,
     Demo,
+    Serve,
     ServeDemo,
     Ui,
 }
@@ -271,9 +299,10 @@ where
         [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
         [command] if command == "doctor" => Command::Doctor,
         [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
+        [command] if command == "serve" => Command::Serve,
         [command, flag] if command == "serve" && flag == "--demo" => Command::ServeDemo,
         [command] if command == "ui" || command == "menu" => Command::Ui,
-        [command] if command == "run" || command == "serve" => return Err(CliError::Usage),
+        [command] if command == "run" => return Err(CliError::Usage),
         [command] if command == "help" => Command::Help,
         _ => return Err(CliError::UnknownCommand),
     };
@@ -288,6 +317,10 @@ fn execute(command: Command, language: Language) -> Result<String, CliError> {
         Command::Check(path) => check_request(&path, language),
         Command::Doctor => Ok(doctor(language)),
         Command::Demo => run_demo(language),
+        Command::Serve => {
+            run_provider_server()?;
+            Ok(String::new())
+        }
         Command::ServeDemo => {
             run_server()?;
             Ok(String::new())
@@ -740,7 +773,7 @@ fn doctor(language: Language) -> String {
         .to_owned(),
         Ok(_) | Err(env::VarError::NotPresent) => localized(
             language,
-            "not set; required only for `serve --demo`",
+            "not set; required for `serve` or `serve --demo`",
             "не задан; нужен только для `serve --demo`",
         )
         .to_owned(),
@@ -810,6 +843,106 @@ fn demo_provider() -> DeterministicProvider {
     }])
 }
 
+/// Defense-in-depth executor for the first local provider runtime.
+///
+/// The runtime exposes model responses and Gateway decisions, but no real
+/// protected effect binding. A future explicitly configured effect profile
+/// must add its own reviewed policy and executor instead of widening this
+/// default.
+struct DenyAllExecutor;
+
+impl ProtectedExecutor for DenyAllExecutor {
+    type Output = ToolResult;
+
+    fn execute(&mut self, _action: Propusk) -> Result<Self::Output, ExecutionError> {
+        Err(ExecutionError::FailedBeforeEffect)
+    }
+}
+
+fn readonly_gateway() -> Result<Gateway, CliError> {
+    let client =
+        Destination::Internal(Identity::new("client").map_err(|_| CliError::ServerConfiguration)?);
+    let flow = FlowRule::allow(
+        RuleId::new("allow-local-provider-release").map_err(|_| CliError::ServerConfiguration)?,
+        FlowMatcher::any()
+            .principal(Principal::Model)
+            .source(FlowSource::Model)
+            .destination(client.clone())
+            .operation(FlowOperation::Export),
+    );
+    let ruslo = Ruslo::new(vec![flow]).map_err(|_| CliError::ServerConfiguration)?;
+    let policy = Policy::new(
+        PolicyId::new("local-provider-readonly-policy")
+            .map_err(|_| CliError::ServerConfiguration)?,
+        Vec::new(),
+    )
+    .map_err(|_| CliError::ServerConfiguration)?;
+    let kernel = Krosna::with_zaslon_and_ruslo(policy, Zaslon::empty(), ruslo);
+    Ok(Gateway::new(
+        kernel,
+        Zaslon::empty(),
+        Zaslon::empty(),
+        client,
+        DenyAllExecutor,
+    ))
+}
+
+fn openai_provider() -> Result<OpenAiProvider, CliError> {
+    let api_key = env::var("OPENAI_API_KEY").map_err(|_| CliError::ServerConfiguration)?;
+    let model = env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4.1-mini".to_owned());
+    let config = match env::var("OPENAI_BASE_URL") {
+        Ok(endpoint) => OpenAiConfig::with_endpoint_and_timeout(
+            api_key,
+            model,
+            &endpoint,
+            Duration::from_secs(30),
+        ),
+        Err(env::VarError::NotPresent) => OpenAiConfig::new(api_key, model),
+        Err(env::VarError::NotUnicode(_)) => return Err(CliError::ServerConfiguration),
+    }
+    .map_err(|_| CliError::ServerConfiguration)?;
+    OpenAiProvider::new(config).map_err(|_| CliError::ServerConfiguration)
+}
+
+fn run_provider_server() -> Result<(), CliError> {
+    let token = env::var("TKACH_BEARER_TOKEN")
+        .map_err(|_| CliError::ServerConfiguration)?
+        .into_bytes();
+    let address = env::var("TKACH_HTTP_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_owned())
+        .parse::<SocketAddr>()
+        .map_err(|_| CliError::ServerConfiguration)?;
+    if !address.ip().is_loopback() {
+        return Err(CliError::ServerConfiguration);
+    }
+    let provider = openai_provider()?;
+    let authenticator =
+        RuntimeAuthenticator::new(token).map_err(|_| CliError::ServerConfiguration)?;
+    let service = RuntimeService::new(
+        readonly_gateway()?,
+        provider,
+        authenticator,
+        RuntimeLimits::default(),
+    );
+    let mut listener = HttpListener::bind(address, service).map_err(|error| match error {
+        HttpTransportError::NonLoopbackBind => CliError::ServerConfiguration,
+        HttpTransportError::Io | HttpTransportError::ResponseTooLarge => CliError::ServerFailed,
+    })?;
+    let local_address = listener.local_addr().map_err(|_| CliError::ServerFailed)?;
+    let stop = Arc::new(AtomicBool::new(false));
+    let signal_stop = Arc::clone(&stop);
+    ctrlc::set_handler(move || {
+        signal_stop.store(true, Ordering::Release);
+    })
+    .map_err(|_| CliError::ServerFailed)?;
+    eprintln!(
+        "tkach runtime listening at http://{local_address}; /healthz is public, /v1/run requires TKACH_BEARER_TOKEN; Ctrl-C requests graceful stop"
+    );
+    listener
+        .serve_until(|| stop.load(Ordering::Acquire))
+        .map_err(|_| CliError::ServerFailed)
+}
+
 fn run_server() -> Result<(), CliError> {
     let token = env::var("TKACH_BEARER_TOKEN")
         .map_err(|_| CliError::ServerConfiguration)?
@@ -869,6 +1002,7 @@ fn run_demo(language: Language) -> Result<String, CliError> {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+    use tkach_gateway::{GatewayErrorKind, protected_write_request};
 
     #[test]
     fn parser_keeps_the_onboarding_surface_small_and_explicit() {
@@ -882,8 +1016,8 @@ mod tests {
             parse_args(["serve", "--demo"]),
             Ok(Command::ServeDemo)
         ));
+        assert!(matches!(parse_args(["serve"]), Ok(Command::Serve)));
         assert_eq!(parse_args(["run"]).unwrap_err(), CliError::Usage);
-        assert_eq!(parse_args(["serve"]).unwrap_err(), CliError::Usage);
         assert_eq!(
             parse_args(["help", "unexpected"]).unwrap_err(),
             CliError::UnknownCommand
@@ -1092,6 +1226,26 @@ mod tests {
             run_demo(Language::English).unwrap(),
             "demo passed: bounded Gateway response released after final gates"
         );
+    }
+
+    #[test]
+    fn provider_runtime_default_denies_protected_effects() {
+        let mut gateway = readonly_gateway().expect("static readonly gateway is valid");
+        let mut provider = DeterministicProvider::new(vec![ScriptedStep {
+            chunks: vec!["attempted effect".to_owned()],
+            actions: vec![protected_write_request()],
+            continuation: ProviderStep::Complete,
+        }]);
+        let request = ExternalRequest::new(
+            vec![ExternalMessage::new(ExternalRole::User, "write".to_owned()).unwrap()],
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let error = gateway
+            .run(&mut provider, &request)
+            .expect_err("default provider runtime must deny effects");
+        assert!(matches!(error.kind(), GatewayErrorKind::ActionDenied(_)));
     }
 
     #[test]

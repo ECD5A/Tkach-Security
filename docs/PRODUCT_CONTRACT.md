@@ -68,6 +68,9 @@ The integrator must ensure that:
   carrier adds authenticated IPC/TLS and preserves the same frame contract;
 - the CLI `tkach serve --demo` profile is used only as a local deterministic
   smoke runtime; it is not the integrator's production server or effect host;
+- the CLI `tkach serve` profile is used only as a local OpenAI-compatible
+  provider runtime with a fail-closed read-only effect profile; protected
+  model-proposed effects are denied by default;
 - the trusted runtime authenticator's stored proof is treated as sensitive
   configuration and is zeroized on drop; caller-owned transport buffers and
   host memory remain outside that guarantee;
@@ -94,6 +97,8 @@ Tkach Security does not:
 - make the current OpenAI adapter a production gateway;
 - turn the deterministic `tkach serve --demo` reference runtime into a
   production gateway, TLS terminator, or general-purpose service;
+- turn the read-only `tkach serve` provider runtime into a public gateway,
+  TLS terminator, process supervisor, or generic executor;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
 - provide streaming, Streamable HTTP, Anthropic, a published multi-language SDK

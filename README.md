@@ -89,6 +89,14 @@ TKACH_BEARER_TOKEN=local-development-secret TKACH_HTTP_ADDR=127.0.0.1:8080 tkach
 It exposes only loopback `/healthz` and authenticated `/v1/run`, performs no
 real model call or protected side effect, and is not a production gateway.
 
+For a real local provider runtime, use `tkach serve`. It keeps the same
+loopback-only HTTP boundary and requires `TKACH_BEARER_TOKEN` plus
+`OPENAI_API_KEY`; `OPENAI_MODEL` defaults to `gpt-4.1-mini`, and trusted
+OpenAI-compatible HTTPS endpoints may be selected with `OPENAI_BASE_URL`.
+The default runtime profile is read-only: model-proposed protected effects are
+denied, and credentials are accepted only from the environment, never from
+request data or CLI arguments. Ctrl-C requests a bounded graceful stop.
+
 Use `tkach --lang ru --help` for Russian help, or set `TKACH_LANG=ru` as the
 default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
@@ -151,7 +159,7 @@ authority outside the Core.
 | `tkach-core` | Strong Core: Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka, Klyuchnik, and Sled |
 | `tkach-gateway` | Bounded lifecycle, provider orchestration, protected execution boundary, and final release |
 | `tkach-provider-openai` | Optional bounded non-streaming OpenAI Responses adapter; provider output remains hostile DATA |
-| `tkach-cli` | Local `init`, `check`, deterministic `run --demo`, and loopback `serve --demo` reference runtime |
+| `tkach-cli` | Local `init`, `check`, deterministic proof, and loopback provider/demo runtimes |
 | `tkach-http` | Loopback-only HTTP/1.1 carrier around an existing runtime service |
 | `tkach-client` | Bounded Rust client for the reviewed local HTTP contract |
 | `tkach-mcp` | Separate stdio MCP adapter exposing one delegated `tkach_run` tool |
@@ -168,6 +176,7 @@ Available today:
 - a dependency-free Go adapter;
 - an MCP stdio adapter over the local HTTP runtime;
 - a small CLI for safe onboarding and a deterministic proof.
+- a local authenticated provider runtime with a read-only default effect profile;
 - an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.
 
 Not claimed yet:

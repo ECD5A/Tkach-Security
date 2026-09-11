@@ -112,10 +112,10 @@ authenticated, and deterministic; it must not be exposed as a public service.
 MCP, other-language SDKs, and a distributable production server require
 separate review.
 
-### Local HTTP smoke runtime
+### Local HTTP runtime
 
-The reference runtime is intentionally explicit and does not accept a token on
-the command line:
+The CLI has two deliberately separate server modes. The deterministic smoke
+runtime does not call a provider:
 
 ```text
 TKACH_BEARER_TOKEN=local-development-secret \
@@ -130,6 +130,28 @@ rejected. `/healthz` is unauthenticated liveness only. `/v1/run` requires the
 configured bearer token and is backed by the deterministic bounded demo
 provider, so it performs no real model call or protected side effect. The
 process handles one bounded request per connection and stops with Ctrl-C.
+
+The ordinary `tkach serve` command starts the local provider runtime. It uses
+the reviewed non-streaming OpenAI Responses adapter (or a trusted endpoint
+with the same OpenAI-compatible wire contract), while keeping the provider
+outside Core:
+
+```text
+TKACH_BEARER_TOKEN=local-development-secret \
+OPENAI_API_KEY=trusted-provider-secret \
+OPENAI_MODEL=gpt-4.1-mini \
+TKACH_HTTP_ADDR=127.0.0.1:8080 \
+tkach serve
+```
+
+`OPENAI_BASE_URL` may select a trusted HTTPS OpenAI-compatible endpoint. The
+default server profile is read-only: protected model-proposed effects are
+denied by policy and by a defense-in-depth executor, so this command is a
+local provider runtime, not a generic production executor. The bearer token
+and provider credential are environment configuration only; neither is
+accepted in request JSON, MCP arguments, or command-line arguments. `/healthz`
+is unauthenticated liveness, `/v1/run` is bearer-authenticated, and Ctrl-C
+requests a bounded stop between connections.
 
 ## Rust client adapter — v0.1
 

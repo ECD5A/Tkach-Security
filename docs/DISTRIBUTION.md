@@ -57,6 +57,10 @@ The first useful binary is `tkach`, which provides bounded onboarding and a
 deterministic demo. `tkach serve --demo` is a loopback-only reference runtime
 for local HTTP smoke tests; it accepts its bearer token only from trusted
 environment configuration and contains no real provider or effect integration.
+Ordinary `tkach serve` is a local OpenAI-compatible provider runtime with the
+same bounded HTTP/auth/health carrier and an explicitly read-only default
+effect profile. It is not a public gateway, TLS terminator, supervisor, or
+generic executor.
 `tkach-mcp` is a stdio adapter over an already running loopback Tkach HTTP
 runtime. `tkach-http` remains a library boundary, not a production server
 binary. Consequently this repository does not yet claim a ready-to-run public

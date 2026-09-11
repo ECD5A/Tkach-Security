@@ -5,6 +5,10 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add a real local `tkach serve` provider runtime with loopback-only HTTP,
+  environment-only credentials, health/auth boundaries, graceful Ctrl-C
+  shutdown, and a read-only fail-closed default effect profile. Keep
+  `serve --demo` as the deterministic offline reference runtime.
 - Make the dense Unicode block-art banner the default terminal header. Embed it
   directly in `tkach-cli` instead of loading a runtime asset; retain compact
   fallback and an explicit `TKACH_BANNER=png` path for the supplied image.

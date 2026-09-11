@@ -10,7 +10,9 @@ public contract or a published release.
 Compact public documentation tree after the Strong Core release candidate,
 trusted credential-ownership hardening, v0.1 public API contract, bounded CLI
 onboarding/dashboard, local HTTP adapter, thin Rust client, and MCP stdio
-adapter. Productization is active by owner direction; the Core remains frozen.
+adapter. The local authenticated provider runtime is now available in a
+read-only default profile. Productization is active by owner direction; the
+Core remains frozen.
 
 ## DONE
 
@@ -30,8 +32,10 @@ adapter. Productization is active by owner direction; the Core remains frozen.
 - v0.1 public Rust boundary contract and consumer-side API smoke test.
 - Minimal `tkach` CLI with bounded `init`, strict `check`, deterministic
   `run --demo`, explicit loopback `serve --demo` reference runtime, localized
-  help, local `doctor` diagnostics, and the bounded `tkach ui` dashboard,
-  including no-overwrite and symlink/reparse boundary tests.
+  help, local `doctor` diagnostics, bounded `tkach ui` dashboard, and a real
+  loopback `serve` provider runtime with environment-only credentials, health,
+  auth, graceful stop, and a fail-closed read-only effect profile, including
+  no-overwrite and symlink/reparse boundary tests.
 - Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
   including zeroizing token/header storage and response-framing regression
   tests.
@@ -77,8 +81,9 @@ this order:
 
 - stable API contract (done) and minimal `tkach` CLI (done);
 - language-neutral HTTP/API adapter with bounded schemas and health/diagnostic
-  behavior (done for the local library boundary) plus a deterministic
-  loopback-only CLI reference runtime;
+  behavior (done for the local library boundary), a deterministic loopback
+  reference runtime, and a local provider runtime with a reviewed read-only
+  default profile;
 - optional thin Rust/Python/JS/TS/Go adapters only after the HTTP contract is
   reviewed; the Rust client, source-level standard-library Python adapter with
   local wheel metadata, dependency-free Node runtime with TypeScript
