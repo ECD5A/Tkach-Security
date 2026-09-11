@@ -15,7 +15,7 @@ use std::env;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 
 use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
@@ -28,6 +28,7 @@ use tkach_gateway::{
 };
 
 const VERSION: &str = "0.1.0";
+const MAX_UI_INPUT_BYTES: usize = 256;
 const STARTER_REQUEST: &str = r#"{
   "messages": [
     {"role": "user", "content": "Return a bounded response"}
@@ -36,12 +37,46 @@ const STARTER_REQUEST: &str = r#"{
   "tool_declarations": []
 }
 "#;
-const USAGE: &str = "Usage:\n  tkach init [DIRECTORY]\n  tkach check [REQUEST_JSON]\n  tkach run --demo\n  tkach --help\n  tkach --version";
+const USAGE_EN: &str = "Commands:\n  tkach init [DIRECTORY]       -> create a safe starter request\n  tkach check [REQUEST_JSON]   -> validate one bounded request\n  tkach run --demo             -> run the local deterministic proof\n  tkach --help                 -> show this guide\n  tkach --version              -> print the version\n\nFlow:\n  init -> check -> trusted runtime -> Gateway -> bounded result\n\nOptions:\n  --lang en|ru                 -> choose the interface language\n  TKACH_LANG=en|ru             -> choose the default language";
+const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Language {
+    English,
+    Russian,
+}
+
+impl Language {
+    fn parse(value: &str) -> Result<Self, CliError> {
+        let normalized = value.trim().to_lowercase();
+        match normalized.as_str() {
+            "en" | "eng" | "english" | "англ" | "английский" => Ok(Self::English),
+            "ru" | "rus" | "russian" | "рус" | "русский" => Ok(Self::Russian),
+            _ => Err(CliError::Language),
+        }
+    }
+
+    fn from_env() -> Result<Self, CliError> {
+        match env::var("TKACH_LANG") {
+            Ok(value) => Self::parse(&value),
+            Err(env::VarError::NotPresent) => Ok(Self::English),
+            Err(env::VarError::NotUnicode(_)) => Err(CliError::Language),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::English => "en",
+            Self::Russian => "ru",
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CliError {
     Usage,
     UnknownCommand,
+    Language,
     Io,
     AlreadyInitialized,
     InvalidRequest,
@@ -50,14 +85,42 @@ enum CliError {
 
 impl Display for CliError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(match self {
-            Self::Usage => USAGE,
-            Self::UnknownCommand => "unknown command; run `tkach --help`",
-            Self::Io => "could not read or create the requested local file",
-            Self::AlreadyInitialized => "starter request already exists; refusing to overwrite it",
-            Self::InvalidRequest => "request is invalid or exceeds the bounded schema",
-            Self::DemoFailed => "local demo failed closed",
-        })
+        formatter.write_str(self.message(Language::English))
+    }
+}
+
+impl CliError {
+    fn message(self, language: Language) -> &'static str {
+        match (self, language) {
+            (Self::Usage, Language::English) => "invalid usage; run `tkach --help`",
+            (Self::UnknownCommand, Language::English) => "unknown command; run `tkach --help`",
+            (Self::Language, Language::English) => {
+                "unsupported language; use `--lang en|ru` or TKACH_LANG=en|ru"
+            }
+            (Self::Io, Language::English) => "could not read or create the requested local file",
+            (Self::AlreadyInitialized, Language::English) => {
+                "starter request already exists; refusing to overwrite it"
+            }
+            (Self::InvalidRequest, Language::English) => {
+                "request is invalid or exceeds the bounded schema"
+            }
+            (Self::DemoFailed, Language::English) => "local demo failed closed",
+            (Self::Usage, Language::Russian) => "неверное использование; запустите `tkach --help`",
+            (Self::UnknownCommand, Language::Russian) => {
+                "неизвестная команда; запустите `tkach --help`"
+            }
+            (Self::Language, Language::Russian) => {
+                "неподдерживаемый язык; используйте `--lang en|ru` или TKACH_LANG=en|ru"
+            }
+            (Self::Io, Language::Russian) => "не удалось прочитать или создать локальный файл",
+            (Self::AlreadyInitialized, Language::Russian) => {
+                "starter request уже существует; перезапись запрещена"
+            }
+            (Self::InvalidRequest, Language::Russian) => {
+                "request недействителен или превышает ограниченную схему"
+            }
+            (Self::DemoFailed, Language::Russian) => "локальное демо завершилось с отказом",
+        }
     }
 }
 
@@ -70,50 +133,366 @@ enum Command {
     Init(PathBuf),
     Check(PathBuf),
     Demo,
+    Ui,
+}
+
+#[derive(Debug)]
+struct ParsedArgs {
+    language: Language,
+    command: Command,
 }
 
 fn main() {
-    match parse_args(env::args().skip(1)).and_then(execute) {
-        Ok(output) => println!("{output}"),
+    let language = match Language::from_env() {
+        Ok(language) => language,
         Err(error) => {
-            eprintln!("error: {error}");
+            eprintln!("error: {}", error.message(Language::English));
+            std::process::exit(2);
+        }
+    };
+    match parse_args_with_default(env::args().skip(1), language) {
+        Ok(parsed) => match parsed.command {
+            Command::Ui => {
+                if let Err(error) = run_ui(parsed.language) {
+                    eprintln!("error: {}", error.message(parsed.language));
+                    std::process::exit(2);
+                }
+            }
+            command => match execute(command, parsed.language) {
+                Ok(output) => println!("{output}"),
+                Err(error) => {
+                    eprintln!("error: {}", error.message(parsed.language));
+                    std::process::exit(2);
+                }
+            },
+        },
+        Err(error) => {
+            eprintln!("error: {}", error.message(language));
             std::process::exit(2);
         }
     }
 }
 
+#[cfg(test)]
 fn parse_args<I, S>(args: I) -> Result<Command, CliError>
 where
     I: IntoIterator<Item = S>,
     S: Into<String>,
 {
+    parse_args_with_default(args, Language::English).map(|parsed| parsed.command)
+}
+
+fn parse_args_with_default<I, S>(
+    args: I,
+    default_language: Language,
+) -> Result<ParsedArgs, CliError>
+where
+    I: IntoIterator<Item = S>,
+    S: Into<String>,
+{
     let args: Vec<String> = args.into_iter().map(Into::into).collect();
-    match args.as_slice() {
-        [] => Ok(Command::Help),
-        [arg] if arg == "--help" || arg == "-h" => Ok(Command::Help),
-        [arg] if arg == "--version" || arg == "-V" => Ok(Command::Version),
-        [command] if command == "init" => Ok(Command::Init(PathBuf::from("."))),
-        [command, root] if command == "init" => Ok(Command::Init(PathBuf::from(root))),
-        [command] if command == "check" => Ok(Command::Check(PathBuf::from(".tkach/request.json"))),
-        [command, request] if command == "check" => Ok(Command::Check(PathBuf::from(request))),
-        [command, flag] if command == "run" && flag == "--demo" => Ok(Command::Demo),
-        [command] if command == "run" => Err(CliError::Usage),
-        [command] if command == "help" => Ok(Command::Help),
+    let (language, command_args) = if args.first().map(String::as_str) == Some("--lang") {
+        if args.len() < 2 {
+            return Err(CliError::Usage);
+        }
+        (Language::parse(&args[1])?, args[2..].to_vec())
+    } else if let Some(value) = args.first().and_then(|arg| arg.strip_prefix("--lang=")) {
+        (Language::parse(value)?, args[1..].to_vec())
+    } else {
+        (default_language, args)
+    };
+    let command = match command_args.as_slice() {
+        [] => Command::Help,
+        [arg] if arg == "--help" || arg == "-h" => Command::Help,
+        [arg] if arg == "--version" || arg == "-V" => Command::Version,
+        [command] if command == "init" => Command::Init(PathBuf::from(".")),
+        [command, root] if command == "init" => Command::Init(PathBuf::from(root)),
+        [command] if command == "check" => Command::Check(PathBuf::from(".tkach/request.json")),
+        [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
+        [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
+        [command] if command == "ui" || command == "menu" => Command::Ui,
+        [command] if command == "run" => return Err(CliError::Usage),
+        [command] if command == "help" => Command::Help,
+        _ => return Err(CliError::UnknownCommand),
+    };
+    Ok(ParsedArgs { language, command })
+}
+
+fn execute(command: Command, language: Language) -> Result<String, CliError> {
+    match command {
+        Command::Help => Ok(help(language)),
+        Command::Version => Ok(format!("tkach {VERSION}")),
+        Command::Init(root) => initialize(&root, language),
+        Command::Check(path) => check_request(&path, language),
+        Command::Demo => run_demo(language),
+        Command::Ui => Err(CliError::Usage),
+    }
+}
+
+fn help(language: Language) -> String {
+    let intro = match language {
+        Language::English => "A fail-closed boundary for AI agents and untrusted model output.",
+        Language::Russian => {
+            "Отказоустойчивая граница для AI-агентов и недоверенного вывода модели."
+        }
+    };
+    let usage = match language {
+        Language::English => USAGE_EN,
+        Language::Russian => USAGE_RU,
+    };
+    let ui_hint = match language {
+        Language::English => {
+            "Interactive UI: `tkach ui` | F1 or `/l` toggles language | `/l en|ru` selects one"
+        }
+        Language::Russian => {
+            "Интерактивный UI: `tkach ui` | F1 или `/l` меняет язык | `/l en|ru` выбирает язык"
+        }
+    };
+    format!("Tkach Security {VERSION}\n{intro}\n\n{usage}\n\n{ui_hint}\n")
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum UiAction {
+    ToggleLanguage,
+    SetLanguage(Language),
+    Help,
+    Init(PathBuf),
+    Check(PathBuf),
+    Demo,
+    Quit,
+}
+
+enum UiInput {
+    End,
+    Line(String),
+    TooLong,
+    InvalidUtf8,
+}
+
+fn run_ui(mut language: Language) -> Result<(), CliError> {
+    let stdin = io::stdin();
+    let mut input = stdin.lock();
+    let mut output = io::stdout();
+
+    loop {
+        write_ui_menu(&mut output, language).map_err(|_| CliError::Io)?;
+        output.flush().map_err(|_| CliError::Io)?;
+        match read_ui_input(&mut input).map_err(|_| CliError::Io)? {
+            UiInput::End => break,
+            UiInput::TooLong => {
+                writeln!(output, "error: {}", CliError::Usage.message(language))
+                    .map_err(|_| CliError::Io)?;
+            }
+            UiInput::InvalidUtf8 => {
+                writeln!(output, "error: {}", CliError::Usage.message(language))
+                    .map_err(|_| CliError::Io)?;
+            }
+            UiInput::Line(line) => match parse_ui_action(&line) {
+                Ok(UiAction::Quit) => break,
+                Ok(UiAction::ToggleLanguage) => {
+                    language = match language {
+                        Language::English => Language::Russian,
+                        Language::Russian => Language::English,
+                    };
+                    writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
+                }
+                Ok(UiAction::SetLanguage(selected)) => {
+                    language = selected;
+                    writeln!(output, "language: {}", language.label()).map_err(|_| CliError::Io)?;
+                }
+                Ok(UiAction::Help) => {
+                    write!(output, "{}", help(language)).map_err(|_| CliError::Io)?;
+                }
+                Ok(UiAction::Init(path)) => {
+                    write_ui_result(&mut output, initialize(&path, language), language)?;
+                }
+                Ok(UiAction::Check(path)) => {
+                    write_ui_result(&mut output, check_request(&path, language), language)?;
+                }
+                Ok(UiAction::Demo) => {
+                    write_ui_result(&mut output, run_demo(language), language)?;
+                }
+                Err(error) => {
+                    writeln!(output, "error: {}", error.message(language))
+                        .map_err(|_| CliError::Io)?;
+                }
+            },
+        }
+    }
+    Ok(())
+}
+
+fn write_ui_result(
+    output: &mut impl Write,
+    result: Result<String, CliError>,
+    language: Language,
+) -> Result<(), CliError> {
+    match result {
+        Ok(value) => writeln!(output, "{value}").map_err(|_| CliError::Io),
+        Err(error) => {
+            writeln!(output, "error: {}", error.message(language)).map_err(|_| CliError::Io)
+        }
+    }
+}
+
+fn write_ui_menu(output: &mut impl Write, language: Language) -> io::Result<()> {
+    match language {
+        Language::English => {
+            writeln!(
+                output,
+                "\n+------------------------------------------------------------+"
+            )?;
+            writeln!(
+                output,
+                "| TKACH SECURITY                                             |"
+            )?;
+            writeln!(
+                output,
+                "| Architected defense from first principles                  |"
+            )?;
+            writeln!(
+                output,
+                "+------------------------------------------------------------+"
+            )?;
+            writeln!(
+                output,
+                "| [1] init       create a safe starter request              |"
+            )?;
+            writeln!(
+                output,
+                "| [2] check      validate a bounded request                 |"
+            )?;
+            writeln!(
+                output,
+                "| [3] demo       run the deterministic Gateway proof        |"
+            )?;
+            writeln!(
+                output,
+                "| [F1] or /l     switch language; /l en|ru selects one     |"
+            )?;
+            writeln!(
+                output,
+                "| [q]            quit                                        |"
+            )?;
+            writeln!(
+                output,
+                "+------------------------------------------------------------+"
+            )?;
+            write!(output, "tkach[en]> ")
+        }
+        Language::Russian => {
+            writeln!(
+                output,
+                "\n+------------------------------------------------------------+"
+            )?;
+            writeln!(
+                output,
+                "| TKACH SECURITY                                             |"
+            )?;
+            writeln!(
+                output,
+                "| Architected defense from first principles                  |"
+            )?;
+            writeln!(
+                output,
+                "+------------------------------------------------------------+"
+            )?;
+            writeln!(
+                output,
+                "| [1] init       создать безопасный starter request         |"
+            )?;
+            writeln!(
+                output,
+                "| [2] check      проверить ограниченный request             |"
+            )?;
+            writeln!(
+                output,
+                "| [3] demo       запустить проверку Gateway                  |"
+            )?;
+            writeln!(
+                output,
+                "| [F1] или /l    сменить язык; /l en|ru выбрать язык       |"
+            )?;
+            writeln!(
+                output,
+                "| [q]            выйти                                       |"
+            )?;
+            writeln!(
+                output,
+                "+------------------------------------------------------------+"
+            )?;
+            write!(output, "tkach[ru]> ")
+        }
+    }
+}
+
+fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
+    let trimmed = line.trim();
+    let normalized = trimmed.to_lowercase();
+    if matches!(
+        normalized.as_str(),
+        "f1" | "\u{1b}op" | "\u{1b}[11~" | "\u{1b}[[a"
+    ) {
+        return Ok(UiAction::ToggleLanguage);
+    }
+
+    let mut parts = trimmed.splitn(2, char::is_whitespace);
+    let command = parts.next().unwrap_or("").to_lowercase();
+    let argument = parts
+        .next()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    match command.as_str() {
+        "" => Err(CliError::Usage),
+        "/l" | "/lang" | "language" | "язык" => match argument {
+            Some(value) => Ok(UiAction::SetLanguage(Language::parse(value)?)),
+            None => Ok(UiAction::ToggleLanguage),
+        },
+        "1" | "init" => Ok(UiAction::Init(PathBuf::from(argument.unwrap_or(".")))),
+        "2" | "check" => Ok(UiAction::Check(PathBuf::from(
+            argument.unwrap_or(".tkach/request.json"),
+        ))),
+        "3" | "demo" => Ok(UiAction::Demo),
+        "run" if argument == Some("--demo") => Ok(UiAction::Demo),
+        "h" | "help" | "?" => Ok(UiAction::Help),
+        "q" | "quit" | "exit" => Ok(UiAction::Quit),
         _ => Err(CliError::UnknownCommand),
     }
 }
 
-fn execute(command: Command) -> Result<String, CliError> {
-    match command {
-        Command::Help => Ok(USAGE.to_owned()),
-        Command::Version => Ok(format!("tkach {VERSION}")),
-        Command::Init(root) => initialize(&root),
-        Command::Check(path) => check_request(&path),
-        Command::Demo => run_demo(),
+fn read_ui_input(reader: &mut impl BufRead) -> io::Result<UiInput> {
+    let mut bytes = Vec::new();
+    let mut too_long = false;
+    loop {
+        let mut byte = [0_u8; 1];
+        if reader.read(&mut byte)? == 0 {
+            if bytes.is_empty() && !too_long {
+                return Ok(UiInput::End);
+            }
+            break;
+        }
+        if byte[0] == b'\n' {
+            break;
+        }
+        if byte[0] == b'\r' {
+            continue;
+        }
+        if bytes.len() < MAX_UI_INPUT_BYTES {
+            bytes.push(byte[0]);
+        } else {
+            too_long = true;
+        }
     }
+    if too_long {
+        return Ok(UiInput::TooLong);
+    }
+    Ok(match String::from_utf8(bytes) {
+        Ok(line) => UiInput::Line(line),
+        Err(_) => UiInput::InvalidUtf8,
+    })
 }
 
-fn initialize(root: &Path) -> Result<String, CliError> {
+fn initialize(root: &Path, language: Language) -> Result<String, CliError> {
     fs::create_dir_all(root).map_err(|_| CliError::Io)?;
     let directory = root.join(".tkach");
     match fs::symlink_metadata(&directory) {
@@ -146,11 +525,18 @@ fn initialize(root: &Path) -> Result<String, CliError> {
         let _ = fs::remove_file(&request_path);
         return Err(CliError::Io);
     }
-    Ok(format!(
-        "initialized {}\nnext: tkach check {}\nthen: tkach run --demo",
-        directory.display(),
-        request_path.display()
-    ))
+    Ok(match language {
+        Language::English => format!(
+            "initialized {}\n  -> next: tkach check {}\n  -> demo: tkach run --demo",
+            directory.display(),
+            request_path.display()
+        ),
+        Language::Russian => format!(
+            "инициализировано {}\n  -> дальше: tkach check {}\n  -> демо: tkach run --demo",
+            directory.display(),
+            request_path.display()
+        ),
+    })
 }
 
 fn is_directory_link(metadata: &fs::Metadata) -> bool {
@@ -169,7 +555,7 @@ fn is_directory_link(metadata: &fs::Metadata) -> bool {
     }
 }
 
-fn check_request(path: &Path) -> Result<String, CliError> {
+fn check_request(path: &Path, language: Language) -> Result<String, CliError> {
     let file = File::open(path).map_err(|_| CliError::Io)?;
     let mut bytes = Vec::new();
     file.take((MAX_REQUEST_BODY_BYTES + 1) as u64)
@@ -179,15 +565,23 @@ fn check_request(path: &Path) -> Result<String, CliError> {
         return Err(CliError::InvalidRequest);
     }
     let request = ExternalRequest::from_json(&bytes).map_err(|_| CliError::InvalidRequest)?;
-    Ok(format!(
-        "valid bounded request: {} message(s), {} metadata entr(y/ies), {} tool declaration(s)",
-        request.messages().len(),
-        request.metadata().len(),
-        request.tool_declarations().len()
-    ))
+    Ok(match language {
+        Language::English => format!(
+            "valid bounded request: {} message(s), {} metadata entr(y/ies), {} tool declaration(s)",
+            request.messages().len(),
+            request.metadata().len(),
+            request.tool_declarations().len()
+        ),
+        Language::Russian => format!(
+            "валидный ограниченный request: {} сообщ., {} metadata, {} tool declaration(s)",
+            request.messages().len(),
+            request.metadata().len(),
+            request.tool_declarations().len()
+        ),
+    })
 }
 
-fn run_demo() -> Result<String, CliError> {
+fn run_demo(language: Language) -> Result<String, CliError> {
     let client = Destination::Internal(Identity::new("client").map_err(|_| CliError::DemoFailed)?);
     let flow = FlowRule::allow(
         RuleId::new("allow-cli-demo-release").map_err(|_| CliError::DemoFailed)?,
@@ -231,7 +625,14 @@ fn run_demo() -> Result<String, CliError> {
     if result.output() != Some("bounded response") {
         return Err(CliError::DemoFailed);
     }
-    Ok("demo passed: bounded Gateway response released after final gates".to_owned())
+    Ok(match language {
+        Language::English => {
+            "demo passed: bounded Gateway response released after final gates".to_owned()
+        }
+        Language::Russian => {
+            "демо пройдено: ограниченный ответ прошёл финальные проверки Gateway".to_owned()
+        }
+    })
 }
 
 #[cfg(test)]
@@ -255,17 +656,66 @@ mod tests {
     }
 
     #[test]
+    fn language_selection_is_explicit_and_does_not_change_command_surface() {
+        let parsed = parse_args_with_default(["--lang", "ru", "--help"], Language::English)
+            .expect("Russian language flag is accepted");
+        assert_eq!(parsed.language, Language::Russian);
+        assert!(help(parsed.language).contains("Команды"));
+
+        let parsed = parse_args_with_default(["--lang=ru", "run", "--demo"], Language::English)
+            .expect("equals language flag is accepted");
+        assert_eq!(parsed.language, Language::Russian);
+        assert!(matches!(parsed.command, Command::Demo));
+        assert_eq!(Language::parse("fr").unwrap_err(), CliError::Language);
+    }
+
+    #[test]
+    fn interactive_shortcuts_accept_case_and_language_aliases() {
+        assert_eq!(parse_ui_action("F1"), Ok(UiAction::ToggleLanguage));
+        assert_eq!(
+            parse_ui_action("/L РУССКИЙ"),
+            Ok(UiAction::SetLanguage(Language::Russian))
+        );
+        assert_eq!(
+            parse_ui_action("/l ENGLISH"),
+            Ok(UiAction::SetLanguage(Language::English))
+        );
+        assert_eq!(parse_ui_action("язык"), Ok(UiAction::ToggleLanguage));
+        assert_eq!(parse_ui_action("3"), Ok(UiAction::Demo));
+        assert_eq!(parse_ui_action("q"), Ok(UiAction::Quit));
+    }
+
+    #[test]
+    fn interactive_input_is_bounded_and_handles_invalid_utf8() {
+        let mut input = std::io::Cursor::new(vec![b'x'; MAX_UI_INPUT_BYTES + 1]);
+        assert!(matches!(
+            read_ui_input(&mut input).expect("bounded input read succeeds"),
+            UiInput::TooLong
+        ));
+
+        let mut input = std::io::Cursor::new(vec![0xff, b'\n']);
+        assert!(matches!(
+            read_ui_input(&mut input).expect("invalid UTF-8 read succeeds"),
+            UiInput::InvalidUtf8
+        ));
+    }
+
+    #[test]
     fn init_is_no_overwrite_and_starter_is_accepted_by_gateway_parser() {
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock is after the Unix epoch")
             .as_nanos();
         let root = env::temp_dir().join(format!("tkach-cli-{suffix}"));
-        let initialized = initialize(&root).expect("starter initialization succeeds");
+        let initialized =
+            initialize(&root, Language::English).expect("starter initialization succeeds");
         assert!(initialized.contains("tkach check"));
         let path = root.join(".tkach/request.json");
-        assert!(check_request(&path).is_ok());
-        assert_eq!(initialize(&root).unwrap_err(), CliError::AlreadyInitialized);
+        assert!(check_request(&path, Language::English).is_ok());
+        assert_eq!(
+            initialize(&root, Language::English).unwrap_err(),
+            CliError::AlreadyInitialized
+        );
         fs::remove_dir_all(root).expect("test directory cleanup succeeds");
     }
 
@@ -277,7 +727,10 @@ mod tests {
             .as_nanos();
         let path = env::temp_dir().join(format!("tkach-cli-oversized-{suffix}.json"));
         fs::write(&path, vec![b'x'; MAX_REQUEST_BODY_BYTES + 1]).expect("test file write succeeds");
-        assert_eq!(check_request(&path).unwrap_err(), CliError::InvalidRequest);
+        assert_eq!(
+            check_request(&path, Language::English).unwrap_err(),
+            CliError::InvalidRequest
+        );
         fs::remove_file(path).expect("test file cleanup succeeds");
     }
 
@@ -296,7 +749,10 @@ mod tests {
         fs::create_dir_all(&outside).expect("test outside directory creation succeeds");
         symlink(&outside, root.join(".tkach")).expect("test symlink creation succeeds");
 
-        assert_eq!(initialize(&root).unwrap_err(), CliError::Io);
+        assert_eq!(
+            initialize(&root, Language::English).unwrap_err(),
+            CliError::Io
+        );
         assert!(!outside.join("request.json").exists());
 
         fs::remove_dir_all(root).expect("test root cleanup succeeds");
@@ -306,7 +762,7 @@ mod tests {
     #[test]
     fn demo_runs_through_the_existing_gateway_authority_path() {
         assert_eq!(
-            run_demo().unwrap(),
+            run_demo(Language::English).unwrap(),
             "demo passed: bounded Gateway response released after final gates"
         );
     }

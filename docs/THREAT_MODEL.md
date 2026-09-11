@@ -48,8 +48,8 @@ Additional runtime rows are:
 | Transport peer stalls or sends oversized frame | Runtime availability | Loopback framed listener | Read/write timeouts, four-byte length bound, no compression, one connection at a time | Unbounded body allocation, queue, or worker growth |
 | Shutdown/cancellation race | Effect ordering and outcome truth | Runtime/Gateway lifecycle | Stop admission, check cancellation before effects, preserve unknown outcome | Effect runs after barrier or unknown is retried |
 
-The table is a living summary; each completed mandate adds executable coverage
-and records discovered weaknesses in `DEVELOPMENT.md`. Red-team coverage also
+The table is a living summary; each security-sensitive change adds executable
+coverage and records relevant public contract or changelog updates. Red-team coverage also
 asserts that diagnostic formatting does not echo untrusted or broker-held
 payloads and that streaming normalization cannot be bypassed at chunk seams or
 released before finalization. Public metadata constructors are also exercised

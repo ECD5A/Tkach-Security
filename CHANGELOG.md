@@ -7,6 +7,11 @@ release candidate description, not a claim that a public release exists.
 
 - Prepare reproducible release artifacts, pinned CI release checks, and
   deployment diagnostics around the frozen Strong Core contract.
+- Add the dependency-free `tkach ui` terminal dashboard with F1/`/l` language
+  switching, case-insensitive English/Russian aliases, and bounded input.
+- Add the bilingual README showcase, supplied project banner, contributor
+  guide, and a smaller public documentation tree; owner checkpoint material
+  remains local-only.
 
 ## [0.1.0] — release candidate, not published
 

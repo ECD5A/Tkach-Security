@@ -37,7 +37,11 @@ rejects a pre-existing `.tkach` symlink, junction, or non-directory. `tkach
 check [REQUEST_JSON]` caps the file read at the Gateway's request bound and
 uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
 existing deterministic Gateway proof with a fake broker and no network or real
-side effect. The CLI is not a generic executor and does not create authority.
+side effect. `tkach --lang ru --help` or `TKACH_LANG=ru` selects the localized
+help and result messages. `tkach ui` opens the dependency-free terminal
+dashboard; `F1` and `/l` toggle the language, while `/l en` and `/l ru` select
+it explicitly. The CLI is not a generic executor and does not create
+authority.
 
 ## HTTP adapter contract — v0.1
 

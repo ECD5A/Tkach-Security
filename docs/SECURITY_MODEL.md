@@ -108,5 +108,5 @@ carrier.
 The executable proof uses deterministic hostile providers, bounded fake
 effects, real fixed local effects, and offline OpenAI fixtures. It demonstrates
 the typed boundaries and declared workloads, not semantic model safety or
-production deployment availability. The consolidated commands, counts,
-mutation results, residuals, and scan limitation are in `EVIDENCE.md`.
+production deployment availability. Run the workspace test, lint, audit, and
+fuzz-build commands from the contributor guide to reproduce the local checks.

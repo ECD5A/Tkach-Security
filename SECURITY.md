@@ -4,13 +4,14 @@
 
 This repository contains the Tkach Security Strong Core, bounded Gateway,
 narrow real local-effect boundary, non-streaming OpenAI Responses adapter, and
-thin local CLI, HTTP, Rust client, and MCP stdio adapters.
+thin local CLI (including its terminal dashboard), HTTP, Rust client, and MCP
+stdio adapters.
 Reports should target bypasses of deterministic authorization, information
 flow, DATA/CONTROL separation, provenance/classification, secret isolation,
 payload-free evidence, lifecycle, parser, credential, or egress invariants.
 
 The current source has no multi-language SDK, Streamable HTTP adapter,
-Anthropic adapter, streaming release API, hosted service, UI, cloud control
+Anthropic adapter, streaming release API, hosted service, cloud control
 plane, or public internet gateway. Deployment assumptions in [the product
 contract](docs/PRODUCT_CONTRACT.md) remain in scope when a defect crosses a
 documented Tkach boundary.
@@ -25,5 +26,5 @@ is established.
 ## Development security rules
 
 Security-critical crates forbid `unsafe_code`. Changes must include regression
-tests for real security defects, pass the validation matrix in
-[the evidence record](docs/EVIDENCE.md), and avoid direct privileged bypasses.
+tests for real security defects, pass the required checks in
+[`CONTRIBUTING.md`](CONTRIBUTING.md), and avoid direct privileged bypasses.

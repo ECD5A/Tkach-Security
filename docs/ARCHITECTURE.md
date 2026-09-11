@@ -1,8 +1,8 @@
 # Architecture
 
-This document describes the current implemented architecture. For the single
-short state summary and active phase, see `CURRENT_BASELINE.md` and `ROADMAP.md`.
-Historical checkpoint instructions are evidence, not active mandates.
+This document describes the current implemented architecture. For the active
+phase and compact project map, see `ROADMAP.md`. Historical checkpoint material
+is kept in the local engineering workspace, not in the public documentation.
 
 ## Implemented baseline
 

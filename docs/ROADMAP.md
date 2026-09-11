@@ -1,16 +1,15 @@
 # Roadmap
 
-This is the compact project map. The permanent rules live in the root
-constitution; current behavior is summarized in `CURRENT_BASELINE.md`; test
-and security evidence is in `EVIDENCE.md`.
+This is the compact public project map. Current behavior is defined by the
+Product Contract, Architecture, Security Model, and executable test suite.
+Private checkpoint records remain local engineering material.
 
 ## CURRENT
 
-Compact documentation tree after the local `production-runtime-v0.1` baseline,
-trusted credential-ownership hardening, Strong Core checkpoint, v0.1 public API
-contract, bounded CLI onboarding adapter, local HTTP adapter, thin Rust client,
-and MCP stdio adapter. Productization is now active by owner direction; the
-Core remains frozen.
+Compact public documentation tree after the Strong Core release candidate,
+trusted credential-ownership hardening, v0.1 public API contract, bounded CLI
+onboarding/dashboard, local HTTP adapter, thin Rust client, and MCP stdio
+adapter. Productization is active by owner direction; the Core remains frozen.
 
 ## DONE
 
@@ -26,11 +25,11 @@ Core remains frozen.
 - Zeroize-on-drop ownership for runtime authentication proof and OpenAI adapter
   configuration credentials, with redaction and compile-time regression proof.
 - Local validation, dependency checks, fuzz compilation, packaging, and
-  Quickstart execution documented in `EVIDENCE.md`.
+  Quickstart execution are enforced by the contributor checks and CI workflow.
 - v0.1 public Rust boundary contract and consumer-side API smoke test.
-- Minimal `tkach` CLI with bounded `init`, strict `check`, and deterministic
-  `run --demo` onboarding path, including no-overwrite and symlink/reparse
-  boundary tests.
+- Minimal `tkach` CLI with bounded `init`, strict `check`, deterministic
+  `run --demo`, localized help, and the bounded `tkach ui` dashboard, including
+  no-overwrite and symlink/reparse boundary tests.
 - Thin bounded tkach-client Rust adapter for the reviewed HTTP contract,
   including zeroizing token/header storage and response-framing regression
   tests.
@@ -49,13 +48,13 @@ publication remains behind that contract and an owner decision.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
-complete the local validation matrix, update `CURRENT_BASELINE.md` and
-`EVIDENCE.md`, and end in a meaningful local commit.
+complete the local validation checks, update the public contract and changelog,
+and end in a meaningful local commit.
 
 ## CURRENT SCOPE, NOT PERMANENT BANS
 
 The source currently has no Streamable HTTP transport, multi-language SDK,
-streaming release API, generic executor, public internet gateway, UI, cloud
+streaming release API, generic executor, public internet gateway, cloud
 control plane,
 TLS/process supervisor integration, durable distributed replay, or universal
 handle-relative filesystem transaction. A future boundary may be added only
@@ -89,9 +88,7 @@ decision.
 
 ## READING ORDER
 
-1. `../Tkach Security — MASTER_MANDATE.md`
-2. `CURRENT_BASELINE.md`
-3. source and executable tests
-4. `PRODUCT_CONTRACT.md`, `ARCHITECTURE.md`, `SECURITY_MODEL.md`,
+1. source and executable tests
+2. `PRODUCT_CONTRACT.md`, `ARCHITECTURE.md`, `SECURITY_MODEL.md`,
    `THREAT_MODEL.md`, and `INTEGRATION.md`
-5. `EVIDENCE.md` and `DEVELOPMENT.md`
+3. `DISTRIBUTION.md`, `SECURITY.md`, `CONTRIBUTING.md`, and `CHANGELOG.md`
