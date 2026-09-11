@@ -10,6 +10,7 @@ on:
       - '**/*.txt'
       - 'docs/**'
       - 'LICENSE'
+      - 'assets/**'
   pull_request:
     paths-ignore:
       - '**/*.md'
@@ -19,6 +20,7 @@ on:
       - '**/*.txt'
       - 'docs/**'
       - 'LICENSE'
+      - 'assets/**'
 
 permissions:
   contents: read

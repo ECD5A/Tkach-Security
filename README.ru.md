@@ -18,6 +18,10 @@
   <img src="assets/tkach-banner.png" alt="Tkach Security — Architected defense from first principles">
 </p>
 
+<p align="center">
+  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
+</p>
+
 Tkach Security — детерминированная типизированная граница безопасности для
 систем, использующих вероятностные или скомпрометированные модели.
 
