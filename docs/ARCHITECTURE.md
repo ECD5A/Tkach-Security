@@ -163,9 +163,9 @@ secret use. The narrow `RealEffectExecutor` additionally proves exact local
 filesystem and loopback effects; it has no model-controlled OS path, endpoint,
 HTTP path, or payload. Raw fake secret material stays in the broker;
 provider-visible results preserve Niti/Metka or are payload-free receipts. No
-generic executor, multi-language SDK, Streamable HTTP, cloud control plane, or
-internet gateway exists in the current source surface; the Rust client and MCP
-stdio adapter remain local carriers.
+generic executor, Streamable HTTP, cloud control plane, or internet gateway
+exists in the current source surface; the Rust client, Python/Node/Go carriers,
+and MCP stdio adapter remain local thin carriers.
 
 ## Production runtime boundary
 
@@ -250,13 +250,14 @@ checks, not competing policy engines.
 
 `INTEGRATION.md` defines Basic Gateway, Controlled Agent, Sealed Agent, Local
 Authenticated Runtime, the narrow RealEffectExecutor profile, the local Rust
-client carrier, and the MCP stdio carrier. The current source surface has no
-configuration DSL, provider abstraction layer, streaming event model,
-Streamable HTTP, or internet gateway.
+client carrier, source-level Python/Node/Go carriers, and the MCP stdio carrier.
+The current source surface has no configuration DSL, provider abstraction
+layer, streaming event model, Streamable HTTP, or internet gateway.
 
 ## Current non-implemented surfaces
 
-Anthropic, Streamable HTTP, cloud services, multi-language SDKs, dashboards, human approval services,
+Anthropic, Streamable HTTP, cloud services, published multi-language SDK
+packages, dashboards, human approval services,
 production gateway orchestration, TLS/process supervisor integration, and
 generic executors are not part of this baseline. The runtime listener is a
 narrow local frame boundary, not a claim of generic production readiness.

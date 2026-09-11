@@ -55,9 +55,9 @@ and end in a meaningful local commit.
 
 ## CURRENT SCOPE, NOT PERMANENT BANS
 
-The source currently has no Streamable HTTP transport, multi-language SDK,
-streaming release API, generic executor, public internet gateway, cloud
-control plane,
+The source currently has no Streamable HTTP transport, published multi-language
+SDK suite, streaming release API, generic executor, public internet gateway,
+cloud control plane,
 TLS/process supervisor integration, durable distributed replay, or universal
 handle-relative filesystem transaction. A future boundary may be added only
 if it remains a thin adapter over the existing authority model and passes its

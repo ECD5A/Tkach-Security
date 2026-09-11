@@ -96,9 +96,10 @@ Tkach Security does not:
   production gateway, TLS terminator, or general-purpose service;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
-- provide streaming, Streamable HTTP, Anthropic, multi-language SDK, UI, or
-  cloud orchestration in the current source surface; the MCP implementation is
-  stdio-only and the Rust client is only a local HTTP carrier.
+- provide streaming, Streamable HTTP, Anthropic, a published multi-language SDK
+  suite, UI, or cloud orchestration; the source-level Python/Node/Go carriers
+  remain thin local HTTP adapters, the MCP implementation is stdio-only, and
+  the Rust client is only a local HTTP carrier.
 - provide TLS, OS/process isolation, core-dump prevention, or protection from
   a same-privilege out-of-band application path.
 

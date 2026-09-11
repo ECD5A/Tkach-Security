@@ -126,7 +126,7 @@ generated build output and local scan files out of the repository.
 Documentation must describe the current implementation, not an intended future
 integration. Clearly label partial, local-only, opt-in, unavailable, or
 unverified features. In particular, do not claim that crates.io publication,
-prebuilt binaries, an OCI image, a hosted gateway, a multi-language SDK, or
+prebuilt binaries, an OCI image, a hosted gateway, or a published multi-language SDK package,
 MCP Registry registration exists until the corresponding release owner has
 actually completed and verified it.
 

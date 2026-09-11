@@ -695,6 +695,62 @@ mod tests {
     }
 
     #[test]
+    fn oversized_message_does_not_desynchronize_the_next_message() {
+        let mut input = String::from(r#"{"jsonrpc":"2.0","method":"ping","pad":""#);
+        input.push_str(&"x".repeat(MAX_MCP_MESSAGE_BYTES));
+        input.push_str("\"}\n{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n");
+        let client = TkachClient::new("127.0.0.1:1".parse().unwrap(), "secret").unwrap();
+        let mut server = McpStdioServer::new(client);
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input.into_bytes()), &mut output)
+            .unwrap();
+        let messages: Vec<Value> = String::from_utf8(output)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["error"]["code"], INVALID_REQUEST_CODE);
+        assert_eq!(messages[1]["id"], 1);
+        assert_eq!(messages[1]["result"], json!({}));
+    }
+
+    #[test]
+    fn partial_message_is_a_terminal_transport_error() {
+        let client = TkachClient::new("127.0.0.1:1".parse().unwrap(), "secret").unwrap();
+        let mut server = McpStdioServer::new(client);
+        let mut output = Vec::new();
+        assert_eq!(
+            server
+                .serve(Cursor::new(br#"{"jsonrpc":"2.0"}"#.to_vec()), &mut output)
+                .unwrap_err(),
+            McpTransportError::PartialMessage
+        );
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn tool_failure_is_static_and_does_not_echo_arguments() {
+        let input = format!(
+            "{}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{{\"name\":\"{}\",\"arguments\":{{\"request_id\":\"secret-request-id\",\"lifecycle_id\":\"secret-life\",\"request\":{{\"messages\":[]}}}}}}}}\n",
+            initialize(),
+            TKACH_TOOL_NAME
+        );
+        let client = TkachClient::new("127.0.0.1:1".parse().unwrap(), "runtime-secret").unwrap();
+        let mut server = McpStdioServer::new(client);
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input.into_bytes()), &mut output)
+            .unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(output.contains(GENERIC_TOOL_FAILURE));
+        assert!(!output.contains("secret-request-id"));
+        assert!(!output.contains("secret-life"));
+        assert!(!output.contains("runtime-secret"));
+    }
+
+    #[test]
     fn identifiers_are_bounded_and_only_string_or_number() {
         assert!(validate_id(&json!(1)));
         assert!(validate_id(&json!("request")));

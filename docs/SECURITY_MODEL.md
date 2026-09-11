@@ -98,8 +98,9 @@ bypassed Gateway, a fully compromised host/OS, or same-privilege out-of-band
 effects. It does not provide durable distributed exactly-once effects,
 forceful interruption of blocking synchronous calls, universal concurrent
 filesystem race prevention, TLS/process isolation, or host-memory zeroization.
-The current source has no Streamable HTTP transport, multi-language SDK,
-streaming release, UI, cloud control plane, or public internet gateway. The
+The current source has no Streamable HTTP transport, published multi-language
+SDK suite, streaming release, UI, cloud control plane, or public internet
+gateway. The Python/Node/Go source adapters are thin local HTTP carriers; the
 MCP implementation is stdio-only and the Rust client is only a local HTTP
 carrier.
 
