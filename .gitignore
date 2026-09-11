@@ -3,6 +3,8 @@
 /%TEMP%/
 /.cargo/
 *.log
+__pycache__/
+*.py[cod]
 /mutants.out*/
 
 # Local agent state and instructions; never commit these paths.

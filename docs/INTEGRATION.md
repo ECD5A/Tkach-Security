@@ -157,6 +157,35 @@ model/provider output as trusted. The client is local-only: it is not TLS,
 process isolation, a public service, or an SDK for other languages. Those
 languages can use the same strict HTTP contract directly.
 
+## Python adapter — v0.1
+
+The source-level adapter at [`sdk/python`](../sdk/python) is standard-library
+only and follows the same HTTP contract without reimplementing Core policy:
+
+```text
+PYTHONPATH=sdk/python python -m unittest discover -s sdk/python -p "test_*.py" -v
+```
+
+Usage is intentionally small:
+
+```python
+from tkach_client import TkachClient
+
+with TkachClient("127.0.0.1", 8080, "local-development-secret") as tkach:
+    tkach.health()
+    response = tkach.run(
+        "request-1",
+        "lifecycle-1",
+        {"messages": [{"role": "user", "content": "hello"}]},
+    )
+```
+
+It accepts numeric loopback IPs only, rejects ambiguous/chunked/oversized
+responses, sends one request without retry, and returns transport observations.
+It has no policy, authority, provider, executor, secret-broker, or public-network
+surface. It is not published to PyPI yet; callers may vendor this small module
+or use the HTTP contract directly.
+
 ## MCP stdio adapter — v0.1
 
 tkach-mcp is a separate protocol adapter over tkach-client. It implements the

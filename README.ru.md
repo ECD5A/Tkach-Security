@@ -164,6 +164,7 @@ production gateway.
 - loopback-only HTTP-контракт для host-приложения, которое подключает runtime
   service;
 - типизированный Rust HTTP-клиент;
+- source-level Python HTTP-адаптер только на стандартной библиотеке;
 - MCP stdio-адаптер поверх локального HTTP runtime;
 - небольшой CLI для безопасного onboarding и детерминированной проверки.
 - отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции.
@@ -175,7 +176,8 @@ production gateway.
 - Docker/OCI-образы;
 - готовый публичный HTTP gateway или TLS termination;
 - Streamable HTTP, streaming release или публичный network service;
-- first-party SDK для Python, JavaScript/TypeScript, Go и других языков;
+- опубликованные multi-language SDK-пакеты для Python, JavaScript/TypeScript,
+  Go и других языков;
 - UI, cloud control plane, generic executor или регистрация в MCP Registry.
 
 Это факты текущего scope, а не скрытые обещания. HTTP JSON-контракт является

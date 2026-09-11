@@ -56,6 +56,7 @@ cargo audit
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked
 cargo +1.85.1 package --workspace --locked
+python -m unittest discover -s sdk/python -p "test_*.py" -v
 ```
 
 For a focused change, state exactly which checks were run and why any check

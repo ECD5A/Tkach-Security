@@ -156,6 +156,7 @@ Available today:
 - Rust in-process integration through `tkach-core` and `tkach-gateway`;
 - a loopback-only HTTP contract for a host that wires the runtime service;
 - a typed Rust HTTP client;
+- a source-level standard-library Python HTTP adapter;
 - an MCP stdio adapter over the local HTTP runtime;
 - a small CLI for safe onboarding and a deterministic proof.
 - an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.
@@ -167,7 +168,7 @@ Not claimed yet:
 - Docker/OCI images;
 - a ready-to-run public HTTP gateway or TLS termination;
 - Streamable HTTP, streaming release, or a public network service;
-- Python, JavaScript/TypeScript, Go, or other first-party SDKs;
+- published Python, JavaScript/TypeScript, Go, or other multi-language SDK packages;
 - UI, cloud control plane, generic executor, or MCP Registry registration.
 
 These are scope facts, not hidden promises. The HTTP JSON contract is the
