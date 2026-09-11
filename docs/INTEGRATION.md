@@ -58,14 +58,13 @@ Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
 The interactive menu is a responsive Ratatui panel with a selected action,
-local status panel, keyboard footer, and the supplied PNG banner rendered as
-colored pixel cells when the terminal is large enough. This avoids Braille-font
-dependencies and uses the same Ratatui/crossterm path on Windows CMD and WSL;
-no runtime font download or installation occurs. `TKACH_BANNER=compact` hides
-the image. A 132 x 40 terminal shows the complete large rendering; smaller
-terminals use the compact header. `NO_COLOR` intentionally disables the image
-mode. The terminal emulator owns font selection and size; the CLI owns layout,
-borders, and colors.
+local status panel, keyboard footer, and the supplied dense Unicode block-art
+banner. The banner is embedded directly in `tkach-cli`; it is not read from a
+runtime asset and no download or installation occurs. It occupies 113 columns
+and 11 rows. `TKACH_BANNER=compact` hides it, while `TKACH_BANNER=png` selects
+the supplied PNG pixel renderer. Small terminals use the compact header. The
+block-art path avoids Braille glyphs, but the terminal emulator still owns
+font and code-page rendering; the CLI owns layout, borders, and colors.
 CLI is an optional local onboarding tool. Creating a starter request does not
 deploy a policy or grant authority. `tkach serve --demo` is a separate,
 deterministic reference runtime for local HTTP smoke tests; it is not a

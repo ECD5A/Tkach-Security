@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Make the dense Unicode block-art banner the default terminal header. Embed it
+  directly in `tkach-cli` instead of loading a runtime asset; retain compact
+  fallback and an explicit `TKACH_BANNER=png` path for the supplied image.
 - Expand the local TUI with dedicated diagnostics, settings, and help screens,
   responsive one/two-column layout, larger spacing, status styling, eight
   keyboard-addressable actions, and the supplied Tkach PNG banner rendered as

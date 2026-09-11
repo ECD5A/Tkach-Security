@@ -45,12 +45,25 @@ const DASHBOARD_WIDTH: u16 = 72;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BannerMode {
     Compact,
+    Blocks { rows: u16 },
     Raster { width: u16, rows: u16 },
 }
 
 const BANNER_PNG: &[u8] = include_bytes!("../../../assets/tkach-banner.png");
+const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄    ▄     ▄▄▄▄  ▄   ▄▄      ▄▄▄   ▄▄▄▄   ▄▄▄▄  ▄   ▄  ▄ ▄▄   ▄  ▄▄▄▄▄ ▄    ▄
+               ▄▄       ▀▀██▀▀ █  █▀    ███   ██▀▀██ ██  ██     █▀▀▀█ ▀█▀▀▀▀ █▀▀▀█▄ █   █  █▀▀▀█  █ ▀▀██▀▀ ▀█  ██
+   ▀▀██▄▄▄  ▄██▀          ██   █▄█▀    ▄█▀█▄  ██     █▄▄▄██     █▄▄▄  ██▄▄▄  █   ▀  █   █  █▄  █  █   ██    ▀███
+       ▀███ ██▀           ██   █▀█▄    ██▄██  ██     █▀▀▀██      ▀▀▀█ ▀█▀▀▀  █      █   █  █▀▀█▀  █   ██     ██
+         ████▀            ██   █  ██  ▄█▀▀▀██ ██▄▄██ ██  ██     █▄▄▄█ ▄█▄▄▄▄ █▄▄▄█  █▄▄▄█  █  ██  █   ██     ██
+         ███▀             ▀    ▀   ▀▀ ▀     ▀  ▀▀▀▀  ▀   ▀▀     ▀▀▀▀   ▀▀▀▀▀ ▀▀▀▀▀  ▀▀▀▀▀  ▀   ▀  ▀    ▀     ▀▀
+         ██▀
+         █
+         ▀
+
+               A r c h i t e c t e d   d e f e n s e   f r o m   f i r s t   p r i n c i p l e s";
 const BANNER_MIN_WIDTH: u16 = 92;
 const BANNER_MAX_WIDTH: u16 = 124;
+const BANNER_TEXT_WIDTH: u16 = 113;
 
 struct RasterBanner {
     width: u32,
@@ -791,7 +804,22 @@ fn choose_banner(
     area: Rect,
     image: Option<&RasterBanner>,
 ) -> BannerMode {
-    if no_color || preference.is_some_and(|value| value.eq_ignore_ascii_case("compact")) {
+    let blocks_requested = preference.is_none_or(|value| value.eq_ignore_ascii_case("blocks"));
+    if blocks_requested {
+        let width = area.width.saturating_sub(4);
+        let rows = u16::try_from(BANNER_TEXT.lines().count()).unwrap_or(u16::MAX);
+        if width >= BANNER_TEXT_WIDTH && u32::from(rows) + 9 <= u32::from(area.height) {
+            return BannerMode::Blocks { rows };
+        }
+        return BannerMode::Compact;
+    }
+    if preference.is_some_and(|value| value.eq_ignore_ascii_case("compact")) {
+        return BannerMode::Compact;
+    }
+    if no_color && !preference.is_some_and(|value| value.eq_ignore_ascii_case("png")) {
+        return BannerMode::Compact;
+    }
+    if !preference.is_some_and(|value| value.eq_ignore_ascii_case("png")) {
         return BannerMode::Compact;
     }
     let Some(image) = image else {
@@ -823,6 +851,13 @@ fn banner_title(app: &App, no_color: bool) -> Line<'static> {
             muted_style(no_color),
         ),
     ])
+}
+
+fn terminal_banner_lines(no_color: bool) -> Vec<Line<'static>> {
+    BANNER_TEXT
+        .lines()
+        .map(|line| Line::from(Span::styled(line.to_owned(), accent_style(no_color))))
+        .collect()
 }
 
 fn scaled_channel(channel: u8, alpha: u8) -> u8 {
@@ -876,6 +911,14 @@ fn raster_banner_lines(image: &RasterBanner, width: u16, rows: u16) -> Vec<Line<
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, mode: BannerMode) {
+    if let BannerMode::Blocks { .. } = mode {
+        frame.render_widget(
+            Paragraph::new(terminal_banner_lines(no_color))
+                .block(panel_block(banner_title(app, no_color), no_color)),
+            area,
+        );
+        return;
+    }
     if let BannerMode::Raster { width, rows } = mode {
         if let Some(image) = banner_image() {
             let lines = raster_banner_lines(image, width, rows);
@@ -1062,7 +1105,7 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
 
     let mode = banner_mode(inner, no_color);
     let header_height = match mode {
-        BannerMode::Raster { rows, .. } => rows + 2,
+        BannerMode::Blocks { rows } | BannerMode::Raster { rows, .. } => rows + 2,
         BannerMode::Compact => 4,
     };
     let layout = Layout::default()
@@ -1190,10 +1233,7 @@ mod tests {
         );
         assert_eq!(
             choose_banner(None, false, Rect::new(0, 0, 128, 38), Some(image)),
-            BannerMode::Raster {
-                width: 124,
-                rows: 13
-            }
+            BannerMode::Blocks { rows: 11 }
         );
         assert_eq!(
             choose_banner(
@@ -1206,7 +1246,7 @@ mod tests {
         );
         assert_eq!(
             choose_banner(None, true, Rect::new(0, 0, 128, 38), Some(image)),
-            BannerMode::Compact
+            BannerMode::Blocks { rows: 11 }
         );
         assert_eq!(
             choose_banner(None, false, Rect::new(0, 0, 44, 18), Some(image)),
@@ -1214,8 +1254,18 @@ mod tests {
         );
         assert_eq!(
             choose_banner(None, false, Rect::new(0, 0, 128, 38), None),
-            BannerMode::Compact
+            BannerMode::Blocks { rows: 11 }
         );
+        assert_eq!(
+            choose_banner(Some("png"), false, Rect::new(0, 0, 128, 38), Some(image)),
+            BannerMode::Raster {
+                width: 124,
+                rows: 13
+            }
+        );
+        let text_lines = terminal_banner_lines(true);
+        assert_eq!(text_lines.len(), 11);
+        assert!(text_lines.iter().all(|line| line.width() <= 113));
     }
 
     #[test]
