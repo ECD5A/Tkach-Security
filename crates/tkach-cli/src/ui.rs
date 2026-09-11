@@ -17,10 +17,7 @@ use std::{
 };
 
 const BRAND: &str = include_str!("brand.txt");
-const PIXEL_LOGO: &[u8] = include_bytes!("../assets/tkach-banner.rgb");
-const PIXEL_LOGO_WIDTH: usize = 100;
-const PIXEL_LOGO_HEIGHT: usize = 20;
-const PIXEL_RENDER_MAX_WIDTH: usize = 80;
+const PIXEL_RENDER_MAX_WIDTH: usize = 96;
 const MIN_UI_WIDTH: u16 = 50;
 const MIN_UI_HEIGHT: u16 = 24;
 
@@ -440,33 +437,55 @@ fn fit_lines(lines: Vec<String>, width: usize, editing: bool) -> Vec<String> {
 }
 
 fn pixel_logo_size(columns: u16) -> (usize, usize) {
+    let source_width = BRAND
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
+    let source_height = BRAND.lines().count().max(1);
     let width = PIXEL_RENDER_MAX_WIDTH.min(usize::from(columns.saturating_sub(1)));
-    let mut height = (width * PIXEL_LOGO_HEIGHT / PIXEL_LOGO_WIDTH).max(2);
+    let mut height = (width * source_height / source_width).max(2);
     height -= height % 2;
     (width, height)
 }
 
-fn pixel_color(x: usize, y: usize) -> Color {
-    let offset = (y * PIXEL_LOGO_WIDTH + x) * 3;
-    Color::Rgb {
-        r: PIXEL_LOGO[offset],
-        g: PIXEL_LOGO[offset + 1],
-        b: PIXEL_LOGO[offset + 2],
+fn brand_color(x: usize, y: usize) -> Color {
+    let line = BRAND.lines().nth(y).unwrap_or_default();
+    let glyph = line.chars().nth(x).unwrap_or(' ');
+    match glyph {
+        '0' => Color::Rgb {
+            r: 96,
+            g: 96,
+            b: 96,
+        },
+        '1' => Color::Rgb { r: 8, g: 8, b: 8 },
+        _ if glyph.is_whitespace() => Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        },
+        _ => Color::Rgb { r: 8, g: 8, b: 8 },
     }
 }
 
 fn render_pixel_logo(out: &mut impl Write, columns: u16) -> io::Result<usize> {
     let (width, height) = pixel_logo_size(columns);
+    let source_width = BRAND
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(1);
+    let source_height = BRAND.lines().count().max(1);
     for row in 0..height / 2 {
         queue!(out, MoveTo(0, u16::try_from(row).unwrap_or(0)))?;
         for x in 0..width {
-            let source_x = x * PIXEL_LOGO_WIDTH / width;
-            let top_y = row * 2 * PIXEL_LOGO_HEIGHT / height;
-            let bottom_y = (row * 2 + 1) * PIXEL_LOGO_HEIGHT / height;
+            let source_x = x * source_width / width;
+            let top_y = row * 2 * source_height / height;
+            let bottom_y = (row * 2 + 1) * source_height / height;
             queue!(
                 out,
-                SetForegroundColor(pixel_color(source_x, top_y)),
-                SetBackgroundColor(pixel_color(source_x, bottom_y)),
+                SetForegroundColor(brand_color(source_x, top_y)),
+                SetBackgroundColor(brand_color(source_x, bottom_y)),
                 Print('\u{2580}')
             )?;
         }
@@ -626,10 +645,11 @@ mod tests {
     }
 
     #[test]
-    fn pixel_logo_asset_and_scaling_are_bounded() {
-        assert_eq!(PIXEL_LOGO.len(), PIXEL_LOGO_WIDTH * PIXEL_LOGO_HEIGHT * 3);
-        assert_eq!(pixel_logo_size(101), (80, 16));
-        assert_eq!(pixel_logo_size(81), (80, 16));
+    fn supplied_brand_matrix_and_scaling_are_bounded() {
+        assert!(BRAND.lines().count() >= 30);
+        assert!(BRAND.lines().map(str::len).max().unwrap_or(0) >= 250);
+        assert_eq!(pixel_logo_size(101), (96, 10));
+        assert_eq!(pixel_logo_size(81), (80, 8));
     }
     #[test]
     fn selection_does_not_execute_and_escape_cancels() {
