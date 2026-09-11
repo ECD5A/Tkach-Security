@@ -7,10 +7,11 @@ release candidate description, not a claim that a public release exists.
 
 - Expand the local TUI with dedicated diagnostics, settings, and help screens,
   responsive one/two-column layout, larger spacing, status styling, eight
-  keyboard-addressable actions, and the supplied Tkach Unicode brand banner in
-  Linux/WSL terminals. Native Windows keeps the stable compact header because
-  console font support is host-dependent. Settings remain session-only and
-  cannot change policy, secrets, endpoints, or authority.
+  keyboard-addressable actions, and the supplied Tkach PNG banner rendered as
+  colored pixel cells across Windows CMD and WSL. The image path avoids
+  Braille-font dependencies; `NO_COLOR` or small terminals use the compact
+  header. Settings remain session-only and cannot change policy, secrets,
+  endpoints, or authority.
 - Replace the flat CLI screen with a compact Ratatui panel: shared TTY/pipe
   actions, retro terminal theme, selected-state contrast, status panel, and
   keyboard footer remain local and provider-independent.
