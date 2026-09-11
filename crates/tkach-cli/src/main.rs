@@ -327,6 +327,7 @@ enum UiAction {
     Check(PathBuf),
     Doctor,
     Integration,
+    Settings,
     Demo,
     Quit,
 }
@@ -417,7 +418,7 @@ fn apply_ui_action(
             Ok(true)
         }
         UiAction::Help => {
-            write!(output, "{}", help(*language)).map_err(|_| CliError::Io)?;
+            writeln!(output, "{}", ui::help_text(*language)).map_err(|_| CliError::Io)?;
             Ok(true)
         }
         UiAction::Init(path) => {
@@ -434,6 +435,10 @@ fn apply_ui_action(
         }
         UiAction::Integration => {
             writeln!(output, "{}", ui::integration_text(*language)).map_err(|_| CliError::Io)?;
+            Ok(true)
+        }
+        UiAction::Settings => {
+            writeln!(output, "{}", ui::settings_text(*language)).map_err(|_| CliError::Io)?;
             Ok(true)
         }
         UiAction::Demo => {
@@ -501,9 +506,10 @@ fn parse_ui_action(line: &str) -> Result<UiAction, CliError> {
         "3" | "demo" => Ok(UiAction::Demo),
         "4" | "doctor" => Ok(UiAction::Doctor),
         "5" | "guide" | "integration" => Ok(UiAction::Integration),
+        "6" | "settings" | "config" => Ok(UiAction::Settings),
         "run" if argument == Some("--demo") => Ok(UiAction::Demo),
-        "h" | "help" | "?" => Ok(UiAction::Help),
-        "6" | "q" | "quit" | "exit" => Ok(UiAction::Quit),
+        "7" | "h" | "help" | "?" => Ok(UiAction::Help),
+        "8" | "q" | "quit" | "exit" => Ok(UiAction::Quit),
         _ => Err(CliError::UnknownCommand),
     }
 }
@@ -927,7 +933,9 @@ mod tests {
         assert_eq!(parse_ui_action("3"), Ok(UiAction::Demo));
         assert_eq!(parse_ui_action("4"), Ok(UiAction::Doctor));
         assert_eq!(parse_ui_action("5"), Ok(UiAction::Integration));
-        assert_eq!(parse_ui_action("6"), Ok(UiAction::Quit));
+        assert_eq!(parse_ui_action("6"), Ok(UiAction::Settings));
+        assert_eq!(parse_ui_action("7"), Ok(UiAction::Help));
+        assert_eq!(parse_ui_action("8"), Ok(UiAction::Quit));
         assert_eq!(parse_ui_action("q"), Ok(UiAction::Quit));
     }
 
@@ -946,7 +954,7 @@ mod tests {
             assert!(!output.contains("TKACH SECURITY"));
             assert!(!output.contains("Architected defense"));
             assert!(output.contains("01"));
-            assert!(output.contains("06"));
+            assert!(output.contains("08"));
         }
     }
 

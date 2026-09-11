@@ -43,22 +43,26 @@ uses the same strict `ExternalRequest` parser. `tkach run --demo` executes the
 existing deterministic Gateway proof with a fake broker and no network or real
 side effect. `tkach --lang ru --help` or `TKACH_LANG=ru` selects the localized
 help and result messages. Bare `tkach` in a terminal or `tkach ui` opens
-an interactive menu: Up/Down or 1–6 selects, Enter confirms, Esc goes back.
+an interactive menu: Up/Down or 1–8 selects, Enter confirms, Esc goes back.
 F1 and l/L/д/Д switch languages; in path fields only F1 switches, so filenames
 remain editable. Path input is bounded to 256 UTF-8 bytes and never evaluated
 as a shell command. Results wrap and scroll with Up/Down. The terminal restores
 its screen, cursor and input mode on normal exit and returned errors.
-The menu requires at least 44 columns and 14 rows. `NO_COLOR` disables selection
+The menu requires at least 44 columns and 18 rows. `NO_COLOR` disables selection
 color. If raw terminal mode is unavailable, the CLI falls back to the same
 line-oriented menu contract. Validation accepts regular files only and runs on
 one background reader.
+Settings change only the current session language and color preference. They do
+not edit policy, authority, secrets, network binding, or provider configuration.
 Esc cancels waiting and discards its eventual result; a stalled OS read can
 remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
-The interactive menu is a compact Ratatui panel with a selected action, local
-status panel, and keyboard footer. `NO_COLOR=1` disables selection color for
-terminals where color is unavailable or unwanted. The terminal emulator owns
-font selection; the CLI owns layout, borders, and colors.
+The interactive menu is a responsive Ratatui panel with a selected action,
+local status panel, keyboard footer, and the supplied Unicode brand banner when
+the terminal is large enough. A 132 x 40 terminal shows the complete banner;
+smaller supported terminals use the compact header. `NO_COLOR=1` disables
+selection color where it is unavailable or unwanted. The terminal emulator
+owns font selection and size; the CLI owns layout, borders, and colors.
 CLI is an optional local onboarding tool. Creating a starter request does not
 deploy a policy or grant authority. `tkach serve --demo` is a separate,
 deterministic reference runtime for local HTTP smoke tests; it is not a

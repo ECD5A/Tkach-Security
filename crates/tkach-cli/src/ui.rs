@@ -26,7 +26,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Padding, Paragraph, Wrap},
 };
 use std::{
     io::{self, Write},
@@ -36,7 +36,22 @@ use std::{
 };
 
 const MIN_UI_WIDTH: u16 = 44;
-const MIN_UI_HEIGHT: u16 = 14;
+const MIN_UI_HEIGHT: u16 = 18;
+const DASHBOARD_WIDTH: u16 = 72;
+const FULL_BANNER_WIDTH: u16 = 128;
+const FULL_BANNER_HEIGHT: u16 = 20;
+const BRAND_SPLIT_COLUMN: usize = 30;
+const BRAND_BANNER: [&str; 9] = [
+    "   ⠈    ⠈         ⠈",
+    "                ⣀⡀                        ⣶⣶⣶⣶⣶⠆⣶⡆⢀⣶⡞    ⢀⣶⣶      ⢠⣶⣶⣶⣶⡄ ⢰⣶  ⣶⡇   ⢰⣶⣶⣶⣶ ⣶⣶⣶⣶⡆⢰⣶⣶⣶⣷ ⣶⡆ ⢰⣾ ⣶⣶⣶⣶⣆⢰⣶⠆⣶⣶⣶⣶⣾⢲⣶⡀ ⣴⡞",
+    "     ⠙⠲⣶⣤⣤⣄⣀⡀⢠⣶⣾⡟⠁           ⣿⡇     ⣿⣧⣿⠏       ⣼⡟⢿⣇  ⢸ ⣿  ⠛⠃  ⢸⣿⣀⣀⣿⡇   ⢺⣿⣀⣘⡛ ⣿⣇⣀⣀ ⣿⣿ ⠘⠛ ⣿⡇ ⢸⣿ ⣿⡇ ⣿⡇⢸⣿  ⢸⣿   ⠹⣷⣼⡟",
+    "           ⠙⠻⣿⣿⣷⢸⣿⠟                  ⣿⡇     ⣿⡿⣿⣄     ⢰⣿⣧⣼⣿⡄⢸⣿  ⣀⡀  ⢸⣿⠛⠛⣿⡇   ⢈⡛⠛⢻⣿ ⣿⡟⠛⠛ ⣿⣿ ⢀⣀ ⣿⡇ ⢸⣿ ⣿⡿⢿⣿⠃⢸⣿  ⢸⣿    ⢻⣿",
+    "             ⠈  ⣿⣿⣿⠏   ⠈                 ⣿⡇     ⣿⡇⠘⢿⣦⢀⣾⡏⠉⠉⢻⣷⠸⣿⣶⣶⣿⡇ ⢸⣿  ⣿⡇   ⢿⣿⣶⣾⡿ ⣿⣷⣶⣶⡆⢹⣿⣶⣾⣿ ⢿⣷⣶⣾⡿ ⣿⡇⠈⣿⣆⢸⣿⡆ ⢸⣿    ⢸⣿",
+    "                 ⣿⣿⠏                                                                           ⠈     ⠈",
+    "               ⢸⣿⠋          ─────────────────────────────────────────────────────────────────────────────",
+    "               ⢸⠏           A r c h i t e c t e d  d e f e n s e  f r o m  f i r s t  p r i n c i p l e s",
+    "   ⠐      ⠈       ⠐                                                                            ⢀⣠⣼⣷⣿",
+];
 
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
@@ -45,7 +60,7 @@ fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     }
 }
 
-fn menu_items(l: Language) -> [(&'static str, &'static str); 6] {
+fn menu_items(l: Language) -> [(&'static str, &'static str); 8] {
     match l {
         Language::English => [
             ("init", "create starter"),
@@ -53,6 +68,8 @@ fn menu_items(l: Language) -> [(&'static str, &'static str); 6] {
             ("demo", "run offline demo"),
             ("doctor", "local diagnostics"),
             ("guide", "integration guide"),
+            ("settings", "UI preferences"),
+            ("help", "controls and safety"),
             ("quit", "exit"),
         ],
         Language::Russian => [
@@ -61,6 +78,8 @@ fn menu_items(l: Language) -> [(&'static str, &'static str); 6] {
             ("demo", "запустить демо"),
             ("doctor", "локальная диагностика"),
             ("guide", "руководство"),
+            ("settings", "настройки UI"),
+            ("help", "управление и безопасность"),
             ("quit", "выход"),
         ],
     }
@@ -92,12 +111,17 @@ enum Screen {
     Menu,
     Path(bool, String),
     Result(String),
+    Diagnostics(String),
     Integration,
+    Settings,
+    Help,
     Checking,
 }
 struct App {
     language: Language,
     selected: usize,
+    settings_selected: usize,
+    monochrome: bool,
     screen: Screen,
     scroll: usize,
     pending: Option<Receiver<Result<String, CliError>>>,
@@ -107,11 +131,62 @@ impl App {
         Self {
             language,
             selected: 0,
+            settings_selected: 0,
+            monochrome: false,
             screen: Screen::Menu,
             scroll: 0,
             pending: None,
         }
     }
+
+    fn menu_key(&mut self, code: KeyCode) -> bool {
+        match code {
+            KeyCode::Up => self.selected = (self.selected + 7) % 8,
+            KeyCode::Down | KeyCode::Tab => self.selected = (self.selected + 1) % 8,
+            KeyCode::Char(c @ '1'..='8') => self.selected = c as usize - '1' as usize,
+            KeyCode::Enter => match self.selected {
+                0 => self.screen = Screen::Path(true, String::new()),
+                1 => self.screen = Screen::Path(false, String::new()),
+                2 => {
+                    self.screen = Screen::Result(outcome(run_demo(self.language), self.language));
+                }
+                3 => self.screen = Screen::Diagnostics(doctor(self.language)),
+                4 => self.screen = Screen::Integration,
+                5 => self.screen = Screen::Settings,
+                6 => self.screen = Screen::Help,
+                _ => return false,
+            },
+            KeyCode::Esc | KeyCode::Char('q' | 'Q' | 'й' | 'Й') => return false,
+            _ => {}
+        }
+        true
+    }
+
+    fn settings_key(&mut self, code: KeyCode) {
+        match code {
+            KeyCode::Up | KeyCode::Down | KeyCode::Tab => {
+                self.settings_selected = (self.settings_selected + 1) % 2;
+            }
+            KeyCode::Char(c @ '1'..='2') => {
+                self.settings_selected = c as usize - '1' as usize;
+            }
+            KeyCode::Left | KeyCode::Right | KeyCode::Enter => {
+                if self.settings_selected == 0 {
+                    self.language = match self.language {
+                        Language::English => Language::Russian,
+                        Language::Russian => Language::English,
+                    };
+                } else {
+                    self.monochrome = !self.monochrome;
+                }
+            }
+            KeyCode::Esc | KeyCode::Char('q' | 'Q' | 'й' | 'Й') => {
+                self.screen = Screen::Menu;
+            }
+            _ => {}
+        }
+    }
+
     fn key(&mut self, k: KeyEvent) -> bool {
         if k.kind != KeyEventKind::Press {
             return true;
@@ -136,25 +211,14 @@ impl App {
             };
             return true;
         }
+        if matches!(self.screen, Screen::Menu) {
+            return self.menu_key(k.code);
+        }
+        if matches!(self.screen, Screen::Settings) {
+            self.settings_key(k.code);
+            return true;
+        }
         match &mut self.screen {
-            Screen::Menu => match k.code {
-                KeyCode::Up => self.selected = (self.selected + 5) % 6,
-                KeyCode::Down | KeyCode::Tab => self.selected = (self.selected + 1) % 6,
-                KeyCode::Char(c @ '1'..='6') => self.selected = c as usize - '1' as usize,
-                KeyCode::Enter => match self.selected {
-                    0 => self.screen = Screen::Path(true, String::new()),
-                    1 => self.screen = Screen::Path(false, String::new()),
-                    2 => {
-                        self.screen =
-                            Screen::Result(outcome(run_demo(self.language), self.language));
-                    }
-                    3 => self.screen = Screen::Result(doctor(self.language)),
-                    4 => self.screen = Screen::Integration,
-                    _ => return false,
-                },
-                KeyCode::Esc | KeyCode::Char('q' | 'Q' | 'й' | 'Й') => return false,
-                _ => {}
-            },
             Screen::Path(create, value) => match k.code {
                 KeyCode::Esc => self.screen = Screen::Menu,
                 KeyCode::Backspace => {
@@ -217,8 +281,12 @@ impl App {
             }
             Screen::Menu => menu_lines(l, Some(self.selected)),
             Screen::Path(create, value) => path_lines(l, *create, value),
-            Screen::Result(value) => value.lines().map(str::to_owned).collect(),
+            Screen::Result(value) | Screen::Diagnostics(value) => {
+                value.lines().map(str::to_owned).collect()
+            }
             Screen::Integration => integration_lines(l),
+            Screen::Settings => settings_lines(l, self.settings_selected, self.monochrome),
+            Screen::Help => help_lines(l),
         }
     }
 }
@@ -397,6 +465,133 @@ pub(super) fn integration_text(l: Language) -> String {
     integration_lines(l).join("\n")
 }
 
+fn settings_lines(l: Language, selected: usize, monochrome: bool) -> Vec<String> {
+    let language = match l {
+        Language::English => "English",
+        Language::Russian => "Русский",
+    };
+    let color = if std::env::var_os("NO_COLOR").is_some() {
+        tr(l, "MONO (NO_COLOR)", "МОНО (NO_COLOR)")
+    } else if monochrome {
+        tr(l, "MONO", "МОНО")
+    } else {
+        tr(l, "CYAN", "ГОЛУБОЙ")
+    };
+    vec![
+        format!(
+            "{} 01  {}: {language}",
+            if selected == 0 { ">" } else { " " },
+            tr(l, "Language", "Язык")
+        ),
+        format!(
+            "{} 02  {}: {color}",
+            if selected == 1 { ">" } else { " " },
+            tr(l, "Theme", "Тема")
+        ),
+        String::new(),
+        tr(
+            l,
+            "Left/Right or Enter changes the selected preference.",
+            "Left/Right или Enter меняет выбранную настройку.",
+        )
+        .into(),
+        tr(
+            l,
+            "Preferences apply only to this CLI session.",
+            "Настройки действуют только в текущей сессии CLI.",
+        )
+        .into(),
+        String::new(),
+        tr(
+            l,
+            "Policy, secrets, endpoints and authority are not editable here.",
+            "Policy, секреты, endpoints и полномочия здесь не изменяются.",
+        )
+        .into(),
+    ]
+}
+
+pub(super) fn settings_text(l: Language) -> String {
+    [
+        tr(l, "LINE-MODE SETTINGS", "НАСТРОЙКИ СТРОКОВОГО РЕЖИМА"),
+        "",
+        tr(l, "Language: /l en | /l ru", "Язык: /l en | /l ru"),
+        tr(
+            l,
+            "Color: set NO_COLOR=1 before launch",
+            "Цвет: задайте NO_COLOR=1 перед запуском",
+        ),
+        tr(
+            l,
+            "Interactive session settings are available in TTY mode.",
+            "Интерактивные настройки сессии доступны в TTY-режиме.",
+        ),
+        "",
+        tr(
+            l,
+            "Policy, secrets, endpoints and authority are not editable here.",
+            "Policy, секреты, endpoints и полномочия здесь не изменяются.",
+        ),
+    ]
+    .join("\n")
+}
+
+fn help_lines(l: Language) -> Vec<String> {
+    [
+        tr(l, "QUICK CONTROLS", "БЫСТРОЕ УПРАВЛЕНИЕ"),
+        "",
+        tr(
+            l,
+            "Up/Down or Tab  move selection",
+            "Up/Down или Tab  выбор",
+        ),
+        tr(
+            l,
+            "Enter           open or confirm",
+            "Enter           открыть или подтвердить",
+        ),
+        tr(
+            l,
+            "1-8             quick action",
+            "1-8             быстрое действие",
+        ),
+        tr(
+            l,
+            "F1 / L / Д      switch language",
+            "F1 / L / Д      сменить язык",
+        ),
+        tr(
+            l,
+            "Esc             back or exit",
+            "Esc             назад или выход",
+        ),
+        "",
+        tr(l, "SAFETY", "БЕЗОПАСНОСТЬ"),
+        tr(
+            l,
+            "The UI never grants model authority or reveals bearer values.",
+            "UI не выдаёт модели полномочия и не показывает bearer-значения.",
+        ),
+        tr(
+            l,
+            "Init never overwrites; validation never executes the request.",
+            "Init не перезаписывает; проверка не выполняет request.",
+        ),
+        tr(
+            l,
+            "Demo is deterministic, local and provider-independent.",
+            "Демо детерминированное, локальное и независимое от провайдера.",
+        ),
+    ]
+    .iter()
+    .map(|line| (*line).to_owned())
+    .collect()
+}
+
+pub(super) fn help_text(l: Language) -> String {
+    help_lines(l).join("\n")
+}
+
 fn outcome(result: Result<String, CliError>, l: Language) -> String {
     match result {
         Ok(message) => format!("{}\n\n{message}", tr(l, "COMPLETED", "ГОТОВО")),
@@ -494,10 +689,47 @@ fn selected_style(no_color: bool) -> Style {
     }
 }
 
+fn success_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default().add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Green)
+    }
+}
+
+fn error_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default().add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::LightRed)
+            .add_modifier(Modifier::BOLD)
+    }
+}
+
+fn wordmark_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default().add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD)
+    }
+}
+
+fn slogan_style(no_color: bool) -> Style {
+    if no_color {
+        Style::default()
+    } else {
+        Style::default().fg(Color::LightCyan)
+    }
+}
+
 fn panel_block<'a>(title: impl Into<Line<'a>>, no_color: bool) -> Block<'a> {
     Block::default()
         .borders(Borders::ALL)
         .border_style(accent_style(no_color))
+        .padding(Padding::horizontal(1))
         .title(title)
 }
 
@@ -507,24 +739,70 @@ fn screen_title(l: Language, screen: &Screen) -> &'static str {
         Screen::Path(true, _) => tr(l, "INITIALIZE", "ИНИЦИАЛИЗАЦИЯ"),
         Screen::Path(false, _) => tr(l, "VALIDATE", "ПРОВЕРКА"),
         Screen::Result(_) => tr(l, "RESULT", "РЕЗУЛЬТАТ"),
+        Screen::Diagnostics(_) => tr(l, "DIAGNOSTICS", "ДИАГНОСТИКА"),
         Screen::Integration => tr(l, "INTEGRATION", "ИНТЕГРАЦИЯ"),
+        Screen::Settings => tr(l, "SETTINGS", "НАСТРОЙКИ"),
+        Screen::Help => tr(l, "HELP", "СПРАВКА"),
         Screen::Checking => tr(l, "CHECKING", "ПРОВЕРКА"),
     }
 }
 
-fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool) {
+fn banner_line(index: usize, text: &'static str, no_color: bool) -> Line<'static> {
+    if matches!(index, 0 | 8) {
+        return Line::from(Span::styled(text, accent_style(no_color)));
+    }
+    let split = text
+        .char_indices()
+        .nth(BRAND_SPLIT_COLUMN)
+        .map_or(text.len(), |(byte, _)| byte);
+    let (mark, lettering) = text.split_at(split);
+    let lettering_style = match index {
+        6 => muted_style(no_color),
+        7 => slogan_style(no_color),
+        _ => wordmark_style(no_color),
+    };
+    Line::from(vec![
+        Span::styled(mark, accent_style(no_color)),
+        Span::styled(lettering, lettering_style),
+    ])
+}
+
+fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, full_banner: bool) {
+    if full_banner {
+        let title = Line::from(vec![
+            Span::styled(format!(" v{VERSION} "), muted_style(no_color)),
+            Span::styled(" CORE: FAIL-CLOSED ", success_style(no_color)),
+            Span::styled(" LOCAL ", accent_style(no_color)),
+            Span::styled(
+                format!(" {} ", app.language.label().to_ascii_uppercase()),
+                muted_style(no_color),
+            ),
+        ]);
+        let lines = BRAND_BANNER
+            .iter()
+            .enumerate()
+            .map(|(index, line)| banner_line(index, line, no_color))
+            .collect::<Vec<_>>();
+        frame.render_widget(
+            Paragraph::new(lines).block(panel_block(title, no_color)),
+            area,
+        );
+        return;
+    }
     let header = Paragraph::new(vec![
         Line::from(vec![
-            Span::styled("TKACH", accent_style(no_color)),
-            Span::styled(" // LOCAL SECURITY PANEL", muted_style(no_color)),
+            Span::styled("T K A C H", accent_style(no_color)),
+            Span::styled("  /  SECURITY CONTROL", muted_style(no_color)),
         ]),
         Line::from(vec![
             Span::styled(format!("v{VERSION}"), muted_style(no_color)),
             Span::raw("  |  "),
-            Span::styled("FAIL-CLOSED", accent_style(no_color)),
+            Span::styled("[ CORE: FAIL-CLOSED ]", success_style(no_color)),
+            Span::raw("  |  "),
+            Span::styled("[ LOCAL ]", accent_style(no_color)),
             Span::raw("  |  "),
             Span::styled(
-                app.language.label().to_ascii_uppercase(),
+                format!("[ {} ]", app.language.label().to_ascii_uppercase()),
                 muted_style(no_color),
             ),
         ]),
@@ -609,7 +887,21 @@ fn render_text_screen(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bo
     )
     .into_iter()
     .skip(app.scroll)
-    .map(|line| Line::from(visible(&line)))
+    .map(|line| {
+        let style = if line.starts_with('>') {
+            selected_style(no_color)
+        } else if line.contains("FAIL:")
+            || line.contains("ОШИБКА")
+            || matches!(line.as_str(), "NOT COMPLETED" | "НЕ ВЫПОЛНЕНО")
+        {
+            error_style(no_color)
+        } else if line.contains("OK:") || matches!(line.as_str(), "COMPLETED" | "ГОТОВО") {
+            success_style(no_color)
+        } else {
+            Style::default()
+        };
+        Line::from(Span::styled(visible(&line), style))
+    })
     .collect::<Vec<_>>();
     let panel = Paragraph::new(lines)
         .wrap(Wrap { trim: false })
@@ -624,13 +916,18 @@ fn footer_text(l: Language, screen: &Screen) -> &'static str {
     match screen {
         Screen::Menu => tr(
             l,
-            "↑↓/Tab move   Enter select   1-6 quick action   F1/L/Д language   Esc quit",
-            "↑↓/Tab выбор   Enter открыть   1-6 быстро   F1/L/Д язык   Esc выход",
+            "↑↓/Tab move   Enter select   1-8 quick action   F1/L/Д language   Esc quit",
+            "↑↓/Tab выбор   Enter открыть   1-8 быстро   F1/L/Д язык   Esc выход",
         ),
         Screen::Path(..) => tr(
             l,
             "Type path   Enter confirm   F1 language   Esc cancel",
             "Введите путь   Enter подтвердить   F1 язык   Esc отмена",
+        ),
+        Screen::Settings => tr(
+            l,
+            "Up/Down select   Left/Right/Enter change   F1 language   Esc back",
+            "Up/Down выбор   Left/Right/Enter изменить   F1 язык   Esc назад",
         ),
         _ => tr(
             l,
@@ -642,8 +939,8 @@ fn footer_text(l: Language, screen: &Screen) -> &'static str {
 
 fn draw_frame(frame: &mut Frame<'_>, app: &App) {
     let area = frame.area();
-    let no_color = std::env::var_os("NO_COLOR").is_some();
-    let outer = panel_block(" TKACH SECURITY ", no_color);
+    let no_color = app.monochrome || std::env::var_os("NO_COLOR").is_some();
+    let outer = panel_block(" SECURITY BOUNDARY ", no_color);
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -656,8 +953,8 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
             Line::from(""),
             Line::from(tr(
                 app.language,
-                "Resize terminal to at least 44 x 14.",
-                "Увеличьте окно до 44 x 14.",
+                "Resize terminal to at least 44 x 18.",
+                "Увеличьте окно до 44 x 18.",
             )),
         ])
         .alignment(Alignment::Center)
@@ -666,34 +963,42 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
         return;
     }
 
+    let full_banner = inner.width >= FULL_BANNER_WIDTH && inner.height >= FULL_BANNER_HEIGHT;
+    let header_height = if full_banner { 11 } else { 4 };
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),
+            Constraint::Length(header_height),
             Constraint::Min(5),
             Constraint::Length(1),
             Constraint::Length(1),
         ])
         .split(inner);
-    render_header(frame, layout[0], app, no_color);
-    if app.screen == Screen::Menu {
+    render_header(frame, layout[0], app, no_color, full_banner);
+    if app.screen == Screen::Menu && area.width >= DASHBOARD_WIDTH {
         let body = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
             .split(layout[1]);
         render_menu_panel(frame, body[0], app, no_color);
         render_status_panel(frame, body[1], app, no_color);
+    } else if app.screen == Screen::Menu {
+        render_menu_panel(frame, layout[1], app, no_color);
     } else {
         render_text_screen(frame, layout[1], app, no_color);
     }
-    let status = Paragraph::new(Line::from(Span::styled(
-        tr(
-            app.language,
-            "READY / local-only / no model connection",
-            "ГОТОВО / только локально / без подключения к модели",
+    let status = Paragraph::new(Line::from(vec![
+        Span::styled("[ READY ]", success_style(no_color)),
+        Span::raw("  "),
+        Span::styled(
+            tr(
+                app.language,
+                "local-only / no model connection",
+                "только локально / без подключения к модели",
+            ),
+            muted_style(no_color),
         ),
-        muted_style(no_color),
-    )));
+    ]));
     frame.render_widget(status, layout[2]);
     let footer = Paragraph::new(Line::from(Span::styled(
         footer_text(app.language, &app.screen),
@@ -769,6 +1074,26 @@ mod tests {
     }
 
     #[test]
+    fn supplied_brand_banner_fits_the_large_terminal_preset() {
+        assert_eq!(BRAND_BANNER.len(), 9);
+        let maximum_width = BRAND_BANNER
+            .iter()
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap();
+        assert_eq!(maximum_width, 124);
+        assert!(BRAND_BANNER[7].contains("A r c h i t e c t e d"));
+        assert_eq!(maximum_width + 4, usize::from(FULL_BANNER_WIDTH));
+        assert!(BRAND_BANNER.iter().all(|line| line.chars().all(|character| {
+            !character.is_control()
+                && !matches!(
+                    character,
+                    '\u{061C}' | '\u{200E}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'
+                )
+        })));
+    }
+
+    #[test]
     fn selection_does_not_execute_and_escape_cancels() {
         let mut app = App::new(Language::English);
         app.key(key(KeyCode::Char('2')));
@@ -779,8 +1104,23 @@ mod tests {
         app.key(key(KeyCode::Esc));
         assert_eq!(app.screen, Screen::Menu);
         app.key(key(KeyCode::Up));
-        assert_eq!(app.selected, 5);
+        assert_eq!(app.selected, 7);
         assert!(!app.key(key(KeyCode::Enter)));
+    }
+
+    #[test]
+    fn settings_change_only_session_ui_preferences() {
+        let mut app = App::new(Language::English);
+        app.selected = 5;
+        app.key(key(KeyCode::Enter));
+        assert_eq!(app.screen, Screen::Settings);
+        app.key(key(KeyCode::Enter));
+        assert_eq!(app.language, Language::Russian);
+        app.key(key(KeyCode::Down));
+        app.key(key(KeyCode::Enter));
+        assert!(app.monochrome);
+        app.key(key(KeyCode::Esc));
+        assert_eq!(app.screen, Screen::Menu);
     }
     #[test]
     fn paths_preserve_letters_and_bound_utf8() {

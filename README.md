@@ -94,20 +94,22 @@ default interface language. `--lang en|ru` is an interface setting only; it
 does not change policy, authority, limits, or execution behavior.
 
 Run `tkach` without arguments in a terminal, or `tkach ui`, to open the menu.
-Use **Up/Down** (or **1–6**) to select, **Enter** to open an action, and **Esc**
+Use **Up/Down** (or **1–8**) to select, **Enter** to open an action, and **Esc**
 to go back or exit. **F1**, **l/L**, and **д/Д** switch English/Russian immediately.
 While entering a path, use **F1**; letters remain part of the path.
 The menu guides starter creation, request validation, local diagnostics, an
-offline demo, and integration.
+offline demo, integration, session-only UI settings, and safety help.
 It does not deploy a security policy or connect a model. `serve --demo` is a
 separate non-interactive reference command.
 Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
 scripts and CI can use `init`, `check`, and `run --demo` directly.
 
-The interactive menu is a compact cross-platform Ratatui panel with a selected
-action, local status panel, and keyboard footer. `NO_COLOR=1` disables selection
-color; the CLI remains usable in terminals without color. The CLI controls
-layout and colors, while the terminal emulator controls the actual font.
+The interactive menu is a responsive cross-platform Ratatui panel with a
+selected action, local status panel, keyboard footer, and full Tkach banner in
+roomy terminals (the 132 x 40 preset shows it without cropping). Smaller
+terminals keep a compact header; the minimum remains 44 x 18. `NO_COLOR=1`
+disables selection color. The CLI controls layout and colors, while the
+terminal emulator controls the actual font and font size.
 
 ## Architecture
 
