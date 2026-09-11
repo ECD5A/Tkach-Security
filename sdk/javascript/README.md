@@ -14,7 +14,7 @@ The package has no install or postinstall hook and ships only the runtime,
 declarations, and this README.
 
 ```js
-import { TkachClient } from "./tkach_client.mjs";
+import { TkachClient } from "tkach-security-client";
 
 const tkach = new TkachClient("127.0.0.1", 8080, "local-development-secret");
 try {

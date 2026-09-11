@@ -4,13 +4,13 @@
 
 This repository contains the Tkach Security Strong Core, bounded Gateway,
 narrow real local-effect boundary, non-streaming OpenAI Responses adapter, and
-thin local CLI (including its terminal dashboard), HTTP, Rust client, and MCP
-stdio adapters.
+thin local CLI (including its terminal dashboard), HTTP, Rust/Python/Node/Go
+clients, and MCP stdio adapters.
 Reports should target bypasses of deterministic authorization, information
 flow, DATA/CONTROL separation, provenance/classification, secret isolation,
 payload-free evidence, lifecycle, parser, credential, or egress invariants.
 
-The current source has no multi-language SDK, Streamable HTTP adapter,
+The current source has no Streamable HTTP adapter,
 Anthropic adapter, streaming release API, hosted service, cloud control
 plane, or public internet gateway. Deployment assumptions in [the product
 contract](docs/PRODUCT_CONTRACT.md) remain in scope when a defect crosses a

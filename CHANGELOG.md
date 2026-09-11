@@ -5,6 +5,10 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Consolidate the glossary into Architecture, remove an unused provider fixture,
+  and complete source attribution for SDKs, the CLI UI module, and release tooling.
+- Centralize SDK examples, validation commands, and version policy; correct
+  stale SDK/UI scope statements and the installed Node package import example.
 - Add local Python and Node package metadata with no runtime dependencies or
   install hooks; CI verifies wheel/npm bundle shape while public publication
   remains owner-controlled.

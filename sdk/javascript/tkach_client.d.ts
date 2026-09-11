@@ -1,3 +1,14 @@
+/*
+ * Tkach Security
+ *
+ * Copyright 2026 ECD5A
+ * Licensed under the Apache License, Version 2.0.
+ *
+ * Repository: https://github.com/ECD5A/Tkach-Security
+ *
+ * See LICENSE and SECURITY.md.
+ */
+
 export declare const MAX_HTTP_BODY_BYTES: number;
 export declare const MAX_HTTP_HEADER_BYTES: number;
 export declare const MAX_RUNTIME_AUTH_BYTES: number;

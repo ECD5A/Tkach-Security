@@ -122,7 +122,7 @@ untrusted model/provider output
        Krosna authorization
           |             |
        Ruslo         Propusk
-     flow gates        |
+     flow gates         |
           |             v
           +----> protected executor
                          |

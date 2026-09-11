@@ -1,6 +1,5 @@
 /target/
 /fuzz/target/
-/%TEMP%/
 /.cargo/
 *.log
 __pycache__/
@@ -10,17 +9,3 @@ node_modules/
 /sdk/python/dist/
 /sdk/python/*.egg-info/
 /mutants.out*/
-
-# Local agent state and instructions; never commit these paths.
-/.agents/
-/.codex/
-AGENTS.md
-
-# Private owner/checkpoint material; keep it outside public source snapshots.
-/Tkach Security — MASTER_MANDATE.md
-/PRODUCTION_RUNTIME_REPORT.md
-/PRODUCT_PROOF_REPORT.md
-/codex-security-scans/
-/docs/CURRENT_BASELINE.md
-/docs/EVIDENCE.md
-/docs/DEVELOPMENT.md

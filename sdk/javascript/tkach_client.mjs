@@ -1,3 +1,14 @@
+/*
+ * Tkach Security
+ *
+ * Copyright 2026 ECD5A
+ * Licensed under the Apache License, Version 2.0.
+ *
+ * Repository: https://github.com/ECD5A/Tkach-Security
+ *
+ * See LICENSE and SECURITY.md.
+ */
+
 /**
  * Thin, bounded Node.js client for the Tkach loopback HTTP contract.
  *

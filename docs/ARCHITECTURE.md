@@ -4,6 +4,27 @@ This document describes the current implemented architecture. For the active
 phase and compact project map, see `ROADMAP.md`. Maintainer-only engineering
 records are intentionally outside the public documentation set.
 
+## Terminology
+
+Branded names describe conventional security roles; they do not imply
+guarantees beyond the implementation and Product Contract.
+
+| Tkach term | Conventional security term | Practical meaning |
+| --- | --- | --- |
+| Krosna | Deterministic authorization policy engine | Evaluates typed actions with default deny and hard-deny precedence |
+| Propusk | Scoped execution capability | Kernel-issued authority accepted by protected executors |
+| Ruslo | Directional information-flow control | Separates read, export, and transfer decisions |
+| Zaslon | Formal content/action deny boundary | Canonical matching and bounded stream lifecycle |
+| Gnezdo | DATA/CONTROL containment | Keeps untrusted content from becoming trusted control |
+| Niti | Provenance lineage | Retains source history through derivation |
+| Metka | Conservative sensitivity label | Carries monotonic classification into enforcement |
+| Klyuchnik | Secret-use isolation / broker boundary | Keeps raw secrets broker-side and denies reveal |
+| Sled | Structured security evidence | Bounded payload-free decision trace for diagnostics |
+
+Trusted host configuration and the Gateway compose these concepts. Provider
+output remains untrusted DATA and typed proposals; the model does not create
+authority by naming a primitive.
+
 ## Implemented baseline
 
 The repository currently contains a provider-independent `tkach-core` crate
@@ -240,12 +261,7 @@ non-streaming OpenAI adapter. Model/provider output is hostile DATA and can
 only become a typed proposal; authority, information flow, secret use, and
 release remain in the existing core/Gateway boundaries.
 
-The A0-A20 review removed only three redundant public names: the zero-sized
-`DataLane` marker, the empty `Klyuchnik` facade, and the `ScriptedProvider` alias.
-The Gnezdo context, Klyuchnik broker, and `DeterministicProvider` are the actual
-mechanisms. Krosna, Propusk, Ruslo, Zaslon, Klyuchnik broker, Gnezdo, Niti,
-Metka, and Sled retain their documented roles. Repeated checks at Krosna,
-Ruslo, Gateway, and the provider boundary are intentional trust-boundary
+Repeated checks at Krosna, Ruslo, Gateway, and the provider boundary are intentional trust-boundary
 checks, not competing policy engines.
 
 `INTEGRATION.md` defines Basic Gateway, Controlled Agent, Sealed Agent, Local
@@ -257,7 +273,7 @@ layer, streaming event model, Streamable HTTP, or internet gateway.
 ## Current non-implemented surfaces
 
 Anthropic, Streamable HTTP, cloud services, published multi-language SDK
-packages, dashboards, human approval services,
+packages, hosted dashboards, human approval services,
 production gateway orchestration, TLS/process supervisor integration, and
 generic executors are not part of this baseline. The runtime listener is a
 narrow local frame boundary, not a claim of generic production readiness.
@@ -274,11 +290,7 @@ The excluded `fuzz` package is tooling, not a product crate. No policy
 DSL, generic executor, multi-language provider SDK, or second policy engine is
 needed by the current contract.
 
-The earlier pruning review removed only vocabulary-only surface: the
-zero-sized `DataLane` marker, empty `Klyuchnik` facade, and
-`ScriptedProvider` alias. The real Gnezdo context, Klyuchnik broker,
-`DeterministicProvider`, and all enforcement checks remain. The direct
-`zeroize` dependency is retained where secret-bearing values are owned; its
+The direct `zeroize` dependency is retained where secret-bearing values are owned; its
 use for broker storage and the runtime authenticator is a security boundary,
 not convenience duplication. Transitive duplicate `syn` and `windows-sys`
 versions remain because their upstream requirements differ; unsupported

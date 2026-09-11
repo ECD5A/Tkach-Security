@@ -1,3 +1,12 @@
+# Tkach Security
+#
+# Copyright 2026 ECD5A
+# Licensed under the Apache License, Version 2.0.
+#
+# Repository: https://github.com/ECD5A/Tkach-Security
+#
+# See LICENSE and SECURITY.md.
+
 """Thin, bounded Python client for the Tkach loopback HTTP contract.
 
 This module deliberately contains transport checks only. It does not implement

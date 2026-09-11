@@ -97,7 +97,8 @@ Tkach Security does not:
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
 - provide streaming, Streamable HTTP, Anthropic, a published multi-language SDK
-  suite, UI, or cloud orchestration; the source-level Python/Node/Go carriers
+  suite, hosted UI, or cloud orchestration; the local CLI has a terminal dashboard,
+  the source-level Python/Node/Go carriers
   remain thin local HTTP adapters, the MCP implementation is stdio-only, and
   the Rust client is only a local HTTP carrier.
 - provide TLS, OS/process isolation, core-dump prevention, or protection from

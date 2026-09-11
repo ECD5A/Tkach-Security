@@ -19,29 +19,19 @@ repository, homepage, Apache-2.0 license, root README, and discovery keywords:
 
 The publication order follows dependency direction. A release must use one
 clean versioned tag, a locked dependency graph, passing CI, and matching
-release notes. A breaking public contract requires a deliberate SemVer major
-change; compatible additions use a minor release; security and documentation
-fixes use a patch release unless the contract requires otherwise.
+release notes. Prefer additive changes within the existing contract. During v0.x,
+breaking Rust API or wire changes require a deliberate
+minor-version change. From v1.0, breaking changes require a major version;
+compatible additions use a minor release. Compatible fixes use a patch release.
+Every breaking change requires release notes, updated examples, and a fresh
+security/regression review. Version changes do not authorize weakening the
+security contract.
 
 ## Local release preflight
 
-Run from a clean checkout with the pinned toolchain:
-
-```text
-cargo fmt --all -- --check
-cargo metadata --format-version=1 --locked --no-deps
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
-cargo test --workspace --release --all-targets --all-features --locked
-cargo test --workspace --doc --all-features --locked
-cargo doc --workspace --all-features --no-deps --locked
-cargo audit
-cargo deny check
-cargo check --manifest-path fuzz/Cargo.toml --bins --locked
-cargo package --workspace --locked
-cargo run -p tkach-gateway --example quickstart --locked
-python -m unittest discover -s tools/release -p "test_*.py" -v
-```
+Run the complete [contributor checks](../CONTRIBUTING.md#required-checks)
+and onboarding commands from a clean checkout with the pinned toolchain.
+That list is shared with regular development; release-specific gates follow.
 
 The release process must additionally verify the exact tag, clean worktree,
 artifact checksums, and a fresh install of the CLI and MCP adapter. The tag

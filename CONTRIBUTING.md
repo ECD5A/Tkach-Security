@@ -56,6 +56,7 @@ cargo audit
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked
 cargo +1.85.1 package --workspace --locked
+python -m unittest discover -s tools/release -p "test_*.py" -v
 python -m unittest discover -s sdk/python -p "test_*.py" -v
 node --test sdk/javascript/test_tkach_client.mjs
 (cd sdk/go && go test ./... && go vet ./...)
@@ -168,8 +169,6 @@ Never add these categories to a commit:
 - build output such as `target/` or `fuzz/target/`;
 - temporary directories or files, including literal `%TEMP%/` output;
 - local engineering material, tool state, or unpublished release records;
-
-
 - `.env` files, API keys, tokens, private keys, certificates, dumps, or logs
   containing sensitive data.
 
@@ -184,3 +183,9 @@ git status --short --ignored
 
 By contributing, you agree that your contribution is provided under the
 repository's [Apache License 2.0](LICENSE).
+
+Keep the concise Tkach Security / Copyright 2026 ECD5A / Apache-2.0 header
+in first-party runtime modules, SDK entry points and declarations, and release
+tooling. Follow the existing source header and preserve its repository, LICENSE,
+and SECURITY.md references. Do not add banners to JSON, lockfiles, fixtures,
+artwork, or every documentation page.

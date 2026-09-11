@@ -1,3 +1,14 @@
+/*
+ * Tkach Security
+ *
+ * Copyright 2026 ECD5A
+ * Licensed under the Apache License, Version 2.0.
+ *
+ * Repository: https://github.com/ECD5A/Tkach-Security
+ *
+ * See LICENSE and SECURITY.md.
+ */
+
 // Package tkachclient is a thin, bounded carrier for the Tkach loopback HTTP
 // contract. It does not reimplement Tkach Core policy or create authority.
 package tkachclient

@@ -1,3 +1,12 @@
+# Tkach Security
+#
+# Copyright 2026 ECD5A
+# Licensed under the Apache License, Version 2.0.
+#
+# Repository: https://github.com/ECD5A/Tkach-Security
+#
+# See LICENSE and SECURITY.md.
+
 """Create deterministic Tkach release archives.
 
 The helper packages already-built binaries only. It does not build code,

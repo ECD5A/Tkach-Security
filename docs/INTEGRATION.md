@@ -1,8 +1,9 @@
 # Tkach Security Integration Guide
 
 This is the current developer-facing integration model and Quickstart. It
-describes the smallest safe composition available in v0.1. It is not an SDK
-or a public internet gateway.
+describes the smallest safe composition available in v0.1. It is not a hosted
+service or public internet gateway; the thin language carriers are documented
+under `sdk/`.
 
 ## Quickstart
 
@@ -157,105 +158,24 @@ model/provider output as trusted. The client is local-only: it is not TLS,
 process isolation, a public service, or an SDK for other languages. Those
 languages can use the same strict HTTP contract directly.
 
-## Python adapter — v0.1
+## Language SDKs — v0.1
 
-The source-level adapter at [`sdk/python`](../sdk/python) is standard-library
-only and follows the same HTTP contract without reimplementing Core policy:
+The Python, Node.js/TypeScript, and Go clients are thin carriers for the same
+local HTTP contract. They accept numeric loopback IPs only, bound request and
+response framing, reject ambiguous/chunked/oversized responses, and never
+retry effects. Responses are transport observations; policy and authority stay
+inside the Rust runtime.
 
-Install it locally while PyPI publication remains deferred:
+Installation and usage live with each adapter:
 
-```text
-python -m pip install ./sdk/python
-```
+- [Python](../sdk/python/README.md): standard-library runtime and local wheel.
+- [JavaScript / TypeScript](../sdk/javascript/README.md): dependency-free Node
+  runtime, TypeScript declarations, and local npm package.
+- [Go](../sdk/go/README.md): dependency-free local module.
 
-```text
-PYTHONPATH=sdk/python python -m unittest discover -s sdk/python -p "test_*.py" -v
-```
-
-Usage is intentionally small:
-
-```python
-from tkach_client import TkachClient
-
-with TkachClient("127.0.0.1", 8080, "local-development-secret") as tkach:
-    tkach.health()
-    response = tkach.run(
-        "request-1",
-        "lifecycle-1",
-        {"messages": [{"role": "user", "content": "hello"}]},
-    )
-```
-
-It accepts numeric loopback IPs only, rejects ambiguous/chunked/oversized
-responses, sends one request without retry, and returns transport observations.
-It has no policy, authority, provider, executor, secret-broker, or public-network
-surface. It is not published to PyPI yet; callers may vendor this small module
-or use the HTTP contract directly.
-
-## JavaScript / TypeScript adapter — v0.1
-
-The dependency-free Node adapter at [`sdk/javascript`](../sdk/javascript) has
-an `.mjs` runtime and a matching `.d.ts` declaration surface:
-
-Install it locally while npm publication remains deferred:
-
-```text
-npm install ./sdk/javascript
-```
-
-```text
-node --test sdk/javascript/test_tkach_client.mjs
-```
-
-```javascript
-import { TkachClient } from "./sdk/javascript/tkach_client.mjs";
-
-const tkach = new TkachClient("127.0.0.1", 8080, "local-development-secret");
-try {
-  await tkach.health();
-  const response = await tkach.run("request-1", "lifecycle-1", {
-    messages: [{ role: "user", content: "hello" }],
-  });
-  console.log(response.statusCode, response.body.toString("utf8"));
-} finally {
-  tkach.close();
-}
-```
-
-The runtime accepts numeric loopback IPs only, enforces bounded JSON and
-response framing, never retries, and contains no policy or authority logic.
-The declaration file supports TypeScript consumers without adding a package
-manager dependency. It is not published to npm yet.
-
-## Go adapter — v0.1
-
-The dependency-free Go module at [`sdk/go`](../sdk/go) follows the same local
-HTTP contract:
-
-```text
-cd sdk/go
-go test ./...
-go vet ./...
-```
-
-```go
-client, err := tkachclient.NewClient("127.0.0.1", 8080, "local-development-secret")
-if err != nil {
-    return err
-}
-defer client.Close()
-if err := client.Health(); err != nil {
-    return err
-}
-response, err := client.Run("request-1", "lifecycle-1", map[string]any{
-    "messages": []map[string]string{{"role": "user", "content": "hello"}},
-})
-```
-
-It accepts numeric loopback IPs only, bounds JSON and response framing,
-rejects chunked/ambiguous/oversized responses, never retries, and returns only
-transport observations. It is not TLS, process isolation, a public service, or
-a published Go module yet.
+See [Distribution](DISTRIBUTION.md#external-publication-status) for publication
+status and [Contributing](../CONTRIBUTING.md#required-checks) for validation.
+These clients do not provide TLS, process isolation, policy, or secret brokering.
 
 ## MCP stdio adapter — v0.1
 
@@ -321,10 +241,8 @@ version negotiation and must be used by a client pinned to a compatible v0.1
 release. A future public API version must add explicit negotiation before
 cross-release runtime interoperability is promised.
 
-Project compatibility policy for v0.1 is additive changes where possible;
-breaking Rust API or wire changes require a deliberate minor-version change,
-release notes, updated examples, and a fresh security/regression review. There
-is intentionally no umbrella `tkach` facade yet: introducing one is a later DX
+Compatibility follows the [version policy](DISTRIBUTION.md#version-and-package-contract).
+There is intentionally no umbrella `tkach` facade yet: introducing one is a later DX
 decision, not permission to duplicate Core or Gateway logic.
 
 ## What an existing AI agent changes
