@@ -11,6 +11,8 @@ release candidate description, not a claim that a public release exists.
 - Replace timestamp-sensitive release archive commands with the tested,
   source-epoch-based deterministic packaging helper and retain explicit limits
   on binary reproducibility claims.
+- Make the tag preflight smoke-install both CLI and MCP binaries before a draft
+  release is created.
 - Make CI and release preflight compile every packaged crate with strict
   `cargo package --workspace --locked` verification instead of skipping the
   package build step.

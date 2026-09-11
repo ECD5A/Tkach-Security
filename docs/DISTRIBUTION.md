@@ -44,9 +44,12 @@ python -m unittest discover -s tools/release -p "test_*.py" -v
 ```
 
 The release process must additionally verify the exact tag, clean worktree,
-artifact checksums, and a fresh install of the CLI and MCP adapter. LibFuzzer
-execution and cross-platform artifact execution are release-environment gates;
-the Windows development host only proves target compilation.
+artifact checksums, and a fresh install of the CLI and MCP adapter. The tag
+workflow installs both with `cargo install --locked --root` into an isolated
+runner directory, checks `tkach --version`, and feeds clean EOF to the MCP
+binary. LibFuzzer execution and cross-platform artifact execution are
+release-environment gates; the Windows development host only proves target
+compilation.
 
 `.github/workflows/release.yml` performs this release-environment preflight only
 for a strict `vX.Y.Z` tag. It builds Linux x86_64, macOS x86_64/ARM64, and

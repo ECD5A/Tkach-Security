@@ -54,6 +54,16 @@ jobs:
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
       - name: Test deterministic release packaging
         run: python -m unittest discover -s tools/release -p "test_*.py" -v
+      - name: Smoke fresh CLI and MCP installs
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_root="${RUNNER_TEMP}/tkach-install"
+          cargo +${RUST_TOOLCHAIN} install --path crates/tkach-cli --locked --root "${install_root}/cli"
+          cargo +${RUST_TOOLCHAIN} install --path crates/tkach-mcp --locked --root "${install_root}/mcp"
+          "${install_root}/cli/bin/tkach" --version
+          printf '' | TKACH_HTTP_ADDR=127.0.0.1:8080 TKACH_BEARER_TOKEN=release-smoke-token \
+            "${install_root}/mcp/bin/tkach-mcp"
       - name: Test the Python adapter
         run: python -m unittest discover -s sdk/python -p "test_*.py" -v
       - name: Build the local Python package
