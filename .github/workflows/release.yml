@@ -54,6 +54,7 @@ jobs:
       - run: cargo +${RUST_TOOLCHAIN} check --manifest-path fuzz/Cargo.toml --bins --locked
       - run: cargo +${RUST_TOOLCHAIN} package --workspace --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
+      - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example golden_case --locked
       - name: Test deterministic release packaging
         run: python -m unittest discover -s tools/release -p "test_*.py" -v
       - name: Smoke fresh CLI and MCP installs

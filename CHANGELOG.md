@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add a copyable Golden Case proving the product boundary: useful output is
+  released while a compromised provider's protected-write proposal is denied
+  before the executor and produces zero executor calls.
 - Add copyable multi-language and MCP examples with trusted environment-only
   credentials, and make the local deterministic HTTP demo provider repeatable
   across independent requests instead of exhausting after the first smoke call.

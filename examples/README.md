@@ -65,10 +65,19 @@ the exact workspace contract:
 
 ```text
 cargo run -p tkach-gateway --example quickstart --locked
+cargo run -p tkach-gateway --example golden_case --locked
 ```
 
 It constructs the Core primitives, runs a deterministic provider, and releases
 output only through the Gateway result.
+
+`golden_case` is the security showcase: a normal bounded response is released,
+while a compromised provider's protected-write proposal is denied before the
+executor. Its stable output is:
+
+```text
+GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+```
 
 ## MCP example
 
