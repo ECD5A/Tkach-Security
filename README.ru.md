@@ -157,6 +157,14 @@ asset-файл и ничего не скачивает. Баннер заним�
 использует распространённые block-символы вместо Braille, но итоговый шрифт и
 кодовую страницу всё равно задаёт эмулятор терминала.
 
+<details>
+<summary>Показать окно CLI — Windows и WSL Ubuntu</summary>
+
+<p align="center">
+  <img src="assets/tkach-cli-ru.png" width="100%" alt="Окно Tkach CLI на русском языке в WSL Ubuntu">
+</p>
+</details>
+
 ## Архитектура
 
 ```text

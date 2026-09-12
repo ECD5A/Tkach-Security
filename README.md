@@ -151,6 +151,14 @@ If the terminal is too small, the CLI uses the compact header. This path uses
 common block characters rather than Braille glyphs, but the terminal emulator
 still controls the final font and code-page rendering.
 
+<details>
+<summary>Show the CLI window — Windows and WSL Ubuntu</summary>
+
+<p align="center">
+  <img src="assets/tkach-cli-en.png" width="100%" alt="Tkach CLI in English on WSL Ubuntu">
+</p>
+</details>
+
 ## Architecture
 
 ```text
