@@ -1,8 +1,8 @@
 # Distribution contract
 
-This is the compact release runbook for the frozen Strong Core candidate. It
-describes what is prepared locally and what still requires an explicit release
-owner action. It is not a publication log.
+This is the compact release runbook for the frozen Strong Core. It records the
+published v0.1.0 distribution boundary and the explicit owner actions still
+required for future releases. It is not a substitute for the release log.
 
 ## Version and package contract
 
@@ -67,10 +67,12 @@ uses `tools/release/package_release.py` to fix archive metadata to the source
 commit epoch, signs archives and checksum manifests with keyless Sigstore via
 the exact release workflow identity, verifies those bundles, requests GitHub
 build provenance, and creates a draft GitHub Release after checksum
-verification. The helper's tests prove byte-stable
-archives for identical inputs; this does not claim byte-identical Rust
-binaries across different toolchains or operating systems. The workflow does
-not publish a public release automatically.
+verification. The v0.1.0 draft was manually reviewed and published after its
+hosted release jobs passed. The helper's tests prove byte-stable archives for
+identical inputs; this does not claim byte-identical Rust binaries across
+different toolchains or operating systems. Future public release publication
+remains a maintainer action; the workflow never publishes a draft
+automatically.
 
 The repository also contains a local multi-stage `Dockerfile`. It builds the
 CLI from the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
@@ -115,28 +117,26 @@ to it; tag protection remains the release authorization boundary.
 
 ## MCP Registry readiness gate
 
-The MCP adapter is not registered in the Official MCP Registry. Registration
-is intentionally deferred until the server has a public, installable package
-and a versioned release that can be independently verified. The current
-`tkach-mcp` binary is a local stdio adapter that requires an already-running
-loopback Tkach runtime and a locally supplied bearer token; publishing its
-metadata now would make installation and operational readiness look stronger
-than they are.
+The MCP adapter is not registered in the Official MCP Registry. The matching
+`tkach-mcp@0.1.0` crate and the repository are public, but the binary remains
+a local stdio adapter that requires an already-running loopback Tkach runtime
+and a locally supplied bearer token. Registry metadata would otherwise make
+installation and operational readiness look stronger than they are, so
+registration remains intentionally deferred.
 
 When that boundary is ready, the release owner must use the current official
 Registry workflow rather than hand-editing registry data:
 
-1. publish and verify the installable `tkach-mcp` Cargo package;
-2. validate the repository draft `server.json` with the official
+1. verify the installable `tkach-mcp` Cargo package and its release artifact;
+2. validate the repository `server.json` with the official
    `mcp-publisher validate` command;
 3. authenticate the package namespace and repository ownership;
 4. publish through `mcp-publisher publish` and verify the returned Registry
    record.
 
-The draft uses the current Cargo package contract and the visible
+The manifest uses the current Cargo package contract and the visible
 `mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. It is
-not evidence of publication: the Cargo package and the repository are still
-owner-controlled and may remain private.
+not evidence of Registry publication or turnkey hosted operation.
 
 The authoritative workflow and schema are maintained by the
 [MCP Registry publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),
@@ -151,13 +151,15 @@ Completed:
 
 - all seven Rust crates at version `0.1.0` on crates.io;
 - public npm publication of `tkach-security-client@0.1.0`;
+- the public [v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0)
+  with Linux x86_64, macOS x86_64/aarch64, and Windows x86_64 archives,
+  SHA-256 manifests, keyless Sigstore bundles, and GitHub attestations.
 
 Not performed yet:
 
-- signed GitHub Release binaries;
 - Docker/OCI publication;
 - MCP Registry registration.
 
-Those actions require owner-controlled credentials, repository settings, a
-reviewed release tag, and final platform/registry verification. This runbook
-describes release work; it does not grant publication authority.
+Those actions require owner-controlled credentials, reviewed deployment
+boundaries, and final platform/registry verification. This runbook describes
+release work; it does not grant publication authority.

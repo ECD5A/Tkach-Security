@@ -1,10 +1,17 @@
 # Changelog
 
-All notable Tkach Security changes are recorded here. The `0.1.0` entry is a
-release candidate description, not a claim that a public release exists.
+All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.1.0] — 2026-09-12
+
+- Publish the first public Tkach Security release: seven Rust crates on
+  crates.io, `tkach-security-client@0.1.0` on npm, and the v0.1.0 GitHub
+  Release with SHA-256 manifests, keyless Sigstore bundles, and GitHub build
+  attestations for Linux, macOS, and Windows archives.
 - Publish the dependency-free JavaScript/TypeScript HTTP adapter as the public
   `tkach-security-client@0.1.0` npm package and verify its four-file bundle.
 - Add a tag-only OIDC npm release workflow that tests, inspects, and publishes
@@ -96,12 +103,3 @@ release candidate description, not a claim that a public release exists.
   parent-component link checks for starter initialization.
 - Add the bilingual README showcase, supplied project banner, contributor
   guide, and a smaller public documentation tree with a clear public project map.
-
-## [0.1.0] — release candidate, not published
-
-- Freeze the provider-independent Strong Core and bounded Gateway authority
-  boundary.
-- Add the reviewed local CLI, loopback HTTP adapter, bounded Rust client, and
-  MCP stdio adapter.
-- Preserve fail-closed authorization, bounded framing, safe receipts, and
-  credential redaction/zeroization evidence across the adapter layers.

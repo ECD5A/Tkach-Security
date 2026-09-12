@@ -280,7 +280,7 @@ TKACH_BEARER_TOKEN=trusted-runtime-token
 tkach-mcp
 ~~~
 
-After the matching `tkach-mcp` version is published to crates.io, an MCP host
+The matching `tkach-mcp@0.1.0` crate is published on crates.io, so an MCP host
 can launch it as a stdio server. For example, a Claude-compatible host config
 uses the adapter command and trusted environment values (replace the token
 through the host's secret-management mechanism; do not commit a real token):

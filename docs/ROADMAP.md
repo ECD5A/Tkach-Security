@@ -7,13 +7,12 @@ public contract or a published release.
 
 ## CURRENT
 
-Compact public documentation tree after the Strong Core release candidate,
-trusted credential-ownership hardening, v0.1 public API contract, bounded CLI
-onboarding/dashboard, local HTTP adapter, thin Rust client, and MCP stdio
-adapter. The local authenticated provider runtime is now available in a
-read-only default profile. Copyable multi-language examples and the Golden
-Case are part of the public showcase. Productization is active by owner
-direction; the Core remains frozen.
+Public v0.1.0 is released after Strong Core hardening, the v0.1 API contract,
+bounded CLI onboarding/dashboard, local HTTP adapter, thin Rust client, and
+MCP stdio adapter. The local authenticated provider runtime has a read-only
+default profile. Copyable multi-language examples and the Golden Case are part
+of the public showcase. Productization now focuses on onboarding, deployment
+boundaries, and release quality; the Core remains frozen.
 
 ## DONE
 
@@ -56,17 +55,17 @@ direction; the Core remains frozen.
   Case that releases useful output while denying a compromised provider's
   protected-write proposal before executor invocation.
 - Clean-install checks for isolated CLI/MCP binaries and Python/Node package
-  bundles; these prove local package shape, not public publication.
+  bundles; these prove package shape in addition to the published v0.1.0
+  Rust/npm artifacts.
 
 ## NEXT
 
-The current productization cycle is at public release preparation: shared
-package metadata, release artifacts, CI checks, examples, Golden Case, and
-local clean-install checks are prepared. Remaining work is owner-controlled
-publication, real tagged-release verification on hosted runners, clean-machine
-onboarding across supported platforms, and final independent
-security/reliability/performance review. It must not duplicate policy,
-authority, or execution logic.
+The initial public release is complete: shared package metadata, release
+artifacts, hosted tag verification, examples, Golden Case, crates.io, npm, and
+the signed GitHub archives are live. Remaining work is clean-machine onboarding
+across supported platforms, an independent security/reliability/performance
+review, and only deployment or registry work that preserves the existing
+boundary. It must not duplicate policy, authority, or execution logic.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -75,9 +74,9 @@ and end in a meaningful local commit.
 
 ## CURRENT SCOPE, NOT PERMANENT BANS
 
-The source currently has no Streamable HTTP transport, published multi-language
-SDK suite, streaming release API, generic executor, public internet gateway,
-cloud control plane,
+The source currently has no Streamable HTTP transport, published Python/Go
+multi-language SDK suite, streaming release API, generic executor, public
+internet gateway, or cloud control plane,
 TLS/process supervisor integration, durable distributed replay, or universal
 handle-relative filesystem transaction. A future boundary may be added only
 if it remains a thin adapter over the existing authority model and passes its
@@ -85,7 +84,7 @@ own security review.
 
 ## PRODUCTIZATION / DISTRIBUTION / DX BOUNDARY
 
-This phase is active after the owner-directed Strong Release candidate and
+This phase is active after the owner-directed Strong Core release and
 freezes the Core security contract/API. Build only thin adapters around it, in
 this order:
 
@@ -100,14 +99,15 @@ this order:
   declarations and local package metadata, and Go module are done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks (the seven
-  `0.1.0` crates are published; public binary/container publication remains);
+  `0.1.0` crates, npm adapter, and signed GitHub archives are published;
+  public OCI publication remains deferred);
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing
-  (workflow prepared; hosted tag execution and publication remain pending);
+  (GitHub Release v0.1.0 is published; OCI distribution remains deferred);
 - MCP stdio adapter (done); Streamable HTTP and, only after current
   requirements are researched and met, Official MCP Registry publication
-  (adapter and draft manifest done; package/Registry publication remains
-  pending);
+  (adapter, public package, and manifest are done; Registry publication remains
+  deferred);
 - production configuration, safe defaults, diagnostics and health checks are
   done for the local profile; structured logging, public TLS/service operation,
   and process supervision remain separate deployment work. Integration
