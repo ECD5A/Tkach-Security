@@ -20,81 +20,76 @@
 
 </div>
 
-Tkach Security — детерминированная типизированная граница вокруг систем,
-которые используют вероятностные или скомпрометированные модели.
-
 > Модель предлагает. Ткач авторизует.
 
-Вывод модели остаётся недоверенными ДАННЫМИ. Tkach не позволяет ему создавать
-полномочия, пересекать защищённые границы потоков информации или превращать
-брокерские секреты в обычный контекст. Он не пытается сделать модель надёжной.
+Разместите Tkach между предложениями модели и защищёнными действиями. Ядро на
+Rust проверяет полномочия и потоки данных перед действием или выдачей ответа.
+Вывод модели остаётся недоверенными данными, даже если модель скомпрометирована.
 
 ## Зачем нужен Tkach
 
-- Текст модели и её предложения инструментов не могут создать право на действие.
-- Защищённый эффект требует точного, выданного ядром `Propusk`.
-- `READ`, `EXPORT` и другие направления — отдельные решения `Ruslo`.
-- `Gnezdo`, `Niti` и `Metka` сохраняют консервативное состояние данных и происхождения.
-- `Zaslon` и финальные release-gates fail-closed при некорректных, слишком
-  больших, запрещённых, повторных, отменённых и неопределённых состояниях.
-- `Klyuchnik` удерживает секреты брокера вне обычного контекста модели; `Sled`
-  оставляет ограниченное доказательство без payload.
+- **Явные полномочия:** защищённому действию нужен выданный ядром `Propusk`
+  с точной областью разрешения; текст модели не может его создать.
+- **Контроль потоков данных:** право прочитать не означает право экспортировать.
+  Проверки происхождения и выдачи данных остаются внутри границы.
+- **Запрет по умолчанию:** некорректные, запрещённые, повторные, отменённые
+  или неопределённые состояния не превращаются в разрешение.
+- **Изоляция секретов и ограниченный аудит:** секреты брокера не попадают
+  в обычный контекст модели; квитанции `Sled` не содержат полезную нагрузку.
 
-Это защищает путь принуждения, когда модель враждебна. Интегратор, который
-обходит Tkach, остаётся за пределами этой границы.
-
-## Golden Case
-
-Офлайн-доказательство не требует модели, сети или реального эффекта:
-
-```console
-cargo run -p tkach-gateway --example golden_case --locked
-GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
-```
-
-Полезный ограниченный ответ выпускается. Предложение защищённой записи от
-скомпрометированного провайдера отклоняется до вызова executor. Это
-детерминированное доказательство границы, а не обещание универсального
-распознавания prompt injection или защиты скомпрометированного хоста.
+Гарантии действуют для путей, проходящих через Tkach. Он не делает модель
+доверенной, не распознаёт все prompt injection и не защищает взломанный хост.
 
 ## Старт за несколько минут
 
 Установите из crates.io с Rust 1.85 или новее:
 
 ```console
-cargo install tkach-cli --locked
+cargo install tkach-cli --version 0.1.1 --locked
 tkach init my-agent
 tkach check my-agent/.tkach/request.json
 tkach run --demo
 ```
 
-`init` не перезаписывает существующий запрос; `check` проверяет строгую форму
-Gateway; `run --demo` доказывает локальный fail-closed путь.
+`init` создаёт пример запроса без перезаписи файлов; `check` проверяет схему,
+а не разрешение на исполнение; `run --demo` демонстрирует офлайн-проверки без
+подключения к модели. Интерактивная панель открывается командой `tkach ui`.
 
-Готовые архивы для Linux, macOS и Windows доступны в
-[релизе v0.1.1](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1).
-У каждого есть манифест SHA-256, keyless Sigstore bundle и GitHub build
-attestation. Перед использованием артефакта прочитайте
-[гайд по распространению](docs/DISTRIBUTION.md).
+Не хотите устанавливать Rust? Скачайте готовый бинарник ниже и начните с `tkach init`.
 
-Тонкие Python- и Node.js/TypeScript-carriers опубликованы в PyPI и npm; оба
-вызывают одну локальную HTTP-границу и не содержат собственного policy engine:
+## Пакеты и загрузки · v0.1.1
 
-```console
-python -m pip install tkach-security-client==0.1.1
-npm install tkach-security-client@0.1.1
-```
+| Канал | Что доступно | Установка / следующий шаг |
+| --- | --- | --- |
+| [GitHub Releases](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1) | `tkach` + `tkach-mcp`; Linux x86_64, macOS x86_64/arm64, Windows x86_64 | [Проверка архивов](docs/DISTRIBUTION.md#verify-a-v011-archive) |
+| [crates.io](https://crates.io/crates/tkach-cli) | Семь Rust-крейтов `0.1.1`: Core, Gateway, HTTP, клиент, MCP, CLI, адаптер провайдера | [Список пакетов](docs/DISTRIBUTION.md#version-and-package-contract) |
+| [npm](https://www.npmjs.com/package/tkach-security-client) | Тонкий HTTP-клиент для JavaScript / TypeScript | `npm install tkach-security-client@0.1.1` |
+| [PyPI](https://pypi.org/project/tkach-security-client/) | Тонкий HTTP-клиент для Python | `python -m pip install tkach-security-client==0.1.1` |
+| [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security) | `io.github.ECD5A/tkach-security@0.1.1`, локальный stdio | [Настройка MCP](docs/INTEGRATION.md#mcp-stdio-adapter--v01) |
+| [GHCR](https://github.com/ECD5A/Tkach-Security/pkgs/container/tkach-security) | OCI-образ для Linux amd64 / arm64 | [Digest и развёртывание](docs/DISTRIBUTION.md#oci-image) |
 
-## Интеграция без переноса policy из Rust
+К бинарным архивам приложены SHA-256, keyless Sigstore bundles и подтверждения
+сборки GitHub. Для развёртывания OCI закрепляйте digest; подробности проверки —
+в [руководстве по распространению](docs/DISTRIBUTION.md).
 
-`tkach-core` остаётся независимым от провайдера, протокола и языка. CLI,
-локальный HTTP-контракт, Rust-клиент, Python/JavaScript/Go carriers и MCP stdio
-server — адаптеры вокруг Core; ни один из них не создаёт второй policy engine.
+## Интеграция без переноса политик из Rust
 
-Точные инструкции по CLI, TUI, lifecycle локального `serve`, HTTP, MCP,
-контейнеру и языковым адаптерам находятся в
-[руководстве по интеграции](docs/INTEGRATION.md). Готовые команды — в
-[`examples/`](examples/).
+Используйте [HTTP-контракт](docs/INTEGRATION.md#http-adapter-contract--v01)
+из своего приложения, [Rust-клиент](docs/INTEGRATION.md#rust-client-adapter--v01),
+[клиент Python/JS/TS/Go](docs/INTEGRATION.md#language-sdks--v01)
+или stdio-адаптер из MCP-клиента.
+Клиентам и MCP нужен отдельно запущенный локальный `tkach serve` и его bearer
+token; установка пакета сама по себе не включает фоновую защиту.
+
+`tkach-core` независим от провайдера, протокола и языка. Адаптеры передают
+запросы; политики и полномочия остаются в Rust. Следуйте
+[руководству по интеграции](docs/INTEGRATION.md) или возьмите рабочий сценарий
+из [`examples/`](examples/). Go-клиент доступен как исходный модуль, а не
+отдельный пакет в registry.
+
+Runtime по умолчанию слушает только loopback. Публичный интернет-сервис,
+TLS termination, Streamable HTTP, облачная панель управления и универсальный
+исполнитель **не входят в поставку**; см. [контракт развёртывания](docs/PRODUCT_CONTRACT.md).
 
 <details>
 <summary>Показать окно кросс-платформенного CLI</summary>
@@ -104,62 +99,31 @@ server — адаптеры вокруг Core; ни один из них не с
 </p>
 </details>
 
-## Архитектура
+## Проверить границу на практике
 
-```text
-недоверенный вывод модели / провайдера
-              |
-              v
-     Gnezdo DATA + Niti/Metka
-              |
-              v
-     Zaslon формально запрещает
-              |
-              v
-       Krosna авторизует
-          |             |
-       Ruslo         Propusk
-     поток данных       |
-          |             v
-          +----> защищённый executor
-                         |
-                         v
-              финальный Zaslon/Ruslo release
-                         |
-                         v
-                 ограниченный Sled receipt
+В каталоге клонированного репозитория запустите офлайн-сценарий Golden Case.
+Ему не нужны сервис модели или учётные данные; реальных защищённых действий нет:
+
+```console
+cargo run -p tkach-gateway --example golden_case --locked
 ```
 
-## Статус релиза v0.1.1
+Ожидаемый результат:
 
-- В crates.io опубликованы семь Rust-крейтов версии `0.1.1`: `tkach-core`,
-  `tkach-gateway`,
-  `tkach-http`, `tkach-client`, `tkach-mcp`, `tkach-cli` и
-  `tkach-provider-openai`.
-- `tkach-security-client@0.1.1` опубликован в npm и PyPI.
-- В публичном GitHub-релизе лежат подписанные и attested CLI-архивы для Linux
-  x86_64, macOS x86_64/aarch64 и Windows x86_64.
-- Hosted release matrix собрал и проверил Linux, macOS, Windows, OCI smoke,
-  checksums, keyless Sigstore и GitHub attestations.
-- `tkach-mcp@0.1.1` зарегистрирован в Official MCP Registry как
-  `io.github.ECD5A/tkach-security` для локального stdio-сценария.
-- Multi-arch OCI-образ отправлен в GHCR, attested и сделан публичным владельцем
-  репозитория для анонимного pull.
+```text
+GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+```
 
-Tkach **не** заявляет публичный internet gateway, TLS termination,
-Streamable HTTP, cloud control plane или generic executor. OCI image доступен
-для распространения, но Runtime по умолчанию только loopback; выход за эту
-границу — явное решение интегратора.
+Безопасный ответ выдаётся; предложение защищённой записи от скомпрометированного
+провайдера отклоняется до вызова исполнителя. Путь проверок описан в
+[архитектуре](docs/ARCHITECTURE.md), проверки релиза и оставшиеся ограничения —
+в [заметках к v0.1.1](docs/releases/v0.1.1.md).
 
 ## Документация
 
-- [Product contract](docs/PRODUCT_CONTRACT.md) — гарантии и условия развёртывания.
-- [Architecture](docs/ARCHITECTURE.md) — границы и trusted computing base.
-- [Security model](docs/SECURITY_MODEL.md) и [threat model](docs/THREAT_MODEL.md).
-- [Integration guide](docs/INTEGRATION.md) — CLI, HTTP, MCP, контейнеры и адаптеры.
-- [Examples](examples/) — Rust, HTTP, Python, JavaScript, Go и MCP пути.
-- [Distribution](docs/DISTRIBUTION.md) и [заметки к релизу v0.1.1](docs/releases/v0.1.1.md).
-- [Security policy](SECURITY.md), [contributing](CONTRIBUTING.md) и [changelog](CHANGELOG.md).
+- **Использование:** [интеграция](docs/INTEGRATION.md), [примеры](examples/), [распространение](docs/DISTRIBUTION.md).
+- **Технический обзор:** [контракт](docs/PRODUCT_CONTRACT.md), [архитектура](docs/ARCHITECTURE.md), [модель безопасности](docs/SECURITY_MODEL.md), [модель угроз](docs/THREAT_MODEL.md).
+- **Развитие:** [история изменений](CHANGELOG.md), [roadmap](docs/ROADMAP.md). Сообщения об уязвимостях — через [SECURITY.md](SECURITY.md).
 
 ## Участие в разработке
 

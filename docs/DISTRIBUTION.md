@@ -7,15 +7,19 @@ It is not a substitute for the release log.
 ## Version and package contract
 
 The workspace uses SemVer and MSRV Rust 1.85. The seven packages inherit the
-repository, homepage, Apache-2.0 license, root README, and discovery keywords:
+repository, homepage, Apache-2.0 license, root README, and discovery keywords.
 
-1. `tkach-core`
-2. `tkach-gateway`
-3. `tkach-http`
-4. `tkach-client`
-5. `tkach-mcp`
-6. `tkach-cli`
-7. `tkach-provider-openai`
+All seven are published at `0.1.1`:
+
+| Crate | Role |
+| --- | --- |
+| [tkach-core](https://crates.io/crates/tkach-core) | Provider-independent security primitives |
+| [tkach-gateway](https://crates.io/crates/tkach-gateway) | Bounded orchestration and runtime |
+| [tkach-http](https://crates.io/crates/tkach-http) | Local HTTP contract |
+| [tkach-client](https://crates.io/crates/tkach-client) | Thin Rust HTTP client |
+| [tkach-mcp](https://crates.io/crates/tkach-mcp) | Local stdio MCP adapter |
+| [tkach-cli](https://crates.io/crates/tkach-cli) | CLI, interactive panel, local server |
+| [tkach-provider-openai](https://crates.io/crates/tkach-provider-openai) | Optional OpenAI Responses adapter |
 
 The publication order follows dependency direction. A release must use one
 clean versioned tag, a locked dependency graph, passing CI, and matching
@@ -114,7 +118,9 @@ replace checksum verification. The release also includes matching keyless
 Sigstore bundles for users whose deployment policy requires independent
 bundle verification.
 
-The repository also contains a multi-stage `Dockerfile`. It builds the CLI from
+## OCI image
+
+The repository contains a multi-stage `Dockerfile`. It builds the CLI from
 the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
 loopback-only, and checks `/healthz` through the CLI's bounded `health`
 command. Linux host networking is the only documented host-local container
@@ -134,11 +140,13 @@ the published digest rather than trust a mutable tag.
 
 The v0.1.1 image was built for both supported Linux architectures, pushed, and
 attested successfully. The package is public at the
-[GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
+[GHCR package page](https://github.com/ECD5A/Tkach-Security/pkgs/container/tkach-security).
 The verified multi-arch index is
 `ghcr.io/ecd5a/tkach-security@sha256:7042c4292537d24a7d0c204751c340ded8aa89a3faae1aac8c4cab6804c3354c`.
 The existing `container` job in `release.yml` remains a build-and-health smoke
 gate and does not push.
+
+For host-local deployment, follow the [container instructions](INTEGRATION.md#oci-image-ghcr-and-local).
 
 ## Artifact and integration boundaries
 
@@ -228,18 +236,12 @@ workflow rather than hand-editing registry data:
    GitHub Release and approve the environment gate;
 4. verify the returned Registry record through the official API.
 
-The manifest uses the current Cargo package contract and the visible
-`mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. Registry
-registration is not turnkey hosted operation: the adapter remains a local
-stdio process over an already-running loopback runtime.
-
 The authoritative workflow and schema are maintained by the
 [MCP Registry publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),
 the [publisher CLI reference](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/cli/commands.md),
 and the [official Registry API documentation](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/official-registry-api.md).
-The Registry is currently in preview, so future publication remains a
-deliberate release-owner action. No Registry credentials are stored in this
-repository.
+Future publication remains a deliberate release-owner action; recheck the
+official schema and publishing requirements before each release.
 
 The regular version-contract CI gate also binds `server.json` to the
 `tkach-mcp` Cargo package, the visible ownership marker, the loopback address,
@@ -249,21 +251,11 @@ Registry publication.
 
 ## External publication status
 
-Completed:
-
-- all seven Rust crates at version `0.1.1` on crates.io;
-- public npm and PyPI publication of `tkach-security-client@0.1.1`;
-- the public [v0.1.1 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1)
-  with Linux x86_64, macOS x86_64/aarch64, and Windows x86_64 archives,
-  SHA-256 manifests, keyless Sigstore bundles, and GitHub attestations.
-- the v0.1.1 multi-arch GHCR image, pushed with immutable release/SHA tags,
-  GitHub build provenance, and public package visibility;
-- `tkach-mcp@0.1.1` registered as `io.github.ECD5A/tkach-security` in the
-  Official MCP Registry.
-
-Not performed yet:
-
-- Streamable HTTP and public gateway operation.
+The v0.1.1 distribution cycle is complete. The
+[README package table](../README.md#packages-and-downloads--v011) links every
+published channel; [release notes](releases/v0.1.1.md) record the checks and
+limitations. Streamable HTTP and public gateway operation remain outside this
+release.
 
 The workflow deliberately does not change package visibility. Future package
 visibility changes remain an explicit owner action because the repository's

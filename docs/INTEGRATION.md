@@ -172,27 +172,29 @@ put it in model-controlled request data, shell history, or committed examples.
 The repository includes a multi-stage `Dockerfile` for local or private
 deployment. The v0.1.1 image was built for `linux/amd64` and `linux/arm64`,
 pushed to GHCR, attached to GitHub build provenance, and made public. The
-immutable release tag can be pulled anonymously with:
+versioned tag can be pulled anonymously with:
 
 ```text
 docker pull ghcr.io/ecd5a/tkach-security:v0.1.1
 ```
 
-Prefer the attested digest shown by the release workflow for deployment. The
-image contains only the `tkach` CLI, runs as UID 10001, defaults to the same
+For deployment, pin the [attested digest](DISTRIBUTION.md#oci-image), not the
+mutable tag. The image contains only the `tkach` CLI, runs as UID 10001, defaults to the same
 loopback address, and uses `tkach health` for the bounded container
 healthcheck:
 
 ```text
 docker build -t tkach:local .
-docker run --rm --network host \\
-  -e TKACH_BEARER_TOKEN=local-development-secret \\
-  -e OPENAI_API_KEY=trusted-provider-secret \\
+docker run --rm --network host \
+  -e TKACH_BEARER_TOKEN \
+  -e OPENAI_API_KEY \
   tkach:local serve
 ```
 
-Host networking is the explicit Linux host-local deployment profile. The image
-does not enable wildcard binding, TLS termination, a proxy, or a public
+Supply both credentials through trusted host environment configuration before
+running this command; it forwards their values without embedding them in the
+command line. Host networking is the explicit Linux host-local deployment
+profile. The image does not enable wildcard binding, TLS termination, a proxy, or a public
 network service. A bridge/ingress deployment needs a separate reviewed
 authenticated boundary before it can be documented as supported.
 
@@ -205,7 +207,8 @@ envelope and response, rejects ambiguous response framing, and zeroizes its
 owned token and request-header buffer. It does not retry, interpret policy,
 create authority, or expose a non-loopback transport.
 
-Add the local crate while the project is still using the workspace:
+Add the published [Rust client](https://crates.io/crates/tkach-client) under
+`[dependencies]` in your `Cargo.toml`:
 
 ~~~text
 tkach-client = "0.1.1"
@@ -246,7 +249,7 @@ inside the Rust runtime.
 
 Installation and usage live with each adapter:
 
-- [Python](../sdk/python/README.md): standard-library runtime and local wheel.
+- [Python](../sdk/python/README.md): standard-library runtime, published on PyPI.
 - [JavaScript / TypeScript](../sdk/javascript/README.md): dependency-free Node
   runtime, TypeScript declarations, and the published `tkach-security-client`
   npm package.
