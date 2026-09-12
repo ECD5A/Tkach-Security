@@ -7,6 +7,8 @@ All notable Tkach Security changes are recorded here.
 - Preserve the `.exe` filenames in future Windows release ZIP archives, lock
   the workflow/package contract with regression tests, and smoke the actual
   native release archives before upload and signing.
+- Remove the unused raster CLI-banner source; the compiled terminal banner and
+  public README preview/screenshot assets remain unchanged.
 
 ## [0.1.0] — 2026-09-12
 
