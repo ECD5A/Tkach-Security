@@ -189,6 +189,18 @@ untrusted model/provider output
 requests to the boundary; they do not define a second policy engine or create
 authority outside the Core.
 
+## Verification status
+
+The main CI workflow is the evidence gate for source changes. It currently
+checks the pinned Rust 1.85.1 toolchain, formatting, Clippy, debug/release/doc
+tests, warnings-denied documentation, dependency audit, package metadata,
+adapter tests, and fuzz smoke coverage. A separate platform matrix compiles
+and tests the workspace on Ubuntu 24.04, macOS 14 (arm64), and Windows 2022.
+
+These are source-checkout gates for a release candidate. They do not imply
+that crates.io packages, signed binaries, public container images, or a hosted
+service have been published.
+
 ## Included in this release candidate
 
 | Package | Role |
@@ -212,16 +224,16 @@ Available today:
 - a dependency-free Node.js adapter with TypeScript declarations;
 - a dependency-free Go adapter;
 - an MCP stdio adapter over the local HTTP runtime;
-- a small CLI for safe onboarding and a deterministic proof.
+- a small CLI for safe onboarding and a deterministic proof;
 - a local authenticated provider runtime with a read-only default effect profile;
-- an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.
+- an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests;
 - copyable multi-language and MCP examples under [`examples/`](examples/).
 
 Not claimed yet:
 
 - crates.io publication or a public package registry listing;
 - signed public GitHub Release binaries;
-- Docker/OCI images;
+- published Docker/OCI images;
 - a ready-to-run public HTTP gateway or TLS termination;
 - Streamable HTTP, streaming release, or a public network service;
 - published Python, JavaScript/TypeScript, Go, or other multi-language SDK packages;
@@ -255,6 +267,7 @@ credential or privileged bypass around it.
 - [Distribution contract](docs/DISTRIBUTION.md) — package and release status.
 - [Security policy](SECURITY.md) — reporting scope and responsible disclosure.
 - [Changelog](CHANGELOG.md) — version history.
+- [Contributing](CONTRIBUTING.md) — development, security, and review contract.
 
 ## Validate locally
 
@@ -274,7 +287,7 @@ release candidate, not a public production release.
 Keep changes small, reviewable, and explicit about the security boundary. Do
 not add authority paths, provider-specific policy, credentials, generated
 artifacts, local scan output, or internal engineering instructions to commits.
-oor a change, run the relevant Rust formatting, lint, tests, and security
+For a change, run the relevant Rust formatting, lint, tests, and security
 checks locally and explain any residual limitation in the pull request. Core
 changes require a demonstrated security or product defect; adapters must stay
 thin and must not duplicate Core logic.
@@ -285,7 +298,7 @@ If Tkach Security is useful to your work, support its continued maintenance:
 
 - TON: `pointoncurve.ton`
 - Bitcoin (BTC): `1ECDSA1b4d5TcZHtqNpcxmY8pBH1GgHntN`
-- USDT (TRC20): `TUo4vPdB6QkjCvZq18rBL4Qj4dK5ihCN75`
+- USDT (TRC20): `TUF4vPdB6QkjCvZq18rBL4Qj4dK5ihCN75`
 
 ## Contact
 

@@ -195,6 +195,18 @@ asset-файл и ничего не скачивает. Баннер заним�
 запросы к границе; они не создают второй движок политики и не выдают полномочия
 в обход ядра.
 
+## Статус проверок
+
+Основной CI-workflow является текущим evidence gate для изменений исходников.
+Он проверяет зафиксированный Rust 1.85.1, форматирование, Clippy, debug/release/doc
+тесты, документацию с запретом предупреждений, dependency audit, package metadata,
+тесты адаптеров и smoke-проверку fuzz. Отдельная platform matrix компилирует и
+тестирует workspace на Ubuntu 24.04, macOS 14 (arm64) и Windows 2022.
+
+Это проверки checkout для release candidate. Они не означают, что опубликованы
+пакеты crates.io, подписанные бинарники, публичные container images или hosted
+service.
+
 ## Что входит в этот release candidate
 
 | Пакет | Назначение |
@@ -219,15 +231,15 @@ asset-файл и ничего не скачивает. Баннер заним�
 - dependency-free Node.js-адаптер с TypeScript declarations;
 - dependency-free Go-адаптер;
 - MCP stdio-адаптер поверх локального HTTP runtime;
-- небольшой CLI для безопасного onboarding и детерминированной проверки.
-- отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции.
+- небольшой CLI для безопасного onboarding и детерминированной проверки;
+- отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции;
 - копируемые примеры Rust, HTTP, Python, JavaScript, Go и MCP в [`examples/`](examples/).
 
 Пока не заявляется:
 
 - публикация в crates.io или другом публичном package registry;
 - подписанные публичные бинарники GitHub Release;
-- Docker/OCI-образы;
+- опубликованные Docker/OCI-образы;
 - готовый публичный HTTP gateway или TLS termination;
 - Streamable HTTP, streaming release или публичный network service;
 - опубликованные multi-language SDK-пакеты для Python, JavaScript/TypeScript,
@@ -262,6 +274,7 @@ Tkach не обнаруживает каждую prompt injection, смысло�
 - [Контракт распространения](docs/DISTRIBUTION.md) — статус пакетов и релиза.
 - [Политика безопасности](SECURITY.md) — scope для сообщений и responsible disclosure.
 - [История изменений](CHANGELOG.md) — версии проекта.
+- [Участие в разработке](CONTRIBUTING.md) — development, security и review contract.
 
 ## Локальная проверка
 

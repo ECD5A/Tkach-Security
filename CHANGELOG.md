@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Refresh the bilingual README showcase, verification scope, contributor
+  workflow, issue template, and private-repository metadata/topics without
+  changing the security contract.
 - Add a copyable Golden Case proving the product boundary: useful output is
   released while a compromised provider's protected-write proposal is denied
   before the executor and produces zero executor calls.

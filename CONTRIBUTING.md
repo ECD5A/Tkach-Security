@@ -68,6 +68,12 @@ For a focused change, state exactly which checks were run and why any check
 was not applicable. Do not report a check as passing when it was skipped,
 inconclusive, or unavailable.
 
+Documentation-only changes (`.md`, `.mdx`, `.rst`, `.adoc`, `.txt`, `docs/`,
+`LICENSE`, and `assets/`) are intentionally excluded from the GitHub CI trigger
+so wording and artwork updates stay fast. Any change to source, manifests,
+configuration, workflows, fixtures, or release tooling still runs the code and
+security gates.
+
 The onboarding and adapter paths should also remain usable:
 
 ```text
