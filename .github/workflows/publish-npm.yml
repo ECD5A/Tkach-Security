@@ -55,12 +55,20 @@ jobs:
           set -euo pipefail
           package_name="$(node -p "require('./package.json').name")"
           package_version="$(node -p "require('./package.json').version")"
-          if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
+          lookup_error="$(mktemp)"
+          if npm view "${package_name}@${package_version}" version --json \
+              --registry=https://registry.npmjs.org >/dev/null 2>"${lookup_error}"; then
             echo "exists=true" >> "${GITHUB_OUTPUT}"
             echo "${package_name}@${package_version} already exists; no duplicate publish will be attempted."
-          else
+          elif npm ping --registry=https://registry.npmjs.org >/dev/null 2>&1; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "${package_name}@${package_version} is not present; publish is eligible."
+          else
+            echo "npm registry lookup failed; refusing to publish without a reliable duplicate check." >&2
+            cat "${lookup_error}" >&2
+            exit 1
           fi
+          rm -f -- "${lookup_error}"
       - name: Publish package with npm OIDC
         if: steps.registry.outputs.exists != 'true'
-        run: npm publish --provenance --access public --ignore-scripts
+        run: npm publish --provenance --access public --ignore-scripts --registry=https://registry.npmjs.org
