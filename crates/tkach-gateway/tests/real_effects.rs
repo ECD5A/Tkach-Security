@@ -162,10 +162,18 @@ impl Receiver {
                         thread::sleep(Duration::from_millis(5));
                     }
                     Err(_) => {
-                        return ReceiverReport {
-                            requests_received: 0,
-                            exact_request: false,
-                        };
+                        // macOS may transiently report an aborted accept when
+                        // a short-lived loopback client races the listener.
+                        // Keep the bounded harness alive until its deadline;
+                        // treating that transient as terminal hides the real
+                        // request and turns a valid effect into OutcomeUnknown.
+                        if Instant::now() >= deadline {
+                            return ReceiverReport {
+                                requests_received: 0,
+                                exact_request: false,
+                            };
+                        }
+                        thread::sleep(Duration::from_millis(5));
                     }
                 }
             }
@@ -608,9 +616,7 @@ fn authorized_public_ruslo_flow_reaches_only_the_exact_loopback_receiver() {
         let result = executor.execute(permit);
         let report = receiver.finish();
         let effect = receipt(result.unwrap_or_else(|error| {
-            panic!(
-                "iteration {iteration} returned {error:?}; receiver={report:?}"
-            )
+            panic!("iteration {iteration} returned {error:?}; receiver={report:?}")
         }));
 
         assert_eq!(report.requests_received, 1);
