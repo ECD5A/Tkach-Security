@@ -1075,6 +1075,7 @@ mod tests {
 
     fn create_test_directory(prefix: &str) -> PathBuf {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let temp_root = fs::canonicalize(env::temp_dir()).expect("test temp directory exists");
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock is after the Unix epoch")
@@ -1082,7 +1083,12 @@ mod tests {
         let process = std::process::id();
         for _ in 0..128 {
             let counter = COUNTER.fetch_add(1, AtomicOrdering::Relaxed);
-            let path = env::temp_dir().join(format!("{prefix}-{process}-{timestamp}-{counter}"));
+            // macOS commonly exposes its temporary directory through `/var`,
+            // which is itself a symlink to `/private/var`. Production path
+            // validation intentionally rejects symlink components, so tests
+            // must start from the canonical temp root to exercise the actual
+            // initialization path rather than the host's alias.
+            let path = temp_root.join(format!("{prefix}-{process}-{timestamp}-{counter}"));
             match fs::create_dir(&path) {
                 Ok(()) => return path,
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
