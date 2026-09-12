@@ -59,10 +59,9 @@ remain until process exit, and another reader cannot start while it is pending.
 Pipes retain bounded line commands, including `/l en` and `/l ru`.
 The interactive menu is a responsive Ratatui panel with a selected action,
 local status panel, keyboard footer, and the supplied dense Unicode block-art
-banner. The banner is embedded directly in `tkach-cli`; it is not read from a
+banner. The banner is compiled directly into `tkach-cli`; it is not read from a
 runtime asset and no download or installation occurs. It occupies 113 columns
-and 11 rows. `TKACH_BANNER=compact` hides it, while `TKACH_BANNER=png` selects
-the supplied PNG pixel renderer. Small terminals use the compact header. The
+and 11 rows. Small terminals use the compact header. The
 block-art path avoids Braille glyphs, but the terminal emulator still owns
 font and code-page rendering; the CLI owns layout, borders, and colors.
 CLI is an optional local onboarding tool. Creating a starter request does not

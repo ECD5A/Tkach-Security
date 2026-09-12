@@ -29,12 +29,9 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Padding, Paragraph, Wrap},
 };
 use std::{
-    io::{self, Cursor, Write},
+    io::{self, Write},
     path::Path,
-    sync::{
-        OnceLock,
-        mpsc::{self, Receiver, TryRecvError},
-    },
+    sync::mpsc::{self, Receiver, TryRecvError},
     time::Duration,
 };
 
@@ -46,10 +43,8 @@ const DASHBOARD_WIDTH: u16 = 72;
 enum BannerMode {
     Compact,
     Blocks { rows: u16 },
-    Raster { width: u16, rows: u16 },
 }
 
-const BANNER_PNG: &[u8] = include_bytes!("../assets/tkach-banner.png");
 const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄    ▄     ▄▄▄▄  ▄   ▄▄      ▄▄▄   ▄▄▄▄   ▄▄▄▄  ▄   ▄  ▄ ▄▄   ▄  ▄▄▄▄▄ ▄    ▄
                ▄▄       ▀▀██▀▀ █  █▀    ███   ██▀▀██ ██  ██     █▀▀▀█ ▀█▀▀▀▀ █▀▀▀█▄ █   █  █▀▀▀█  █ ▀▀██▀▀ ▀█  ██
    ▀▀██▄▄▄  ▄██▀          ██   █▄█▀    ▄█▀█▄  ██     █▄▄▄██     █▄▄▄  ██▄▄▄  █   ▀  █   █  █▄  █  █   ██    ▀███
@@ -61,15 +56,7 @@ const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄ 
          ▀
 
                A r c h i t e c t e d   d e f e n s e   f r o m   f i r s t   p r i n c i p l e s";
-const BANNER_MIN_WIDTH: u16 = 92;
-const BANNER_MAX_WIDTH: u16 = 124;
 const BANNER_TEXT_WIDTH: u16 = 113;
-
-struct RasterBanner {
-    width: u32,
-    height: u32,
-    pixels: Vec<[u8; 4]>,
-}
 
 fn tr(l: Language, en: &'static str, ru: &'static str) -> &'static str {
     match l {
@@ -521,8 +508,8 @@ fn settings_lines(l: Language, selected: usize, monochrome: bool) -> Vec<String>
         .into(),
         tr(
             l,
-            "Banner: embedded PNG pixels; compact when color is unavailable.",
-            "Баннер: встроенные PNG-пиксели; компактный без поддержки цвета.",
+            "Banner: text art is shown when the window is wide enough.",
+            "Баннер: текстовый арт показывается в достаточно широком окне.",
         )
         .into(),
         String::new(),
@@ -547,8 +534,8 @@ pub(super) fn settings_text(l: Language) -> String {
         ),
         tr(
             l,
-            "Banner: TKACH_BANNER=compact hides the image",
-            "Баннер: TKACH_BANNER=compact скрывает картинку",
+            "Banner: hides automatically when the window is narrow.",
+            "Баннер: автоматически скрывается в узком окне.",
         ),
         tr(
             l,
@@ -763,82 +750,17 @@ fn screen_title(l: Language, screen: &Screen) -> &'static str {
     }
 }
 
-fn decode_banner() -> Option<RasterBanner> {
-    let decoder = png::Decoder::new(Cursor::new(BANNER_PNG));
-    let mut reader = decoder.read_info().ok()?;
-    let mut bytes = vec![0; reader.output_buffer_size()?];
-    let output = reader.next_frame(&mut bytes).ok()?;
-    if output.color_type != png::ColorType::Rgba || output.bit_depth != png::BitDepth::Eight {
-        return None;
+fn choose_banner(area: Rect) -> BannerMode {
+    let width = area.width.saturating_sub(4);
+    let rows = u16::try_from(BANNER_TEXT.lines().count()).unwrap_or(u16::MAX);
+    if width < BANNER_TEXT_WIDTH || u32::from(rows) + 9 > u32::from(area.height) {
+        return BannerMode::Compact;
     }
-    let pixels = bytes[..output.buffer_size()]
-        .chunks_exact(4)
-        .map(|pixel| [pixel[0], pixel[1], pixel[2], pixel[3]])
-        .collect();
-    Some(RasterBanner {
-        width: output.width,
-        height: output.height,
-        pixels,
-    })
+    BannerMode::Blocks { rows }
 }
 
-fn banner_image() -> Option<&'static RasterBanner> {
-    static IMAGE: OnceLock<Option<RasterBanner>> = OnceLock::new();
-    IMAGE.get_or_init(decode_banner).as_ref()
-}
-
-fn banner_rows(image: &RasterBanner, width: u16) -> u16 {
-    let target_width = u32::from(width);
-    let numerator = target_width.saturating_mul(image.height);
-    let denominator = image.width.saturating_mul(2);
-    numerator
-        .saturating_add(denominator.saturating_sub(1))
-        .checked_div(denominator)
-        .and_then(|rows| u16::try_from(rows).ok())
-        .unwrap_or(u16::MAX)
-}
-
-fn choose_banner(
-    preference: Option<&str>,
-    no_color: bool,
-    area: Rect,
-    image: Option<&RasterBanner>,
-) -> BannerMode {
-    let blocks_requested = preference.is_none_or(|value| value.eq_ignore_ascii_case("blocks"));
-    if blocks_requested {
-        let width = area.width.saturating_sub(4);
-        let rows = u16::try_from(BANNER_TEXT.lines().count()).unwrap_or(u16::MAX);
-        if width >= BANNER_TEXT_WIDTH && u32::from(rows) + 9 <= u32::from(area.height) {
-            return BannerMode::Blocks { rows };
-        }
-        return BannerMode::Compact;
-    }
-    if preference.is_some_and(|value| value.eq_ignore_ascii_case("compact")) {
-        return BannerMode::Compact;
-    }
-    if no_color && !preference.is_some_and(|value| value.eq_ignore_ascii_case("png")) {
-        return BannerMode::Compact;
-    }
-    if !preference.is_some_and(|value| value.eq_ignore_ascii_case("png")) {
-        return BannerMode::Compact;
-    }
-    let Some(image) = image else {
-        return BannerMode::Compact;
-    };
-    let width = area.width.saturating_sub(4).min(BANNER_MAX_WIDTH);
-    if width < BANNER_MIN_WIDTH {
-        return BannerMode::Compact;
-    }
-    let rows = banner_rows(image, width);
-    if u32::from(rows) + 9 > u32::from(area.height) {
-        return BannerMode::Compact;
-    }
-    BannerMode::Raster { width, rows }
-}
-
-fn banner_mode(area: Rect, no_color: bool) -> BannerMode {
-    let preference = std::env::var("TKACH_BANNER").ok();
-    choose_banner(preference.as_deref(), no_color, area, banner_image())
+fn banner_mode(area: Rect) -> BannerMode {
+    choose_banner(area)
 }
 
 fn banner_title(app: &App, no_color: bool) -> Line<'static> {
@@ -860,56 +782,6 @@ fn terminal_banner_lines(no_color: bool) -> Vec<Line<'static>> {
         .collect()
 }
 
-fn scaled_channel(channel: u8, alpha: u8) -> u8 {
-    u8::try_from(u16::from(channel) * u16::from(alpha) / 255)
-        .expect("alpha scaling of an 8-bit channel stays within range")
-}
-
-fn average_channel(first: u8, second: u8) -> u8 {
-    let value =
-        u16::from(first) / 2 + u16::from(second) / 2 + u16::from((first & 1) + (second & 1)) / 2;
-    u8::try_from(value).expect("average of two 8-bit channels stays within range")
-}
-
-fn pixel_color(pixel: [u8; 4]) -> Color {
-    Color::Rgb(
-        scaled_channel(pixel[0], pixel[3]),
-        scaled_channel(pixel[1], pixel[3]),
-        scaled_channel(pixel[2], pixel[3]),
-    )
-}
-
-fn raster_banner_lines(image: &RasterBanner, width: u16, rows: u16) -> Vec<Line<'static>> {
-    let width = usize::from(width);
-    let rows = usize::from(rows);
-    let mut lines = Vec::with_capacity(rows);
-    for row in 0..rows {
-        let mut spans = Vec::with_capacity(width);
-        for column in 0..width {
-            let source_x = column * image.width as usize / width;
-            let source_y = row * 2 * image.height as usize / (rows * 2);
-            let next_y =
-                ((row * 2 + 1) * image.height as usize / (rows * 2)).min(image.height as usize - 1);
-            let first = pixel_color(image.pixels[source_y * image.width as usize + source_x]);
-            let second = pixel_color(image.pixels[next_y * image.width as usize + source_x]);
-            let Color::Rgb(first_red, first_green, first_blue) = first else {
-                unreachable!()
-            };
-            let Color::Rgb(second_red, second_green, second_blue) = second else {
-                unreachable!()
-            };
-            let color = Color::Rgb(
-                average_channel(first_red, second_red),
-                average_channel(first_green, second_green),
-                average_channel(first_blue, second_blue),
-            );
-            spans.push(Span::styled(" ", Style::default().bg(color)));
-        }
-        lines.push(Line::from(spans));
-    }
-    lines
-}
-
 fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, mode: BannerMode) {
     if let BannerMode::Blocks { .. } = mode {
         frame.render_widget(
@@ -918,16 +790,6 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, app: &App, no_color: bool, m
             area,
         );
         return;
-    }
-    if let BannerMode::Raster { width, rows } = mode {
-        if let Some(image) = banner_image() {
-            let lines = raster_banner_lines(image, width, rows);
-            frame.render_widget(
-                Paragraph::new(lines).block(panel_block(banner_title(app, no_color), no_color)),
-                area,
-            );
-            return;
-        }
     }
     let header = Paragraph::new(vec![
         Line::from(vec![
@@ -1103,9 +965,9 @@ fn draw_frame(frame: &mut Frame<'_>, app: &App) {
         return;
     }
 
-    let mode = banner_mode(inner, no_color);
+    let mode = banner_mode(inner);
     let header_height = match mode {
-        BannerMode::Blocks { rows } | BannerMode::Raster { rows, .. } => rows + 2,
+        BannerMode::Blocks { rows } => rows + 2,
         BannerMode::Compact => 4,
     };
     let layout = Layout::default()
@@ -1217,54 +1079,17 @@ mod tests {
     }
 
     #[test]
-    fn embedded_banner_decodes_and_scales_without_font_glyphs() {
-        let image = banner_image().expect("bundled banner PNG decodes");
-        assert_eq!((image.width, image.height), (819, 161));
-        assert_eq!(image.pixels.len(), (image.width * image.height) as usize);
-        assert_eq!(banner_rows(image, BANNER_MAX_WIDTH), 13);
-        let lines = raster_banner_lines(image, BANNER_MAX_WIDTH, 13);
-        assert_eq!(lines.len(), 13);
-        assert!(lines.iter().all(|line| line.spans.len() == 124));
-        assert!(
-            lines
-                .iter()
-                .flat_map(|line| &line.spans)
-                .any(|span| span.style.bg.is_some())
-        );
+    fn text_banner_is_stable_and_hides_when_constrained() {
+        assert_eq!(BANNER_TEXT.lines().count(), 11);
         assert_eq!(
-            choose_banner(None, false, Rect::new(0, 0, 128, 38), Some(image)),
+            choose_banner(Rect::new(0, 0, 128, 38)),
             BannerMode::Blocks { rows: 11 }
         );
-        assert_eq!(
-            choose_banner(
-                Some("compact"),
-                false,
-                Rect::new(0, 0, 128, 38),
-                Some(image)
-            ),
-            BannerMode::Compact
-        );
-        assert_eq!(
-            choose_banner(None, true, Rect::new(0, 0, 128, 38), Some(image)),
-            BannerMode::Blocks { rows: 11 }
-        );
-        assert_eq!(
-            choose_banner(None, false, Rect::new(0, 0, 44, 18), Some(image)),
-            BannerMode::Compact
-        );
-        assert_eq!(
-            choose_banner(None, false, Rect::new(0, 0, 128, 38), None),
-            BannerMode::Blocks { rows: 11 }
-        );
-        assert_eq!(
-            choose_banner(Some("png"), false, Rect::new(0, 0, 128, 38), Some(image)),
-            BannerMode::Raster {
-                width: 124,
-                rows: 13
-            }
-        );
+        assert_eq!(choose_banner(Rect::new(0, 0, 44, 18)), BannerMode::Compact);
+        assert_eq!(choose_banner(Rect::new(0, 0, 128, 10)), BannerMode::Compact);
         let text_lines = terminal_banner_lines(true);
         assert_eq!(text_lines.len(), 11);
+        assert_eq!(text_lines.iter().map(Line::width).max(), Some(113));
         assert!(text_lines.iter().all(|line| line.width() <= 113));
     }
 

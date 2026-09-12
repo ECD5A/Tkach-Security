@@ -143,10 +143,10 @@ reviewed network boundary and is not enabled by this image.
 
 The interactive menu is a responsive cross-platform Ratatui panel with a
 selected action, local status panel, keyboard footer, and the supplied dense
-Unicode block-art banner. It is embedded directly in `tkach-cli`, so the
-runtime does not read an asset file or download anything. The default banner
-fits a 113-column by 11-row header; `TKACH_BANNER=compact` hides it and
-`TKACH_BANNER=png` selects the supplied PNG rendered as colored pixel cells.
+Unicode block-art banner. It is compiled directly into `tkach-cli`, so the
+runtime does not read an asset file or download anything. The banner fits a
+113-column by 11-row header and hides automatically when the terminal is too
+narrow.
 If the terminal is too small, the CLI uses the compact header. This path uses
 common block characters rather than Braille glyphs, but the terminal emulator
 still controls the final font and code-page rendering.
