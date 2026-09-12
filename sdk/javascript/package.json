@@ -21,7 +21,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ECD5A/Tkach-Security.git",
+    "url": "git+https://github.com/ECD5A/Tkach-Security.git",
     "directory": "sdk/javascript"
   },
   "scripts": {
