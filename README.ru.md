@@ -11,8 +11,9 @@
 **Fail-closed граница безопасности для AI-агентов и скомпрометированного вывода модели.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
+<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
+<a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi" alt="PyPI package"></a>
 <a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli на crates.io"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Лицензия Apache 2.0">
@@ -71,19 +72,17 @@ tkach run --demo
 Gateway; `run --demo` доказывает локальный fail-closed путь.
 
 Готовые архивы для Linux, macOS и Windows доступны в
-[релизе v0.1.0](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0).
+[релизе v0.1.1](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1).
 У каждого есть манифест SHA-256, keyless Sigstore bundle и GitHub build
 attestation. Перед использованием артефакта прочитайте
 [гайд по распространению](docs/DISTRIBUTION.md).
 
-Следующий patch-релиз готовится как
-[release candidate v0.1.1](docs/releases/v0.1.1.md). Он не считается публично
-выпущенным, пока не пройдут кроссплатформенные и registry-gates.
-
-Тонкий Node.js/TypeScript carrier опубликован в npm:
+Тонкие Python- и Node.js/TypeScript-carriers опубликованы в PyPI и npm; оба
+вызывают одну локальную HTTP-границу и не содержат собственного policy engine:
 
 ```console
-npm install tkach-security-client
+python -m pip install tkach-security-client==0.1.1
+npm install tkach-security-client@0.1.1
 ```
 
 ## Интеграция без переноса policy из Rust
@@ -131,22 +130,23 @@ server — адаптеры вокруг Core; ни один из них не с
                  ограниченный Sled receipt
 ```
 
-## Статус релиза v0.1.0
+## Статус релиза v0.1.1
 
-- В crates.io опубликованы семь Rust-крейтов: `tkach-core`, `tkach-gateway`,
+- В crates.io опубликованы семь Rust-крейтов версии `0.1.1`: `tkach-core`,
+  `tkach-gateway`,
   `tkach-http`, `tkach-client`, `tkach-mcp`, `tkach-cli` и
   `tkach-provider-openai`.
-- В npm опубликован `tkach-security-client@0.1.0`.
+- `tkach-security-client@0.1.1` опубликован в npm и PyPI.
 - В публичном GitHub-релизе лежат подписанные и attested CLI-архивы для Linux
   x86_64, macOS x86_64/aarch64 и Windows x86_64.
 - Hosted release matrix собрал и проверил Linux, macOS, Windows, OCI smoke,
   checksums, keyless Sigstore и GitHub attestations.
-- `tkach-mcp@0.1.0` зарегистрирован в Official MCP Registry как
+- `tkach-mcp@0.1.1` зарегистрирован в Official MCP Registry как
   `io.github.ECD5A/tkach-security` для локального stdio-сценария.
 - Multi-arch OCI-образ отправлен в GHCR, attested и сделан публичным владельцем
   репозитория для анонимного pull.
 
-Tkach **не** заявляет публичный internet gateway, TLS termination, PyPI-пакет,
+Tkach **не** заявляет публичный internet gateway, TLS termination,
 Streamable HTTP, cloud control plane или generic executor. OCI image доступен
 для распространения, но Runtime по умолчанию только loopback; выход за эту
 границу — явное решение интегратора.
@@ -158,7 +158,7 @@ Streamable HTTP, cloud control plane или generic executor. OCI image дост
 - [Security model](docs/SECURITY_MODEL.md) и [threat model](docs/THREAT_MODEL.md).
 - [Integration guide](docs/INTEGRATION.md) — CLI, HTTP, MCP, контейнеры и адаптеры.
 - [Examples](examples/) — Rust, HTTP, Python, JavaScript, Go и MCP пути.
-- [Distribution](docs/DISTRIBUTION.md) и [заметки к релизу v0.1.0](docs/releases/v0.1.0.md).
+- [Distribution](docs/DISTRIBUTION.md) и [заметки к релизу v0.1.1](docs/releases/v0.1.1.md).
 - [Security policy](SECURITY.md), [contributing](CONTRIBUTING.md) и [changelog](CHANGELOG.md).
 
 ## Участие в разработке

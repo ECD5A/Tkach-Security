@@ -4,6 +4,15 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.1.1] — 2026-09-12
+
+- Publish version `0.1.1` across seven crates.io packages, npm, PyPI, the
+  Official MCP Registry, GHCR, and signed GitHub Release archives through
+  protected, OIDC-backed workflows.
+- Fix crates.io registry probes to send an identified User-Agent and pin the
+  PyPI container action to the commit behind its signed release tag.
 - Preserve the `.exe` filenames in future Windows release ZIP archives, lock
   the workflow/package contract with regression tests, and smoke the actual
   native release archives before upload and signing.

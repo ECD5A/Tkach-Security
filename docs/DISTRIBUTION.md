@@ -1,8 +1,8 @@
 # Distribution contract
 
 This is the compact release runbook for the frozen Strong Core. It records the
-published v0.1.0 distribution boundary and the explicit owner actions still
-required for the v0.1.1 candidate. It is not a substitute for the release log.
+published v0.1.1 distribution boundary and the process for future releases.
+It is not a substitute for the release log.
 
 ## Version and package contract
 
@@ -67,7 +67,7 @@ uses `tools/release/package_release.py` to fix archive metadata to the source
 commit epoch, signs archives and checksum manifests with keyless Sigstore via
 the exact release workflow identity, verifies those bundles, requests GitHub
 build provenance, and creates a draft GitHub Release after checksum
-verification. The v0.1.0 draft was manually reviewed and published after its
+verification. The v0.1.1 draft was manually reviewed and published after its
 hosted release jobs passed. The helper's tests prove byte-stable archives for
 identical inputs; this does not claim byte-identical Rust binaries across
 different toolchains or operating systems. Before upload, each native runner
@@ -76,25 +76,25 @@ this catches archive-layout and filename regressions before signing. Future
 public release publication remains a maintainer action; the workflow never
 publishes a draft automatically.
 
-## Verify a v0.1.0 archive
+## Verify a v0.1.1 archive
 
 Download the chosen archive and its adjacent `.sha256` file from the
-[v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0).
+[v0.1.1 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1).
 Verify the checksum before extraction:
 
 ~~~console
 # Linux
-sha256sum -c tkach-0.1.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+sha256sum -c tkach-0.1.1-x86_64-unknown-linux-gnu.tar.gz.sha256
 
 # macOS
-shasum -a 256 -c tkach-0.1.0-aarch64-apple-darwin.tar.gz.sha256
+shasum -a 256 -c tkach-0.1.1-aarch64-apple-darwin.tar.gz.sha256
 ~~~
 
 On Windows PowerShell, compare the expected digest with `Get-FileHash`:
 
 ~~~powershell
-$expected = ((Get-Content -Raw tkach-0.1.0-x86_64-pc-windows-msvc.zip.sha256).Trim() -split '\s+')[0]
-$actual = (Get-FileHash tkach-0.1.0-x86_64-pc-windows-msvc.zip -Algorithm SHA256).Hash
+$expected = ((Get-Content -Raw tkach-0.1.1-x86_64-pc-windows-msvc.zip.sha256).Trim() -split '\s+')[0]
+$actual = (Get-FileHash tkach-0.1.1-x86_64-pc-windows-msvc.zip -Algorithm SHA256).Hash
 if ($actual -ine $expected) { throw "SHA-256 mismatch" }
 ~~~
 
@@ -104,7 +104,7 @@ Then verify GitHub build provenance for the downloaded file with GitHub CLI:
 gh attestation verify <archive> \
   --repo ECD5A/Tkach-Security \
   --signer-workflow ECD5A/Tkach-Security/.github/workflows/release.yml \
-  --source-ref refs/tags/v0.1.0 \
+  --source-ref refs/tags/v0.1.1 \
   --deny-self-hosted-runners
 ~~~
 
@@ -132,11 +132,11 @@ publication; package visibility is a deliberate owner action in GitHub
 Package Settings and is not changed by this workflow. Consumers should pin
 the published digest rather than trust a mutable tag.
 
-The v0.1.0 image was built for both supported Linux architectures, pushed, and
-attested successfully. Its package is now public after the repository owner
-changed visibility at the [GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
+The v0.1.1 image was built for both supported Linux architectures, pushed, and
+attested successfully. The package is public at the
+[GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
 The verified multi-arch index is
-`ghcr.io/ecd5a/tkach-security@sha256:6e9f7e815a24385ca8e2ed6a3851ca7ab55d48410aad0167a63402149c64ed0f`.
+`ghcr.io/ecd5a/tkach-security@sha256:7042c4292537d24a7d0c204751c340ded8aa89a3faae1aac8c4cab6804c3354c`.
 The existing `container` job in `release.yml` remains a build-and-health smoke
 gate and does not push.
 
@@ -160,9 +160,11 @@ The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
 are included under `sdk/`. None of
 these adapters may duplicate Core policy, authority, provider, executor, or
-secret-handling logic. The thin Node.js/TypeScript adapter is now published as
+secret-handling logic. The thin Node.js/TypeScript adapter is published as
 [`tkach-security-client`](https://www.npmjs.com/package/tkach-security-client)
-`0.1.0`; the Python and Go adapters remain source/local packages.
+`0.1.1`. The matching standard-library Python adapter is published on
+[PyPI](https://pypi.org/project/tkach-security-client/) at `0.1.1`; the Go
+adapter remains a source-level module consumed from the repository tag.
 
 Future npm releases use `.github/workflows/publish-npm.yml` with GitHub OIDC
 and direct npm publishing. The package's Trusted Publisher must be configured
@@ -177,25 +179,26 @@ and published-release event remain the release authorization boundary.
 
 The Python adapter uses `.github/workflows/publish-pypi.yml`. Its build job
 tests and builds an sdist plus wheel, then passes an immutable artifact to a
-separate OIDC-only publish job. Configure a PyPI Trusted Publisher for project
+separate OIDC-only publish job. It uses a PyPI Trusted Publisher for project
 `tkach-security-client` with repository owner `ECD5A`, repository
 `Tkach-Security`, workflow filename `publish-pypi.yml`, and environment
 `pypi-publish`. A pending publisher can create the project on its first
-successful release; no PyPI token belongs in GitHub secrets. The package is
-not public until that workflow has completed successfully.
+successful release; no PyPI token belongs in GitHub secrets. Version `0.1.1`
+was published through this OIDC path.
 
 Rust crate publication is an explicit pre-release gate in
 `.github/workflows/publish-crates.yml`. After all release checks pass, dispatch
 it for the exact tag and approve the protected `crates-publish` environment.
-Configure crates.io Trusted Publishing for each of the seven crates with
+crates.io Trusted Publishing is configured for each of the seven crates with
 repository `ECD5A/Tkach-Security`, workflow `publish-crates.yml`, and
 environment `crates-publish`. The workflow authenticates with short-lived
 OIDC credentials and publishes in dependency order, skipping only a version
-that the registry already confirms as present.
+that the registry already confirms as present. All seven `0.1.1` versions were
+published through this path.
 
 ## MCP Registry readiness gate
 
-The matching `tkach-mcp@0.1.0` crate and the repository are public, and the
+The matching `tkach-mcp@0.1.1` crate and the repository are public, and the
 Cargo manifest satisfies the current Registry package shape. The adapter is
 still a local stdio process that requires an already-running loopback Tkach
 runtime and a locally supplied bearer token. That operational prerequisite is
@@ -248,19 +251,19 @@ Registry publication.
 
 Completed:
 
-- all seven Rust crates at version `0.1.0` on crates.io;
-- public npm publication of `tkach-security-client@0.1.0`;
-- the public [v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0)
+- all seven Rust crates at version `0.1.1` on crates.io;
+- public npm and PyPI publication of `tkach-security-client@0.1.1`;
+- the public [v0.1.1 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1)
   with Linux x86_64, macOS x86_64/aarch64, and Windows x86_64 archives,
   SHA-256 manifests, keyless Sigstore bundles, and GitHub attestations.
-- the v0.1.0 multi-arch GHCR image, pushed with immutable release/SHA tags,
+- the v0.1.1 multi-arch GHCR image, pushed with immutable release/SHA tags,
   GitHub build provenance, and public package visibility;
-- `tkach-mcp@0.1.0` registered as `io.github.ECD5A/tkach-security` in the
+- `tkach-mcp@0.1.1` registered as `io.github.ECD5A/tkach-security` in the
   Official MCP Registry.
 
 Not performed yet:
 
-- PyPI publication, Streamable HTTP, and public gateway operation.
+- Streamable HTTP and public gateway operation.
 
 The workflow deliberately does not change package visibility. Future package
 visibility changes remain an explicit owner action because the repository's
@@ -272,5 +275,5 @@ describes release work; it does not grant publication authority.
 The v0.1.0 Windows ZIP stores valid PE binaries as `tkach` and `tkach-mcp`
 without the conventional `.exe` suffix. They can be started through an explicit
 path, but that does not meet the expected Windows extraction UX. The release
-workflow is regression-fixed for the next release; until that release exists,
-Windows users can install `tkach-cli` from crates.io instead.
+v0.1.1 fixes the archive layout and contains conventional `tkach.exe` and
+`tkach-mcp.exe` names.

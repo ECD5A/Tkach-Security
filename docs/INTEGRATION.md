@@ -170,12 +170,12 @@ put it in model-controlled request data, shell history, or committed examples.
 ### OCI image (GHCR and local)
 
 The repository includes a multi-stage `Dockerfile` for local or private
-deployment. The v0.1.0 image was built for `linux/amd64` and `linux/arm64`,
+deployment. The v0.1.1 image was built for `linux/amd64` and `linux/arm64`,
 pushed to GHCR, attached to GitHub build provenance, and made public. The
 immutable release tag can be pulled anonymously with:
 
 ```text
-docker pull ghcr.io/ecd5a/tkach-security:v0.1.0
+docker pull ghcr.io/ecd5a/tkach-security:v0.1.1
 ```
 
 Prefer the attested digest shown by the release workflow for deployment. The
@@ -208,7 +208,7 @@ create authority, or expose a non-loopback transport.
 Add the local crate while the project is still using the workspace:
 
 ~~~text
-tkach-client = { path = "../tkach-client", version = "0.1.0" }
+tkach-client = "0.1.1"
 ~~~
 
 The smallest call path is:
@@ -289,7 +289,7 @@ TKACH_BEARER_TOKEN=trusted-runtime-token
 tkach-mcp
 ~~~
 
-The matching `tkach-mcp@0.1.0` crate is published on crates.io, so an MCP host
+The matching `tkach-mcp@0.1.1` crate is published on crates.io, so an MCP host
 can launch it as a stdio server. For example, a Claude-compatible host config
 uses the adapter command and trusted environment values (replace the token
 through the host's secret-management mechanism; do not commit a real token):
@@ -317,8 +317,9 @@ credentials or connect to the runtime. Any other argument is rejected before
 environment configuration; normal operation uses no arguments and stdio.
 
 This is stdio only. It is not Streamable HTTP, TLS, process isolation, a
-public service, a replacement for human consent in the MCP host, or an Official
-MCP Registry publication. The host remains responsible for consent and for
+public service or a replacement for human consent in the MCP host. Version
+`0.1.1` is registered in the Official MCP Registry for local stdio use. The
+host remains responsible for consent and for
 protecting its environment and subprocess.
 
 ## Public API contract — v0.1

@@ -7,7 +7,7 @@ TypeScript declarations without reimplementing Tkach Core.
 Install the published package from npm:
 
 ```console
-npm install tkach-security-client
+npm install tkach-security-client@0.1.1
 ```
 
 For repository development, the same package can be installed from the

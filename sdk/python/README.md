@@ -3,11 +3,14 @@
 This is a deliberately small, standard-library-only client for the reviewed
 local HTTP contract. It is not a Python reimplementation of Tkach Core.
 
-Install the local package while the public PyPI release is still deferred:
+Install the published package from PyPI:
 
 ```text
-python -m pip install ./sdk/python
+python -m pip install tkach-security-client==0.1.1
 ```
+
+For source development, use `python -m pip install ./sdk/python` from the
+repository root.
 
 ```python
 from tkach_client import TkachClient

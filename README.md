@@ -11,8 +11,9 @@
 **A fail-closed security boundary for AI agents and compromised model output.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
+<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
+<a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi" alt="PyPI package"></a>
 <a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli on crates.io"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache 2.0 license">
@@ -71,18 +72,17 @@ tkach run --demo
 Gateway shape; `run --demo` proves the local fail-closed path.
 
 You can also download a verified binary archive for Linux, macOS, or Windows
-from the [v0.1.0 release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0).
+from the [v0.1.1 release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1).
 Each archive has a SHA-256 manifest, keyless Sigstore bundle, and GitHub build
 attestation. See the [distribution guide](docs/DISTRIBUTION.md) before using a
 release artifact.
 
-The next patch release is being prepared as the [`v0.1.1` release candidate](docs/releases/v0.1.1.md).
-It is not publicly published until its cross-platform and registry gates pass.
-
-The thin Node.js/TypeScript carrier is available from npm:
+The thin Python and Node.js/TypeScript carriers are available from PyPI and
+npm; both call the same local HTTP boundary and contain no policy engine:
 
 ```console
-npm install tkach-security-client
+python -m pip install tkach-security-client==0.1.1
+npm install tkach-security-client@0.1.1
 ```
 
 ## Integrate without moving policy out of Rust
@@ -129,23 +129,24 @@ untrusted model/provider output
                  bounded Sled receipt
 ```
 
-## v0.1.0 release status
+## v0.1.1 release status
 
-- Seven Rust crates are published on crates.io: `tkach-core`, `tkach-gateway`,
+- Seven Rust crates are published on crates.io at `0.1.1`: `tkach-core`,
+  `tkach-gateway`,
   `tkach-http`, `tkach-client`, `tkach-mcp`, `tkach-cli`, and
   `tkach-provider-openai`.
-- `tkach-security-client@0.1.0` is published on npm.
+- `tkach-security-client@0.1.1` is published on npm and PyPI.
 - The public GitHub release contains signed, attested Linux x86_64, macOS
   x86_64/aarch64, and Windows x86_64 CLI archives.
 - The hosted release matrix built and tested Linux, macOS, Windows, OCI smoke,
   checksum, keyless Sigstore, and GitHub attestation paths.
-- `tkach-mcp@0.1.0` is registered in the Official MCP Registry as
+- `tkach-mcp@0.1.1` is registered in the Official MCP Registry as
   `io.github.ECD5A/tkach-security` for local stdio use.
 - The multi-arch OCI image was pushed to GHCR, attested, and made public by the
   repository owner for anonymous pulls.
 
-Tkach does **not** claim a public internet gateway, TLS termination, a PyPI
-package, Streamable HTTP, a cloud control plane, or a generic executor. The
+Tkach does **not** claim a public internet gateway, TLS termination,
+Streamable HTTP, a cloud control plane, or a generic executor. The
 OCI image is distributable, but the runtime remains loopback-only by default;
 deployment beyond that boundary is an explicit integrator decision.
 
@@ -156,7 +157,7 @@ deployment beyond that boundary is an explicit integrator decision.
 - [Security model](docs/SECURITY_MODEL.md) and [threat model](docs/THREAT_MODEL.md).
 - [Integration guide](docs/INTEGRATION.md) — CLI, HTTP, MCP, containers, and adapters.
 - [Examples](examples/) — Rust, HTTP, Python, JavaScript, Go, and MCP paths.
-- [Distribution](docs/DISTRIBUTION.md) and [v0.1.0 release notes](docs/releases/v0.1.0.md).
+- [Distribution](docs/DISTRIBUTION.md) and [v0.1.1 release notes](docs/releases/v0.1.1.md).
 - [Security policy](SECURITY.md), [contributing](CONTRIBUTING.md), and [changelog](CHANGELOG.md).
 
 ## Contributing
