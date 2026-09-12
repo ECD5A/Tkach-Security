@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpListener};
+use std::net::{Shutdown, SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::{self, JoinHandle};
@@ -59,6 +59,7 @@ struct Receiver {
     handle: JoinHandle<ReceiverReport>,
 }
 
+#[derive(Debug)]
 struct ReceiverReport {
     requests_received: usize,
     exact_request: bool,
@@ -132,6 +133,20 @@ impl Receiver {
                         );
                         let _ = stream.write_all(response.as_bytes());
                         let _ = stream.write_all(&response_body);
+                        let _ = stream.flush();
+                        // Complete the response half-close before dropping the
+                        // socket, then wait for the client half-close. This
+                        // avoids a macOS race where the receiver closes while
+                        // the executor is still calling shutdown(Write), which
+                        // must remain a terminal unknown outcome in production.
+                        let _ = stream.shutdown(Shutdown::Write);
+                        let mut client_close = [0_u8; 1];
+                        loop {
+                            match stream.read(&mut client_close) {
+                                Ok(0) | Err(_) => break,
+                                Ok(_) => {}
+                            }
+                        }
                         return ReceiverReport {
                             requests_received: 1,
                             exact_request: request == expected,
@@ -581,26 +596,33 @@ fn real_executor_rejects_a_windows_junction_parent() {
 
 #[test]
 fn authorized_public_ruslo_flow_reaches_only_the_exact_loopback_receiver() {
-    let sandbox = Sandbox::new();
-    let receiver = Receiver::start(200, Duration::ZERO);
-    let action = external_send_request();
-    let kernel = public_network_kernel(&action);
-    let permit = kernel
-        .authorize_tagged_public_send(&trusted_public_data(), &action)
-        .unwrap();
-    let mut executor = RealEffectExecutor::new(sandbox.path(), receiver.address).unwrap();
-    let effect = receipt(executor.execute(permit).unwrap());
-    let report = receiver.finish();
+    for iteration in 0..16 {
+        let sandbox = Sandbox::new();
+        let receiver = Receiver::start(200, Duration::ZERO);
+        let action = external_send_request();
+        let kernel = public_network_kernel(&action);
+        let permit = kernel
+            .authorize_tagged_public_send(&trusted_public_data(), &action)
+            .unwrap();
+        let mut executor = RealEffectExecutor::new(sandbox.path(), receiver.address).unwrap();
+        let result = executor.execute(permit);
+        let report = receiver.finish();
+        let effect = receipt(result.unwrap_or_else(|error| {
+            panic!(
+                "iteration {iteration} returned {error:?}; receiver={report:?}"
+            )
+        }));
 
-    assert_eq!(report.requests_received, 1);
-    assert!(report.exact_request);
-    assert_eq!(effect.operation(), &Operation::NetworkSend);
-    assert_eq!(effect.destination(), &Destination::PublicExternal);
-    assert_eq!(effect.execution_id(), 1);
-    assert_eq!(effect.outcome(), EffectOutcome::Committed);
-    assert_eq!(executor.committed_effect_count(), 1);
-    assert!(!format!("{effect:?}").contains(REAL_NETWORK_PATH));
-    assert!(!format!("{effect:?}").contains("local-network-effect"));
+        assert_eq!(report.requests_received, 1);
+        assert!(report.exact_request);
+        assert_eq!(effect.operation(), &Operation::NetworkSend);
+        assert_eq!(effect.destination(), &Destination::PublicExternal);
+        assert_eq!(effect.execution_id(), 1);
+        assert_eq!(effect.outcome(), EffectOutcome::Committed);
+        assert_eq!(executor.committed_effect_count(), 1);
+        assert!(!format!("{effect:?}").contains(REAL_NETWORK_PATH));
+        assert!(!format!("{effect:?}").contains("local-network-effect"));
+    }
 }
 
 #[test]
