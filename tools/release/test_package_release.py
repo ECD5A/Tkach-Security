@@ -147,10 +147,12 @@ class ReleasePackageTests(unittest.TestCase):
         self.assertIn("id-token: write", npm)
 
         self.assertIn("types: [published]", pypi)
+        self.assertIn("workflow_dispatch:", pypi)
+        self.assertIn("github.event.release.tag_name || inputs.tag", pypi)
         self.assertIn("name: pypi-publish", pypi)
         self.assertIn("id-token: write", pypi)
         self.assertIn(
-            "pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26",
+            "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33",
             pypi,
         )
         self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", pypi)
