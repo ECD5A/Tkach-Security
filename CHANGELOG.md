@@ -4,7 +4,8 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+- Preserve the `.exe` filenames in future Windows release ZIP archives and
+  lock the workflow/package contract with a Windows archive regression test.
 
 ## [0.1.0] — 2026-09-12
 

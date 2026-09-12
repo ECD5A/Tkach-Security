@@ -1,3 +1,12 @@
+# Tkach Security
+#
+# Copyright 2026 ECD5A
+# Licensed under the Apache License, Version 2.0.
+#
+# Repository: https://github.com/ECD5A/Tkach-Security
+#
+# See LICENSE and SECURITY.md.
+
 from __future__ import annotations
 
 import io
@@ -44,6 +53,42 @@ class ReleasePackageTests(unittest.TestCase):
                     "tkach-0.1.0-test-target/tkach-mcp",
                 ])
                 self.assertEqual(archive.read(archive.namelist()[1]), b"mcp-binary")
+
+    def test_windows_zip_preserves_executable_extensions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "tkach.exe").write_bytes(b"windows-cli")
+            (root / "tkach-mcp.exe").write_bytes(b"windows-mcp")
+            specs = [
+                f"tkach.exe={root / 'tkach.exe'}",
+                f"tkach-mcp.exe={root / 'tkach-mcp.exe'}",
+            ]
+            archive_path = build_archive(
+                "0.1.0",
+                "x86_64-pc-windows-msvc",
+                "zip",
+                root / "out",
+                specs,
+                1_700_000_000,
+            )
+            with zipfile.ZipFile(archive_path) as archive:
+                self.assertEqual(archive.namelist(), [
+                    "tkach-0.1.0-x86_64-pc-windows-msvc/tkach-mcp.exe",
+                    "tkach-0.1.0-x86_64-pc-windows-msvc/tkach.exe",
+                ])
+
+    def test_windows_release_workflow_preserves_executable_extensions(self) -> None:
+        workflow = (Path(__file__).parents[2] / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            '--binary "tkach.exe=target/$env:TARGET/release/tkach.exe"',
+            workflow,
+        )
+        self.assertIn(
+            '--binary "tkach-mcp.exe=target/$env:TARGET/release/tkach-mcp.exe"',
+            workflow,
+        )
 
     def test_source_epoch_changes_archive_and_existing_output_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

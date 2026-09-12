@@ -163,3 +163,11 @@ Not performed yet:
 Those actions require owner-controlled credentials, reviewed deployment
 boundaries, and final platform/registry verification. This runbook describes
 release work; it does not grant publication authority.
+
+### v0.1.0 Windows archive note
+
+The v0.1.0 Windows ZIP stores valid PE binaries as `tkach` and `tkach-mcp`
+without the conventional `.exe` suffix. They can be started through an explicit
+path, but that does not meet the expected Windows extraction UX. The release
+workflow is regression-fixed for the next release; until that release exists,
+Windows users can install `tkach-cli` from crates.io instead.

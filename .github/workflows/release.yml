@@ -163,8 +163,8 @@ jobs:
             --format zip `
             --output-dir release `
             --source-date-epoch $epoch `
-            --binary "tkach=target/$env:TARGET/release/tkach.exe" `
-            --binary "tkach-mcp=target/$env:TARGET/release/tkach-mcp.exe"
+            --binary "tkach.exe=target/$env:TARGET/release/tkach.exe" `
+            --binary "tkach-mcp.exe=target/$env:TARGET/release/tkach-mcp.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $name = "tkach-$version-$env:TARGET"
           $hash = (Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
