@@ -1,6 +1,6 @@
 [package]
 name = "tkach-provider-openai"
-version = "0.1.0"
+version = "0.1.1"
 description = "OpenAI Responses API adapter for the Tkach Security provider boundary"
 edition.workspace = true
 license.workspace = true
@@ -24,12 +24,12 @@ zeroize = "1"
 [dependencies.tkach-gateway]
 package = "tkach-gateway"
 path = "../tkach-gateway"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies.tkach-core]
 package = "tkach-core"
 path = "../tkach-core"
-version = "0.1.0"
+version = "0.1.1"
 
 [lints]
 workspace = true

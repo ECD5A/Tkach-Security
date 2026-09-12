@@ -15,11 +15,11 @@ configuration. The adapter accepts no credential arguments and writes only
 newline-delimited JSON-RPC to stdout.
 
 ```text
-cargo install tkach-mcp --version 0.1.0 --locked
+cargo install tkach-mcp --version 0.1.1 --locked
 tkach-mcp --help
 ```
 
-[`tkach-mcp@0.1.0`](https://crates.io/crates/tkach-mcp) is published on
+[`tkach-mcp@0.1.1`](https://crates.io/crates/tkach-mcp) is published on
 crates.io and registered in the [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security)
 as `io.github.ECD5A/tkach-security`. Registration describes the local stdio
 adapter only; it still requires a separately started loopback runtime and a

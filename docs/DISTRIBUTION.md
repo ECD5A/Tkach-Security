@@ -2,7 +2,7 @@
 
 This is the compact release runbook for the frozen Strong Core. It records the
 published v0.1.0 distribution boundary and the explicit owner actions still
-required for future releases. It is not a substitute for the release log.
+required for the v0.1.1 candidate. It is not a substitute for the release log.
 
 ## Version and package contract
 
@@ -216,7 +216,7 @@ The exact current manifest was accepted locally by the official
 protected workflow. The authoritative record is queryable through the
 [Official MCP Registry API](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security).
 
-For future versions, the release owner must use the current official Registry
+For v0.1.1 and future versions, the release owner must use the current official Registry
 workflow rather than hand-editing registry data:
 
 1. configure protection/review rules for the `mcp-publish` GitHub Environment;

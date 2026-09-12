@@ -22,7 +22,7 @@ from check_versions import (
 class VersionContractTests(unittest.TestCase):
     def test_repository_versions_share_one_release_value(self) -> None:
         root = Path(__file__).parents[2]
-        self.assertEqual(check_version_contract(root), "0.1.0")
+        self.assertEqual(check_version_contract(root), "0.1.1")
 
     def test_missing_core_is_rejected(self) -> None:
         with self.assertRaises((FileNotFoundError, VersionContractError)):
@@ -30,7 +30,7 @@ class VersionContractTests(unittest.TestCase):
 
     def test_mcp_registry_contract_matches_published_cargo_adapter(self) -> None:
         root = Path(__file__).parents[2]
-        check_mcp_registry_contract(root, "0.1.0")
+        check_mcp_registry_contract(root, "0.1.1")
 
     def test_mcp_registry_contract_rejects_missing_ownership_marker(self) -> None:
         source_root = Path(__file__).parents[2]
@@ -42,7 +42,7 @@ class VersionContractTests(unittest.TestCase):
             readme.parent.mkdir(parents=True)
             readme.write_text("Tkach MCP adapter", encoding="utf-8")
             with self.assertRaisesRegex(VersionContractError, "ownership marker"):
-                check_mcp_registry_contract(root, "0.1.0")
+                check_mcp_registry_contract(root, "0.1.1")
 
 
 if __name__ == "__main__":

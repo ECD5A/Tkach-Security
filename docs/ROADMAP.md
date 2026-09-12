@@ -65,8 +65,9 @@ The initial public release is complete: shared package metadata, release
 artifacts, hosted tag verification, examples, Golden Case, crates.io, npm, OCI,
 MCP Registry, and the signed GitHub archives are live. The `v0.1.1` candidate
 closes the macOS network-test race, gates npm/PyPI on a published GitHub
-Release, and adds protected crates.io publication. Remaining work is the
-green cross-platform candidate run, one-time registry Trusted Publisher setup,
+Release, and adds protected crates.io publication. The candidate record is in
+[`docs/releases/v0.1.1.md`](releases/v0.1.1.md). Remaining work is the green
+cross-platform candidate run, one-time registry Trusted Publisher setup,
 clean-machine onboarding, and the independent final review. It must not
 duplicate policy, authority, or execution logic.
 

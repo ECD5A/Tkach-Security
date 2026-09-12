@@ -76,6 +76,9 @@ Each archive has a SHA-256 manifest, keyless Sigstore bundle, and GitHub build
 attestation. See the [distribution guide](docs/DISTRIBUTION.md) before using a
 release artifact.
 
+The next patch release is being prepared as the [`v0.1.1` release candidate](docs/releases/v0.1.1.md).
+It is not publicly published until its cross-platform and registry gates pass.
+
 The thin Node.js/TypeScript carrier is available from npm:
 
 ```console

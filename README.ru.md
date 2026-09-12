@@ -76,6 +76,10 @@ Gateway; `run --demo` доказывает локальный fail-closed пут
 attestation. Перед использованием артефакта прочитайте
 [гайд по распространению](docs/DISTRIBUTION.md).
 
+Следующий patch-релиз готовится как
+[release candidate v0.1.1](docs/releases/v0.1.1.md). Он не считается публично
+выпущенным, пока не пройдут кроссплатформенные и registry-gates.
+
 Тонкий Node.js/TypeScript carrier опубликован в npm:
 
 ```console

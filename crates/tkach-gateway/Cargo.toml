@@ -1,6 +1,6 @@
 [package]
 name = "tkach-gateway"
-version = "0.1.0"
+version = "0.1.1"
 description = "Provider-independent bounded execution boundary for Tkach Security"
 edition.workspace = true
 license.workspace = true
@@ -14,7 +14,7 @@ keywords.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 thiserror = "2"
-tkach-core = { path = "../tkach-core", version = "0.1.0" }
+tkach-core = { path = "../tkach-core", version = "0.1.1" }
 zeroize = "1"
 
 [target.'cfg(unix)'.dependencies]
