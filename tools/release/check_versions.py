@@ -32,6 +32,9 @@ _EXPECTED_CRATES = frozenset(
         "tkach-provider-openai",
     }
 )
+_MCP_SERVER_NAME = "io.github.ECD5A/tkach-security"
+_MCP_SCHEMA_URL = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
+_MCP_REPOSITORY_URL = "https://github.com/ECD5A/Tkach-Security"
 
 
 def _cargo_version(path: Path) -> str:
@@ -55,6 +58,81 @@ def _version_sources(root: Path) -> dict[str, str]:
     return sources
 
 
+def check_mcp_registry_contract(root: Path, expected_version: str) -> None:
+    """Fail when local MCP Registry metadata drifts from the Cargo adapter."""
+
+    try:
+        manifest = json.loads(
+            (root / "server.json").read_text(encoding="utf-8")
+        )
+        packages = manifest["packages"]
+        package = packages[0]
+        transport = package["transport"]
+        raw_variables = package["environmentVariables"]
+        variables = {
+            variable["name"]: variable for variable in raw_variables
+        }
+    except (IndexError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise VersionContractError("MCP Registry manifest is malformed") from exc
+
+    expected_manifest = {
+        "$schema": _MCP_SCHEMA_URL,
+        "name": _MCP_SERVER_NAME,
+        "title": "Tkach Security",
+        "version": expected_version,
+        "repository": {
+            "url": _MCP_REPOSITORY_URL,
+            "source": "github",
+        },
+    }
+    for key, value in expected_manifest.items():
+        if manifest.get(key) != value:
+            raise VersionContractError(f"MCP Registry manifest field drifted: {key}")
+
+    if not isinstance(packages, list) or len(packages) != 1:
+        raise VersionContractError("MCP Registry manifest must expose one package")
+    if package.get("registryType") != "cargo":
+        raise VersionContractError("MCP Registry package must use the cargo registry")
+    if package.get("identifier") != "tkach-mcp":
+        raise VersionContractError(
+            "MCP Registry package identifier must be tkach-mcp"
+        )
+    if package.get("version") != expected_version:
+        raise VersionContractError("MCP Registry package version drifted")
+    if transport != {"type": "stdio"}:
+        raise VersionContractError("MCP Registry transport must remain stdio")
+
+    expected_variables = {"TKACH_HTTP_ADDR", "TKACH_BEARER_TOKEN"}
+    if (
+        len(variables) != len(raw_variables)
+        or set(variables) != expected_variables
+    ):
+        raise VersionContractError("MCP Registry environment variable set drifted")
+    address = variables["TKACH_HTTP_ADDR"]
+    if (
+        address.get("default") != "127.0.0.1:8080"
+        or address.get("format") != "string"
+        or address.get("isRequired") is not False
+        or address.get("isSecret") is not False
+    ):
+        raise VersionContractError("MCP Registry loopback address contract drifted")
+    token = variables["TKACH_BEARER_TOKEN"]
+    if (
+        token.get("format") != "string"
+        or token.get("isRequired") is not True
+        or token.get("isSecret") is not True
+        or "default" in token
+    ):
+        raise VersionContractError("MCP Registry token contract drifted")
+
+    marker = f"mcp-name: {_MCP_SERVER_NAME}"
+    readme = (root / "crates/tkach-mcp/README.md").read_text(encoding="utf-8")
+    if not any(
+        marker in line and "<!--" not in line for line in readme.splitlines()
+    ):
+        raise VersionContractError("MCP Registry ownership marker is missing")
+
+
 def check_version_contract(root: Path) -> str:
     """Return the shared version or fail when release metadata has drifted."""
 
@@ -74,6 +152,7 @@ def check_version_contract(root: Path) -> str:
             f"{source}={version}" for source, version in sorted(mismatches.items())
         )
         raise VersionContractError(f"version contract mismatch: expected {expected}; {details}")
+    check_mcp_registry_contract(root, expected)
     return expected
 
 

@@ -9,6 +9,9 @@ All notable Tkach Security changes are recorded here.
   native release archives before upload and signing.
 - Remove the unused raster CLI-banner source; the compiled terminal banner and
   public README preview/screenshot assets remain unchanged.
+- Bind MCP Registry metadata to the published Cargo adapter, visible ownership
+  marker, loopback default, and secret-token contract in the regular CI gate;
+  this does not publish or register the server.
 
 ## [0.1.0] — 2026-09-12
 

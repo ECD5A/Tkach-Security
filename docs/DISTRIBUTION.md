@@ -185,6 +185,12 @@ and the [official Registry API documentation](https://github.com/modelcontextpro
 No Registry credentials are stored in this repository, and no publication was
 attempted during local development.
 
+The regular version-contract CI gate also binds `server.json` to the
+`tkach-mcp` Cargo package, the visible ownership marker, the loopback address,
+and the required secret token shape. This is a local drift regression check;
+it does not replace the official `mcp-publisher validate` gate before a
+Registry publication.
+
 ## External publication status
 
 Completed:
