@@ -4,6 +4,14 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+- Align source-candidate Rust, Python, Node.js, Go, and MCP result
+  classification (`success`, `refused`, `provider_failure`, `outcome_unknown`,
+  replay/cancelled, unavailable, invalid, effect-failed, and other) without
+  adding any retry behavior.
+- Run every checked-in fuzz target in bounded CI smoke passes, preserve each
+  target's logs and libFuzzer artifact inputs on failure, and emit a
+  deterministic latency plus declared-payload-memory baseline. The memory
+  figure is bounded payload accounting, not a process-RSS claim.
 - Strengthen the offline Golden Case: trusted host configuration now permits
   one exact create-only write, proves the committed effect and final output,
   and rejects both a sibling-path scope escape and a compromised provider

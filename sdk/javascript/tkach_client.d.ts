@@ -31,6 +31,20 @@ export declare const ErrorCode: {
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+export declare const ResponseKind: {
+  readonly SUCCESS: "success";
+  readonly REFUSED: "refused";
+  readonly PROVIDER_FAILURE: "provider_failure";
+  readonly OUTCOME_UNKNOWN: "outcome_unknown";
+  readonly REPLAY_OR_CANCELLED: "replay_or_cancelled";
+  readonly UNAVAILABLE: "unavailable";
+  readonly INVALID_REQUEST: "invalid_request";
+  readonly EFFECT_FAILED: "effect_failed";
+  readonly OTHER: "other";
+};
+
+export type ResponseKindValue = (typeof ResponseKind)[keyof typeof ResponseKind];
+
 export declare class TkachClientError extends Error {
   readonly code: ErrorCodeValue;
   constructor(code: ErrorCodeValue);
@@ -40,6 +54,7 @@ export declare class ClientResponse {
   readonly statusCode: number;
   readonly body: Uint8Array;
   readonly isSuccess: boolean;
+  readonly kind: ResponseKindValue;
   constructor(statusCode: number, body: Uint8Array);
 }
 

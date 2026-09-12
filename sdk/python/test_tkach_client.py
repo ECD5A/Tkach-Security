@@ -14,6 +14,7 @@ from tkach_client import (
     MAX_RUNTIME_RESPONSE_BYTES,
     ClientResponse,
     ErrorCode,
+    ResponseKind,
     TkachClient,
     TkachClientError,
 )
@@ -150,6 +151,22 @@ class PythonClientTests(unittest.TestCase):
         self.assertEqual(headers["Content-Type"], "application/json")
         self.assertIn(b'"request_id":"request-1"', body)
         self.assertNotIn("secret-token", repr(response))
+
+    def test_response_kind_distinguishes_terminal_runtime_outcomes(self) -> None:
+        cases = (
+            (200, b'{"Success":{}}', ResponseKind.SUCCESS),
+            (401, b'{"Failure":{"failure":"authentication_failed"}}', ResponseKind.REFUSED),
+            (403, b'{"Failure":{"failure":"authorization_denied"}}', ResponseKind.REFUSED),
+            (409, b'{"Failure":{"failure":"replay"}}', ResponseKind.REPLAY_OR_CANCELLED),
+            (424, b'{"Failure":{"failure":"effect_failed_before_effect"}}', ResponseKind.EFFECT_FAILED),
+            (502, b'{"Failure":{"failure":"provider_failure"}}', ResponseKind.PROVIDER_FAILURE),
+            (503, b'{"Failure":{"failure":"effect_outcome_unknown"}}', ResponseKind.OUTCOME_UNKNOWN),
+            (503, b'{"Failure":{"failure":"replay_capacity_exceeded"}}', ResponseKind.UNAVAILABLE),
+            (400, b'{"Failure":{"failure":"invalid_request"}}', ResponseKind.INVALID_REQUEST),
+        )
+        for status_code, body, expected in cases:
+            with self.subTest(status_code=status_code, expected=expected):
+                self.assertEqual(ClientResponse(status_code, body).kind, expected)
 
     def test_run_accepts_a_bounded_slow_response_without_retry(self) -> None:
         response = (

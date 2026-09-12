@@ -88,7 +88,7 @@ fn request() -> ExternalRequest {
 }
 
 /// Trusted host configuration for the positive proof. The model supplies only
-/// an untrusted ActionRequest; it cannot choose this policy, destination, or
+/// an untrusted `ActionRequest`; it cannot choose this policy, destination, or
 /// executor binding.
 fn trusted_write_gateway(root: &Path) -> Gateway {
     let action = protected_write_request();

@@ -57,6 +57,25 @@ class ErrorCode(str, Enum):
     UNEXPECTED_READINESS_RESPONSE = "unexpected_readiness_response"
 
 
+class ResponseKind(str, Enum):
+    """Stable classification of one bounded runtime response.
+
+    These values are observations, not retry instructions. In particular,
+    ``OUTCOME_UNKNOWN`` must never be treated as permission to repeat an
+    action.
+    """
+
+    SUCCESS = "success"
+    REFUSED = "refused"
+    PROVIDER_FAILURE = "provider_failure"
+    OUTCOME_UNKNOWN = "outcome_unknown"
+    REPLAY_OR_CANCELLED = "replay_or_cancelled"
+    UNAVAILABLE = "unavailable"
+    INVALID_REQUEST = "invalid_request"
+    EFFECT_FAILED = "effect_failed"
+    OTHER = "other"
+
+
 class TkachClientError(Exception):
     """A static client error that never includes request or token material."""
 
@@ -80,6 +99,36 @@ class ClientResponse:
         """Return whether the peer returned a 2xx status."""
 
         return 200 <= self.status_code < 300
+
+    @property
+    def kind(self) -> ResponseKind:
+        """Classify the runtime result without interpreting model data."""
+
+        if 200 <= self.status_code < 300:
+            return ResponseKind.SUCCESS
+        if self.status_code in (401, 403):
+            return ResponseKind.REFUSED
+        if self.status_code in (400, 413, 415):
+            return ResponseKind.INVALID_REQUEST
+        if self.status_code == 409:
+            return ResponseKind.REPLAY_OR_CANCELLED
+        if self.status_code == 424:
+            return ResponseKind.EFFECT_FAILED
+        if self.status_code == 502:
+            return ResponseKind.PROVIDER_FAILURE
+        if self.status_code == 503:
+            if _response_failure_is(self.body, "effect_outcome_unknown"):
+                return ResponseKind.OUTCOME_UNKNOWN
+            return ResponseKind.UNAVAILABLE
+        return ResponseKind.OTHER
+
+
+def _response_failure_is(body: bytes, expected: str) -> bool:
+    try:
+        value = json.loads(body)
+    except (TypeError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return value.get("Failure", {}).get("failure") == expected if isinstance(value, dict) else False
 
 
 class TkachClient:

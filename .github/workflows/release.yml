@@ -55,11 +55,15 @@ jobs:
       - run: cargo deny check
       - name: Verify shared package version contract
         run: python tools/release/check_versions.py
+      - name: Verify shared SDK contract matrix
+        run: python tools/release/check_sdk_contract.py
       - run: cargo +${RUST_TOOLCHAIN} check --manifest-path fuzz/Cargo.toml --bins --locked
       - name: Package the registry-independent Core crate
         run: cargo +${RUST_TOOLCHAIN} package -p tkach-core --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example golden_case --locked
+      - name: Run bounded performance baseline
+        run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example performance_baseline --locked
       - name: Test deterministic release packaging
         run: python -m unittest discover -s tools/release -p "test_*.py" -v
       - name: Smoke fresh CLI and MCP installs

@@ -441,6 +441,7 @@ fn tool_result_from_response(response: &tkach_client::ClientResponse) -> Value {
     json!({
         "content": [{"type": "text", "text": TOOL_RESPONSE_TEXT}],
         "structuredContent": structured,
+        "_meta": {"tkachOutcome": response.kind().as_str()},
         "isError": !response.is_success()
     })
 }
@@ -649,6 +650,7 @@ mod tests {
         );
         assert_eq!(messages[1]["result"]["tools"][0]["name"], TKACH_TOOL_NAME);
         assert_eq!(messages[2]["result"]["isError"], false);
+        assert_eq!(messages[2]["result"]["_meta"]["tkachOutcome"], "success");
         assert!(output.contains("safe MCP response"));
         assert!(!output.contains("runtime-secret"));
     }

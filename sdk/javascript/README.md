@@ -37,6 +37,12 @@ returns transport observations. It has no policy, authority, provider,
 executor, secret-broker, or public-network surface. It is not a TLS client,
 process boundary, public service, or policy engine.
 
+`ClientResponse.kind` provides the shared finite result classification:
+`success`, `refused`, `provider_failure`, `outcome_unknown`,
+`replay_or_cancelled`, `unavailable`, `invalid_request`, `effect_failed`, or
+`other`. These are observations only; the client never retries, and
+`outcome_unknown` must not be used to repeat an action.
+
 The next release will give each exchange a 35-second total deadline by default.
 The current source also accepts a trusted integer `timeoutMs` from 1 to 120000
 when a different finite budget is required; a timeout is not a retry signal and

@@ -20,7 +20,7 @@
 #![warn(missing_docs)]
 
 use serde::Serialize;
-use serde_json::value::RawValue;
+use serde_json::{Value, value::RawValue};
 use std::fmt::{Debug, Formatter};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -143,6 +143,51 @@ pub struct ClientResponse {
     body: Vec<u8>,
 }
 
+/// Stable classification of a bounded runtime response.
+///
+/// This is an observation of the HTTP/runtime contract, not a policy decision
+/// and never a retry instruction. In particular, [`Self::OutcomeUnknown`]
+/// means that the client must not guess whether an effect happened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResponseKind {
+    /// The runtime completed the request and returned a success receipt.
+    Success,
+    /// Authentication or Strong Core authorization refused the request.
+    Refused,
+    /// The provider failed before a protected effect was attempted.
+    ProviderFailure,
+    /// The effect may have happened but its final state is not provable.
+    OutcomeUnknown,
+    /// The request/lifecycle was replayed or cancelled at a terminal boundary.
+    ReplayOrCancelled,
+    /// The runtime cannot currently admit the request.
+    Unavailable,
+    /// The request or its protocol envelope was rejected.
+    InvalidRequest,
+    /// A protected effect failed before it could be committed.
+    EffectFailed,
+    /// The status is outside the stable classifications above.
+    Other,
+}
+
+impl ResponseKind {
+    /// Return the stable wire-safe label for this classification.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Success => "success",
+            Self::Refused => "refused",
+            Self::ProviderFailure => "provider_failure",
+            Self::OutcomeUnknown => "outcome_unknown",
+            Self::ReplayOrCancelled => "replay_or_cancelled",
+            Self::Unavailable => "unavailable",
+            Self::InvalidRequest => "invalid_request",
+            Self::EffectFailed => "effect_failed",
+            Self::Other => "other",
+        }
+    }
+}
+
 impl Debug for ClientResponse {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -171,6 +216,36 @@ impl ClientResponse {
     pub const fn is_success(&self) -> bool {
         self.status_code >= 200 && self.status_code < 300
     }
+
+    /// Classify the runtime result without interpreting model/provider data.
+    ///
+    /// The classification is intentionally terminal. Callers must not retry a
+    /// `ReplayOrCancelled`, `EffectFailed`, or `OutcomeUnknown` response.
+    #[must_use]
+    pub fn kind(&self) -> ResponseKind {
+        match self.status_code {
+            200..=299 => ResponseKind::Success,
+            401 | 403 => ResponseKind::Refused,
+            400 | 413 | 415 => ResponseKind::InvalidRequest,
+            409 => ResponseKind::ReplayOrCancelled,
+            424 => ResponseKind::EffectFailed,
+            502 => ResponseKind::ProviderFailure,
+            503 if response_failure_is(self.body(), "effect_outcome_unknown") => {
+                ResponseKind::OutcomeUnknown
+            }
+            503 => ResponseKind::Unavailable,
+            _ => ResponseKind::Other,
+        }
+    }
+}
+
+fn response_failure_is(body: &[u8], expected: &str) -> bool {
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .and_then(|value| value.get("Failure").cloned())
+        .and_then(|value| value.get("failure").cloned())
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .is_some_and(|value| value == expected)
 }
 
 /// A loopback-only client for the published Tkach HTTP adapter.
@@ -708,5 +783,59 @@ mod tests {
             parse_response_head(oversized.as_bytes()).unwrap_err(),
             ClientError::ResponseTooLarge
         );
+    }
+
+    #[test]
+    fn response_kind_distinguishes_terminal_runtime_outcomes_without_retry() {
+        let cases: &[(u16, &[u8], ResponseKind)] = &[
+            (200, br#"{"Success":{}}"#, ResponseKind::Success),
+            (
+                401,
+                br#"{"Failure":{"failure":"authentication_failed"}}"#,
+                ResponseKind::Refused,
+            ),
+            (
+                403,
+                br#"{"Failure":{"failure":"authorization_denied"}}"#,
+                ResponseKind::Refused,
+            ),
+            (
+                409,
+                br#"{"Failure":{"failure":"replay"}}"#,
+                ResponseKind::ReplayOrCancelled,
+            ),
+            (
+                424,
+                br#"{"Failure":{"failure":"effect_failed_before_effect"}}"#,
+                ResponseKind::EffectFailed,
+            ),
+            (
+                502,
+                br#"{"Failure":{"failure":"provider_failure"}}"#,
+                ResponseKind::ProviderFailure,
+            ),
+            (
+                503,
+                br#"{"Failure":{"failure":"effect_outcome_unknown"}}"#,
+                ResponseKind::OutcomeUnknown,
+            ),
+            (
+                503,
+                br#"{"Failure":{"failure":"replay_capacity_exceeded"}}"#,
+                ResponseKind::Unavailable,
+            ),
+            (
+                400,
+                br#"{"Failure":{"failure":"invalid_request"}}"#,
+                ResponseKind::InvalidRequest,
+            ),
+        ];
+        for (status_code, body, expected) in cases {
+            let response = ClientResponse {
+                status_code: *status_code,
+                body: body.to_vec(),
+            };
+            assert_eq!(response.kind(), *expected);
+        }
     }
 }

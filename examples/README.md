@@ -80,6 +80,16 @@ output is:
 GOLDEN_CASE|safe_output=released|allowed_write=committed|out_of_scope=denied|compromised_action=denied|compromised_executor_calls=0
 ```
 
+For a deterministic local performance observation, run:
+
+```text
+cargo run -p tkach-gateway --example performance_baseline --locked
+```
+
+It reports min/median/p95/max/mean latency for 128 bounded Gateway runs and a
+declared payload-memory budget. That budget is contract accounting, not a
+process-RSS measurement or a production performance promise.
+
 ## MCP example
 
 Start the same local runtime, install or build `tkach-mcp`, and configure an

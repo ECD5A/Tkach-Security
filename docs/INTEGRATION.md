@@ -240,11 +240,13 @@ let request = RunRequest::new(
 let response = client.run(&request)?;
 ~~~
 
-ClientResponse status_code, body, and is_success are transport observations
-only. A non-2xx response is not a reason to retry an effect or to treat
-model/provider output as trusted. The client is local-only: it is not TLS,
-process isolation, a public service, or an SDK for other languages. Those
-languages can use the same strict HTTP contract directly.
+ClientResponse status_code, body, is_success, and kind are transport
+observations only. `kind` is the shared finite classification described below;
+it is not a policy decision or a retry instruction. A non-2xx response is not a
+reason to retry an effect or to treat model/provider output as trusted. The
+client is local-only: it is not TLS, process isolation, a public service, or an
+SDK for other languages. Those languages can use the same strict HTTP contract
+directly.
 
 ## Language SDKs — v0.1
 
@@ -253,6 +255,40 @@ local HTTP contract. They accept numeric loopback IPs only, bound request and
 response framing, reject ambiguous/chunked/oversized responses, and never
 retry effects. Responses are transport observations; policy and authority stay
 inside the Rust runtime.
+
+Every current source adapter exposes the same result classification:
+
+| `kind` | Meaning | Automatic retry? |
+| --- | --- | --- |
+| `success` | The runtime returned a verified success receipt. | No automatic retry. |
+| `refused` | Authentication or Strong Core authorization refused the request. | No. Fix trusted configuration or input. |
+| `provider_failure` | Provider processing failed before a protected effect. | No. The caller decides whether a fresh lifecycle is safe. |
+| `outcome_unknown` | An effect may have happened, but its final state is unprovable. | Never retry the action. Reconcile out of band. |
+| `replay_or_cancelled` | A request/lifecycle reached a terminal replay or cancellation boundary. | No. |
+| `unavailable` | Runtime admission is closed or temporarily unavailable. | No automatic retry in the adapter. |
+| `invalid_request` / `effect_failed` / `other` | The bounded protocol or effect failed in a more specific terminal class. | No automatic retry. |
+
+The classification is available as Rust `ClientResponse::kind()`, Python
+`ClientResponse.kind`, JavaScript/TypeScript `ClientResponse.kind`, and Go
+`Response.Kind()`. MCP exposes the same label as result `_meta.tkachOutcome`.
+The adapters intentionally do not expose a retry helper: a timeout or unknown
+outcome cannot prove that an effect did not happen.
+
+The cross-carrier regression matrix is kept aligned for each adapter:
+
+1. bounded success and an approximately 800 ms response complete once under the
+   source-candidate deadline;
+2. a deliberately short deadline fails once, without a second request;
+3. disconnects, incomplete bodies, chunked/duplicate framing, malformed JSON,
+   and oversized headers/bodies fail closed;
+4. loopback, authentication, request, response, and readiness bounds are
+   enforced before untrusted data is returned;
+5. MCP lifecycle, oversized input, invalid fields, one delegated call, and
+   static failure behavior are tested over the same Rust client contract.
+
+The published `0.1.1` packages retain their original 500 ms transport budget;
+the source-candidate timeout and classification additions require one
+coordinated package release.
 
 In the current source tree, the next adapter release uses a finite 35-second
 total client exchange deadline across Rust, Python, Node.js, Go, and MCP (which
@@ -296,8 +332,10 @@ The adapter keeps MCP protocol data outside Core. It does not accept authority,
 Propusk, executor, broker, provider, or raw credentials as tool arguments.
 JSON-RPC IDs, input lines, arguments, and emitted responses are bounded;
 malformed messages and unknown fields fail closed; tool failures are returned
-inside an MCP tool result with a static diagnostic. stdout contains only
-newline-delimited JSON-RPC messages; diagnostics belong on stderr.
+inside an MCP tool result with a static diagnostic. Successful and failed
+runtime calls also carry the finite `_meta.tkachOutcome` classification shared
+by the language clients. stdout contains only newline-delimited JSON-RPC
+messages; diagnostics belong on stderr.
 
 The binary reads TKACH_HTTP_ADDR (default 127.0.0.1:8080) and the required
 TKACH_BEARER_TOKEN environment variable. Tokens are never accepted on command

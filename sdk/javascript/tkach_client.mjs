@@ -42,6 +42,18 @@ export const ErrorCode = Object.freeze({
   UNEXPECTED_READINESS_RESPONSE: "unexpected_readiness_response",
 });
 
+export const ResponseKind = Object.freeze({
+  SUCCESS: "success",
+  REFUSED: "refused",
+  PROVIDER_FAILURE: "provider_failure",
+  OUTCOME_UNKNOWN: "outcome_unknown",
+  REPLAY_OR_CANCELLED: "replay_or_cancelled",
+  UNAVAILABLE: "unavailable",
+  INVALID_REQUEST: "invalid_request",
+  EFFECT_FAILED: "effect_failed",
+  OTHER: "other",
+});
+
 const ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
 const AUTH_PATTERN = ID_PATTERN;
 
@@ -66,6 +78,42 @@ export class ClientResponse {
 
   get isSuccess() {
     return this.statusCode >= 200 && this.statusCode < 300;
+  }
+
+  get kind() {
+    if (this.statusCode >= 200 && this.statusCode < 300) {
+      return ResponseKind.SUCCESS;
+    }
+    if ([401, 403].includes(this.statusCode)) {
+      return ResponseKind.REFUSED;
+    }
+    if ([400, 413, 415].includes(this.statusCode)) {
+      return ResponseKind.INVALID_REQUEST;
+    }
+    if (this.statusCode === 409) {
+      return ResponseKind.REPLAY_OR_CANCELLED;
+    }
+    if (this.statusCode === 424) {
+      return ResponseKind.EFFECT_FAILED;
+    }
+    if (this.statusCode === 502) {
+      return ResponseKind.PROVIDER_FAILURE;
+    }
+    if (this.statusCode === 503) {
+      return responseFailureIs(this.body, "effect_outcome_unknown")
+        ? ResponseKind.OUTCOME_UNKNOWN
+        : ResponseKind.UNAVAILABLE;
+    }
+    return ResponseKind.OTHER;
+  }
+}
+
+function responseFailureIs(body, expected) {
+  try {
+    const value = JSON.parse(body.toString("utf8"));
+    return value?.Failure?.failure === expected;
+  } catch (_error) {
+    return false;
   }
 }
 

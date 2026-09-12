@@ -4,9 +4,11 @@ import net from "node:net";
 import test from "node:test";
 
 import {
+  ClientResponse,
   ErrorCode,
   MAX_HTTP_BODY_BYTES,
   MAX_RUNTIME_RESPONSE_BYTES,
+  ResponseKind,
   TkachClient,
   TkachClientError,
 } from "./tkach_client.mjs";
@@ -128,6 +130,24 @@ test("run sends one bounded request and returns transport observation", async ()
   assert.equal(received.headers.authorization, "Bearer secret-token");
   assert.equal(received.headers["content-type"], "application/json");
   assert.match(received.body.toString("utf8"), /"request_id":"request-1"/);
+});
+
+test("response kind distinguishes terminal runtime outcomes", () => {
+  const cases = [
+    [200, '{"Success":{}}', ResponseKind.SUCCESS],
+    [401, '{"Failure":{"failure":"authentication_failed"}}', ResponseKind.REFUSED],
+    [403, '{"Failure":{"failure":"authorization_denied"}}', ResponseKind.REFUSED],
+    [409, '{"Failure":{"failure":"replay"}}', ResponseKind.REPLAY_OR_CANCELLED],
+    [424, '{"Failure":{"failure":"effect_failed_before_effect"}}', ResponseKind.EFFECT_FAILED],
+    [502, '{"Failure":{"failure":"provider_failure"}}', ResponseKind.PROVIDER_FAILURE],
+    [503, '{"Failure":{"failure":"effect_outcome_unknown"}}', ResponseKind.OUTCOME_UNKNOWN],
+    [503, '{"Failure":{"failure":"replay_capacity_exceeded"}}', ResponseKind.UNAVAILABLE],
+    [400, '{"Failure":{"failure":"invalid_request"}}', ResponseKind.INVALID_REQUEST],
+  ];
+  for (const [statusCode, body, expected] of cases) {
+    const response = new ClientResponse(statusCode, Buffer.from(body));
+    assert.equal(response.kind, expected);
+  }
 });
 
 test("run accepts a bounded slow response without retry", async () => {

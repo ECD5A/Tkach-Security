@@ -115,6 +115,30 @@ func TestRunSendsBoundedRequestAndReturnsObservation(t *testing.T) {
 	}
 }
 
+func TestResponseKindDistinguishesTerminalRuntimeOutcomes(t *testing.T) {
+	cases := []struct {
+		status   int
+		body     string
+		expected ResponseKind
+	}{
+		{http.StatusOK, `{"Success":{}}`, ResponseSuccess},
+		{http.StatusUnauthorized, `{"Failure":{"failure":"authentication_failed"}}`, ResponseRefused},
+		{http.StatusForbidden, `{"Failure":{"failure":"authorization_denied"}}`, ResponseRefused},
+		{http.StatusConflict, `{"Failure":{"failure":"replay"}}`, ResponseReplayCancelled},
+		{http.StatusFailedDependency, `{"Failure":{"failure":"effect_failed_before_effect"}}`, ResponseEffectFailed},
+		{http.StatusBadGateway, `{"Failure":{"failure":"provider_failure"}}`, ResponseProviderFailure},
+		{http.StatusServiceUnavailable, `{"Failure":{"failure":"effect_outcome_unknown"}}`, ResponseOutcomeUnknown},
+		{http.StatusServiceUnavailable, `{"Failure":{"failure":"replay_capacity_exceeded"}}`, ResponseUnavailable},
+		{http.StatusBadRequest, `{"Failure":{"failure":"invalid_request"}}`, ResponseInvalidRequest},
+	}
+	for _, testCase := range cases {
+		response := Response{StatusCode: testCase.status, Body: []byte(testCase.body)}
+		if got := response.Kind(); got != testCase.expected {
+			t.Fatalf("status %d: got %q, want %q", testCase.status, got, testCase.expected)
+		}
+	}
+}
+
 func TestRunAcceptsABoundedSlowResponseWithoutRetry(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		time.Sleep(800 * time.Millisecond)

@@ -22,6 +22,12 @@ response framing, rejects chunked/ambiguous responses, never retries, and
 returns transport observations. It is not TLS, process isolation, a public
 service, or a published Go module yet.
 
+`Response.Kind()` provides the shared finite result classification:
+`success`, `refused`, `provider_failure`, `outcome_unknown`,
+`replay_or_cancelled`, `unavailable`, `invalid_request`, `effect_failed`, or
+`other`. These are observations only; the client never retries, and
+`outcome_unknown` must not be used to repeat an action.
+
 The next release will give each exchange a finite 35-second total deadline,
 with no retry on timeout. The `v0.1.1` source remains documented with its
 original 500ms budget until that release. A timeout is a transport observation

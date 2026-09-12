@@ -69,8 +69,62 @@ type Response struct {
 	Body       []byte
 }
 
+// ResponseKind is a stable classification of one bounded runtime response.
+// These values are observations, not retry instructions. OutcomeUnknown must
+// never be treated as permission to repeat an action.
+type ResponseKind string
+
+const (
+	ResponseSuccess         ResponseKind = "success"
+	ResponseRefused         ResponseKind = "refused"
+	ResponseProviderFailure ResponseKind = "provider_failure"
+	ResponseOutcomeUnknown  ResponseKind = "outcome_unknown"
+	ResponseReplayCancelled ResponseKind = "replay_or_cancelled"
+	ResponseUnavailable     ResponseKind = "unavailable"
+	ResponseInvalidRequest  ResponseKind = "invalid_request"
+	ResponseEffectFailed    ResponseKind = "effect_failed"
+	ResponseOther           ResponseKind = "other"
+)
+
 // IsSuccess reports only the HTTP status class; it does not grant authority.
 func (r Response) IsSuccess() bool { return r.StatusCode >= 200 && r.StatusCode < 300 }
+
+// Kind classifies the runtime result without interpreting model/provider data.
+func (r Response) Kind() ResponseKind {
+	switch {
+	case r.StatusCode >= 200 && r.StatusCode < 300:
+		return ResponseSuccess
+	case r.StatusCode == http.StatusUnauthorized || r.StatusCode == http.StatusForbidden:
+		return ResponseRefused
+	case r.StatusCode == http.StatusBadRequest || r.StatusCode == http.StatusRequestEntityTooLarge || r.StatusCode == http.StatusUnsupportedMediaType:
+		return ResponseInvalidRequest
+	case r.StatusCode == http.StatusConflict:
+		return ResponseReplayCancelled
+	case r.StatusCode == http.StatusFailedDependency:
+		return ResponseEffectFailed
+	case r.StatusCode == http.StatusBadGateway:
+		return ResponseProviderFailure
+	case r.StatusCode == http.StatusServiceUnavailable:
+		if responseFailureIs(r.Body, "effect_outcome_unknown") {
+			return ResponseOutcomeUnknown
+		}
+		return ResponseUnavailable
+	default:
+		return ResponseOther
+	}
+}
+
+func responseFailureIs(body []byte, expected string) bool {
+	var response struct {
+		Failure *struct {
+			Failure string `json:"failure"`
+		} `json:"Failure"`
+	}
+	if json.Unmarshal(body, &response) != nil || response.Failure == nil {
+		return false
+	}
+	return response.Failure.Failure == expected
+}
 
 // Client is a loopback-only Tkach HTTP client. Requests are sent once.
 type Client struct {

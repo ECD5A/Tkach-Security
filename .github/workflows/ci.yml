@@ -52,9 +52,21 @@ jobs:
       - run: cargo deny check
       - name: Verify shared package version contract
         run: python tools/release/check_versions.py
+      - name: Verify shared SDK contract matrix
+        run: python tools/release/check_sdk_contract.py
       - name: Package the registry-independent Core crate
         run: cargo +1.85.1 package -p tkach-core --locked
       - run: cargo +1.85.1 run -p tkach-gateway --example quickstart --locked
+      - name: Capture bounded performance baseline
+        run: cargo +1.85.1 run -p tkach-gateway --example performance_baseline --locked > "$RUNNER_TEMP/tkach-performance-baseline.txt"
+      - name: Upload performance baseline evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tkach-performance-baseline
+          path: ${{ runner.temp }}/tkach-performance-baseline.txt
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Test deterministic release packaging
         run: python -m unittest discover -s tools/release -p "test_*.py" -v
       - name: Test the standard-library Python adapter
@@ -82,7 +94,41 @@ jobs:
       - name: Install pinned rustfmt component
         run: rustup component add rustfmt --toolchain 1.85.1
       - run: cargo +1.85.1 check --manifest-path fuzz/Cargo.toml --bins --locked
-      - run: cargo +1.85.1 run --manifest-path fuzz/Cargo.toml --bin canonical_text --locked -- -runs=100
+      - name: Run every fuzz target with a bounded smoke budget
+        id: fuzz
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          artifact_root="${RUNNER_TEMP}/tkach-fuzz-artifacts"
+          mkdir -p "${artifact_root}"
+          status=0
+          for target in canonical_text domain_wire gateway_wire openai_response; do
+            target_root="${artifact_root}/${target}"
+            mkdir -p "${target_root}"
+            echo "Running ${target} with 1000 iterations and a 90 second limit"
+            timeout --signal=TERM 90s \
+              cargo +1.85.1 run --manifest-path fuzz/Cargo.toml --bin "${target}" --locked -- \
+              -runs=1000 -artifact_prefix="${target_root}/" \
+              2>&1 | tee "${target_root}/run.log"
+            target_status=${PIPESTATUS[0]}
+            if [[ "${target_status}" -ne 0 ]]; then
+              echo "${target} failed with status ${target_status}" >&2
+              status="${target_status}"
+            fi
+          done
+          exit "${status}"
+      - name: Upload fuzz logs and failure inputs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tkach-fuzz-artifacts
+          path: ${{ runner.temp }}/tkach-fuzz-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Fail when a fuzz target failed or timed out
+        if: steps.fuzz.outcome != 'success'
+        run: exit 1
 
   platform:
     name: Platform compatibility (${{ matrix.os }})
