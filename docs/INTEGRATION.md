@@ -85,7 +85,10 @@ The v0.1 listener is intentionally local and sequential:
   ephemeral port for tests; `0.0.0.0`, LAN addresses, DNS binding, and public
   internet serving are rejected;
 - `GET /healthz` returns the static `{"status":"ok"}` liveness document and
-  does not authorize or execute anything;
+  `GET /readyz` returns `{"status":"ready"}` only while runtime admission is
+  open; both routes are unauthenticated and execute nothing. `/readyz` returns
+  `503 {"status":"not_ready"}` after shutdown begins or the non-evicting
+  replay ledger reaches its configured bound;
 - `POST /v1/run` requires HTTP/1.1, one non-empty `Host`, exact
   `Content-Type: application/json`, decimal `Content-Length` within
   `MAX_HTTP_BODY_BYTES`, and `Authorization: Bearer <token>`;
@@ -125,8 +128,10 @@ tkach serve --demo
 On PowerShell, set the same variables with `$env:TKACH_BEARER_TOKEN` and
 `$env:TKACH_HTTP_ADDR` before starting the command. The address must parse as a
 loopback `SocketAddr`; DNS names, LAN addresses, and wildcard binds are
-rejected. `/healthz` is unauthenticated liveness only. `/v1/run` requires the
-configured bearer token and is backed by the deterministic bounded demo
+rejected. `/healthz` is unauthenticated liveness only; `/readyz` is an
+unauthenticated admission/readiness signal and does not probe provider
+connectivity. `/v1/run` requires the configured bearer token and is backed by
+the deterministic bounded demo
 provider, so it performs no real model call or protected side effect. The
 process handles one bounded request per connection and stops with Ctrl-C.
 
@@ -149,14 +154,16 @@ denied by policy and by a defense-in-depth executor, so this command is a
 local provider runtime, not a generic production executor. The bearer token
 and provider credential are environment configuration only; neither is
 accepted in request JSON, MCP arguments, or command-line arguments. `/healthz`
-is unauthenticated liveness, `/v1/run` is bearer-authenticated, and Ctrl-C
-requests a bounded stop between connections.
+is unauthenticated liveness, `/readyz` reports admission readiness, `/v1/run`
+is bearer-authenticated, and Ctrl-C requests a bounded stop between
+connections.
 
-Any language can use the same HTTP contract directly. The health route is
-unauthenticated liveness; the run route requires the trusted bearer proof:
+Any language can use the same HTTP contract directly. The health and readiness
+routes are unauthenticated; the run route requires the trusted bearer proof:
 
 ~~~text
 curl --fail http://127.0.0.1:8080/healthz
+curl --fail http://127.0.0.1:8080/readyz
 curl --fail --silent --show-error \
   -H 'Authorization: Bearer <trusted-runtime-token>' \
   -H 'Content-Type: application/json' \

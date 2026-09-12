@@ -26,6 +26,7 @@ export declare const ErrorCode: {
   readonly NON_LOOPBACK_ADDRESS: "non_loopback_address";
   readonly RESPONSE_TOO_LARGE: "response_too_large";
   readonly UNEXPECTED_HEALTH_RESPONSE: "unexpected_health_response";
+  readonly UNEXPECTED_READINESS_RESPONSE: "unexpected_readiness_response";
 };
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -47,5 +48,6 @@ export declare class TkachClient {
   readonly address: { readonly host: string; readonly port: number };
   close(): void;
   health(): Promise<void>;
+  ready(): Promise<void>;
   run(requestId: string, lifecycleId: string, request: unknown): Promise<ClientResponse>;
 }

@@ -80,6 +80,25 @@ test("health uses the exact public endpoint without bearer auth", async () => {
   assert.equal(requests[0].headers.authorization, undefined);
 });
 
+test("ready uses the exact public endpoint without bearer auth", async () => {
+  const requests = [];
+  await withHttpServer((request, response) => {
+    requests.push({ method: request.method, url: request.url, headers: request.headers });
+    response.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": String(Buffer.byteLength('{"status":"ready"}')),
+      Connection: "close",
+    });
+    response.end('{"status":"ready"}');
+  }, async (port) => {
+    const client = new TkachClient("127.0.0.1", port, "secret-token");
+    await client.ready();
+    client.close();
+  });
+  assert.deepEqual(requests[0].url, "/readyz");
+  assert.equal(requests[0].headers.authorization, undefined);
+});
+
 test("run sends one bounded request and returns transport observation", async () => {
   let received;
   await withHttpServer((request, response) => {

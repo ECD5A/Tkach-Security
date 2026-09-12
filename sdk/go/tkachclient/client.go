@@ -44,14 +44,15 @@ const (
 type ErrorCode string
 
 const (
-	ErrorClosed                   ErrorCode = "client_closed"
-	ErrorInvalidAuthentication    ErrorCode = "invalid_authentication"
-	ErrorInvalidRequest           ErrorCode = "invalid_request"
-	ErrorInvalidResponse          ErrorCode = "invalid_response"
-	ErrorIO                       ErrorCode = "io_failure"
-	ErrorNonLoopbackAddress       ErrorCode = "non_loopback_address"
-	ErrorResponseTooLarge         ErrorCode = "response_too_large"
-	ErrorUnexpectedHealthResponse ErrorCode = "unexpected_health_response"
+	ErrorClosed                      ErrorCode = "client_closed"
+	ErrorInvalidAuthentication       ErrorCode = "invalid_authentication"
+	ErrorInvalidRequest              ErrorCode = "invalid_request"
+	ErrorInvalidResponse             ErrorCode = "invalid_response"
+	ErrorIO                          ErrorCode = "io_failure"
+	ErrorNonLoopbackAddress          ErrorCode = "non_loopback_address"
+	ErrorResponseTooLarge            ErrorCode = "response_too_large"
+	ErrorUnexpectedHealthResponse    ErrorCode = "unexpected_health_response"
+	ErrorUnexpectedReadinessResponse ErrorCode = "unexpected_readiness_response"
 )
 
 // Error never includes request, response, endpoint, or token material.
@@ -138,6 +139,20 @@ func (c *Client) Health() error {
 	}
 	if response.StatusCode != http.StatusOK || !bytes.Equal(response.Body, []byte(`{"status":"ok"}`)) {
 		return &Error{Code: ErrorUnexpectedHealthResponse}
+	}
+	return nil
+}
+
+// Ready requires the exact unauthenticated /readyz admission response.
+// Readiness covers runtime admission and replay capacity, not provider
+// connectivity or effect availability.
+func (c *Client) Ready() error {
+	response, err := c.exchange(http.MethodGet, "/readyz", nil)
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != http.StatusOK || !bytes.Equal(response.Body, []byte(`{"status":"ready"}`)) {
+		return &Error{Code: ErrorUnexpectedReadinessResponse}
 	}
 	return nil
 }

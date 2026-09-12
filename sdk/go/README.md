@@ -27,6 +27,12 @@ with no retry on timeout. The `v0.1.1` source remains documented with its
 original 500ms budget until that release. A timeout is a transport observation
 and does not prove that an effect did not happen.
 
+`Health` is liveness only. `Ready` checks the unauthenticated `/readyz`
+admission signal; it becomes non-ready when the runtime is shutting down or
+its non-evicting replay ledger is full. It does not prove provider
+connectivity or effect availability. This method is part of the current
+source candidate and will ship in the next coordinated adapter release.
+
 Run the offline contract tests:
 
 ```text

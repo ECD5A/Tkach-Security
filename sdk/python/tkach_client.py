@@ -54,6 +54,7 @@ class ErrorCode(str, Enum):
     NON_LOOPBACK_ADDRESS = "non_loopback_address"
     RESPONSE_TOO_LARGE = "response_too_large"
     UNEXPECTED_HEALTH_RESPONSE = "unexpected_health_response"
+    UNEXPECTED_READINESS_RESPONSE = "unexpected_readiness_response"
 
 
 class TkachClientError(Exception):
@@ -148,6 +149,13 @@ class TkachClient:
         response = self._exchange("GET", "/healthz", None)
         if response.status_code != 200 or response.body != b'{"status":"ok"}':
             raise TkachClientError(ErrorCode.UNEXPECTED_HEALTH_RESPONSE)
+
+    def ready(self) -> None:
+        """Require the exact unauthenticated ``/readyz`` admission response."""
+
+        response = self._exchange("GET", "/readyz", None)
+        if response.status_code != 200 or response.body != b'{"status":"ready"}':
+            raise TkachClientError(ErrorCode.UNEXPECTED_READINESS_RESPONSE)
 
     def run(self, request_id: str, lifecycle_id: str, request: Any) -> ClientResponse:
         """Send one bounded request and return a transport-only observation.

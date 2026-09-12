@@ -42,6 +42,8 @@ pub const MAX_HTTP_BODY_BYTES: usize = MAX_RUNTIME_FRAME_BYTES - MAX_RUNTIME_AUT
 const HTTP_IO_TIMEOUT: Duration = Duration::from_millis(500);
 const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(10);
 const HEALTH_BODY: &[u8] = br#"{"status":"ok"}"#;
+const READY_BODY: &[u8] = br#"{"status":"ready"}"#;
+const NOT_READY_BODY: &[u8] = br#"{"status":"not_ready"}"#;
 const INVALID_HTTP_BODY: &[u8] = br#"{"error":"invalid_http_request"}"#;
 const HEADERS_TOO_LARGE_BODY: &[u8] = br#"{"error":"request_headers_too_large"}"#;
 const UNAUTHORIZED_BODY: &[u8] = br#"{"error":"authentication_required"}"#;
@@ -66,7 +68,8 @@ pub enum HttpTransportError {
 /// Sequential loopback HTTP adapter for an authenticated runtime service.
 ///
 /// The listener accepts one HTTP/1.1 connection at a time. `GET /healthz` is
-/// an unauthenticated liveness response. `POST /v1/run` requires an exact
+/// an unauthenticated liveness response and `GET /readyz` reports whether
+/// runtime admission is still open. `POST /v1/run` requires an exact
 /// `Authorization: Bearer <token>` header and a strict bounded JSON body; the
 /// token is translated into the existing runtime authentication field and is
 /// never returned in the response. The listener closes each connection after
@@ -291,11 +294,18 @@ fn serve_connection<P: Provider>(
         }
     };
 
-    if head.method == "GET" && head.target == "/healthz" {
+    if head.method == "GET" && (head.target == "/healthz" || head.target == "/readyz") {
         if head.transfer_encoding || head.content_length.unwrap_or_default() != 0 {
             return write_problem_after_body(stream, &head, HttpProblem::BadRequest, deadline);
         }
-        return write_response(stream, 200, HEALTH_BODY, false);
+        if head.target == "/healthz" {
+            return write_response(stream, 200, HEALTH_BODY, false);
+        }
+        return if service.is_ready() {
+            write_response(stream, 200, READY_BODY, false)
+        } else {
+            write_response(stream, 503, NOT_READY_BODY, false)
+        };
     }
 
     if head.target != "/v1/run" {
@@ -674,11 +684,18 @@ mod tests {
     use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
     use tkach_core::zaslon::Zaslon;
     use tkach_gateway::{
-        DeterministicProvider, FakeToolBroker, ProviderStep, RuntimeAuthenticator, RuntimeLimits,
-        ScriptedStep,
+        CancellationToken, DeterministicProvider, FakeToolBroker, ProviderStep,
+        RuntimeAuthenticator, RuntimeLimits, RuntimeResponse, ScriptedStep,
     };
 
     fn service(provider: DeterministicProvider) -> RuntimeService<DeterministicProvider> {
+        service_with_limits(provider, RuntimeLimits::default())
+    }
+
+    fn service_with_limits(
+        provider: DeterministicProvider,
+        limits: RuntimeLimits,
+    ) -> RuntimeService<DeterministicProvider> {
         let client = Destination::Internal(Identity::new("client").unwrap());
         let flow = FlowRule::allow(
             RuleId::new("allow-http-test-release").unwrap(),
@@ -704,7 +721,7 @@ mod tests {
             gateway,
             provider,
             RuntimeAuthenticator::new(b"runtime-secret".to_vec()).unwrap(),
-            RuntimeLimits::default(),
+            limits,
         )
     }
 
@@ -730,6 +747,13 @@ mod tests {
     fn exchange(request: String) -> String {
         let mut listener =
             HttpListener::bind("127.0.0.1:0".parse().unwrap(), service(provider())).unwrap();
+        exchange_on_listener(&mut listener, request)
+    }
+
+    fn exchange_on_listener(
+        listener: &mut HttpListener<DeterministicProvider>,
+        request: String,
+    ) -> String {
         let address = listener.local_addr().unwrap();
         let client = thread::spawn(move || {
             let mut client = TcpStream::connect(address).unwrap();
@@ -767,6 +791,47 @@ mod tests {
         );
         assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(response.ends_with("{\"status\":\"ok\"}"));
+    }
+
+    #[test]
+    fn readiness_endpoint_reports_admission_capacity_without_authentication() {
+        let response = exchange(
+            "GET /readyz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".to_owned(),
+        );
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(response.ends_with("{\"status\":\"ready\"}"));
+        assert!(!response.contains("Authorization"));
+    }
+
+    #[test]
+    fn readiness_returns_service_unavailable_when_replay_capacity_is_full() {
+        let limits =
+            RuntimeLimits::new_with_replay_entries(tkach_gateway::MAX_RUNTIME_FRAME_BYTES, 1, 1)
+                .unwrap();
+        let mut listener = HttpListener::bind(
+            "127.0.0.1:0".parse().unwrap(),
+            service_with_limits(provider(), limits),
+        )
+        .unwrap();
+        let consumed = serde_json::json!({
+            "request_id": "request-1",
+            "lifecycle_id": "lifecycle-1",
+            "auth": "runtime-secret",
+            "request": {"messages": [{"role": "user", "content": "hello"}]}
+        });
+        assert!(matches!(
+            listener.service_mut().handle_frame(
+                &serde_json::to_vec(&consumed).unwrap(),
+                &CancellationToken::new()
+            ),
+            RuntimeResponse::Success { .. }
+        ));
+        let response = exchange_on_listener(
+            &mut listener,
+            "GET /readyz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".to_owned(),
+        );
+        assert!(response.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
+        assert!(response.ends_with("{\"status\":\"not_ready\"}"));
     }
 
     #[test]

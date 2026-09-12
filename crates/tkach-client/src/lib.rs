@@ -64,6 +64,9 @@ pub enum ClientError {
     /// The health endpoint did not return its exact liveness response.
     #[error("Tkach health response was unexpected")]
     UnexpectedHealthResponse,
+    /// The readiness endpoint did not report an admitting runtime.
+    #[error("Tkach readiness response was unexpected")]
+    UnexpectedReadinessResponse,
 }
 
 /// A validated request payload for the POST /v1/run endpoint.
@@ -237,6 +240,28 @@ impl TkachClient {
             Ok(())
         } else {
             Err(ClientError::UnexpectedHealthResponse)
+        }
+    }
+
+    /// Require the exact unauthenticated runtime admission response.
+    ///
+    /// Readiness means that the runtime is accepting new lifecycles and still
+    /// has replay-ledger capacity. It does not probe provider connectivity.
+    /// No retry or fallback behavior is performed.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport/response error or an unexpected-readiness-response
+    /// client error when the runtime is not ready.
+    pub fn ready(&self) -> Result<(), ClientError> {
+        let mut request = Zeroizing::new(Vec::with_capacity(128));
+        append_request_prefix(&mut request, "GET", "/readyz", self.address);
+        request.extend_from_slice(b"Content-Length: 0\r\nConnection: close\r\n\r\n");
+        let response = self.exchange(&request, &[])?;
+        if response.status_code == 200 && response.body == br#"{"status":"ready"}"# {
+            Ok(())
+        } else {
+            Err(ClientError::UnexpectedReadinessResponse)
         }
     }
 
@@ -565,6 +590,14 @@ mod tests {
     fn health_uses_the_exact_static_endpoint() {
         let (mut listener, client) = client_with_listener();
         let peer = thread::spawn(move || client.health());
+        listener.serve_one().unwrap();
+        assert!(peer.join().unwrap().is_ok());
+    }
+
+    #[test]
+    fn readiness_uses_the_exact_static_endpoint() {
+        let (mut listener, client) = client_with_listener();
+        let peer = thread::spawn(move || client.ready());
         listener.serve_one().unwrap();
         assert!(peer.join().unwrap().is_ok());
     }

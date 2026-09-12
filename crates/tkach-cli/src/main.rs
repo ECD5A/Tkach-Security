@@ -53,6 +53,7 @@ const USAGE_EN: &str = r"Commands:
   tkach check [REQUEST_JSON]   -> validate one bounded request
   tkach doctor                 -> inspect local readiness without secrets
   tkach health                 -> check the local runtime health endpoint
+  tkach ready                  -> check runtime admission readiness
   tkach run --demo             -> run the local deterministic proof
   tkach serve                  -> serve the local authenticated provider runtime
   tkach serve --demo           -> serve the local deterministic HTTP demo
@@ -72,7 +73,7 @@ Serve configuration:
 Options:
   --lang en|ru                 -> choose the interface language
   TKACH_LANG=en|ru             -> choose the default language";
-const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach doctor                 -> проверить локальную готовность без секретов\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
+const USAGE_RU: &str = "Команды:\n  tkach init [DIRECTORY]       -> создать безопасный starter request\n  tkach check [REQUEST_JSON]   -> проверить один ограниченный request\n  tkach doctor                 -> проверить локальную готовность без секретов\n  tkach health                 -> проверить liveness runtime\n  tkach ready                  -> проверить готовность admission runtime\n  tkach run --demo             -> запустить локальное deterministic proof\n  tkach serve --demo           -> запустить локальный аутентифицированный HTTP demo\n  tkach --help                 -> показать эту справку\n  tkach --version              -> показать версию\n\nПуть:\n  init -> check -> trusted runtime -> Gateway -> ограниченный результат\n\nНастройки:\n  --lang en|ru                 -> выбрать язык интерфейса\n  TKACH_LANG=en|ru             -> язык по умолчанию";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Language {
@@ -188,6 +189,7 @@ enum Command {
     Doctor,
     Demo,
     Health,
+    Ready,
     Serve,
     ServeDemo,
     Ui,
@@ -303,6 +305,7 @@ where
         [command, request] if command == "check" => Command::Check(PathBuf::from(request)),
         [command] if command == "doctor" => Command::Doctor,
         [command] if command == "health" => Command::Health,
+        [command] if command == "ready" => Command::Ready,
         [command, flag] if command == "run" && flag == "--demo" => Command::Demo,
         [command] if command == "serve" => Command::Serve,
         [command, flag] if command == "serve" && flag == "--demo" => Command::ServeDemo,
@@ -322,6 +325,7 @@ fn execute(command: Command, language: Language) -> Result<String, CliError> {
         Command::Check(path) => check_request(&path, language),
         Command::Doctor => Ok(doctor(language)),
         Command::Health => run_healthcheck(),
+        Command::Ready => run_readinesscheck(),
         Command::Demo => run_demo(language),
         Command::Serve => {
             run_provider_server()?;
@@ -816,6 +820,18 @@ fn doctor(language: Language) -> String {
 }
 
 fn run_healthcheck() -> Result<String, CliError> {
+    run_statuscheck("/healthz", healthy_response, "health: ok")
+}
+
+fn run_readinesscheck() -> Result<String, CliError> {
+    run_statuscheck("/readyz", ready_response, "ready: ok")
+}
+
+fn run_statuscheck(
+    endpoint: &str,
+    validator: fn(&[u8]) -> bool,
+    success: &str,
+) -> Result<String, CliError> {
     let address = env::var("TKACH_HTTP_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:8080".to_owned())
         .parse::<SocketAddr>()
@@ -831,18 +847,20 @@ fn run_healthcheck() -> Result<String, CliError> {
     stream
         .set_write_timeout(Some(HEALTHCHECK_TIMEOUT))
         .map_err(|_| CliError::ServerFailed)?;
+    let request =
+        format!("GET {endpoint} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
     stream
-        .write_all(b"GET /healthz HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .write_all(request.as_bytes())
         .map_err(|_| CliError::ServerFailed)?;
     let mut response = Vec::new();
     let mut limited = stream.take((MAX_HEALTHCHECK_RESPONSE_BYTES + 1) as u64);
     limited
         .read_to_end(&mut response)
         .map_err(|_| CliError::ServerFailed)?;
-    if response.len() > MAX_HEALTHCHECK_RESPONSE_BYTES || !healthy_response(&response) {
+    if response.len() > MAX_HEALTHCHECK_RESPONSE_BYTES || !validator(&response) {
         return Err(CliError::ServerFailed);
     }
-    Ok("health: ok".to_owned())
+    Ok(success.to_owned())
 }
 
 fn healthy_response(response: &[u8]) -> bool {
@@ -853,6 +871,16 @@ fn healthy_response(response: &[u8]) -> bool {
         return false;
     };
     headers.lines().next() == Some("HTTP/1.1 200 OK") && body == "{\"status\":\"ok\"}"
+}
+
+fn ready_response(response: &[u8]) -> bool {
+    let Ok(response) = std::str::from_utf8(response) else {
+        return false;
+    };
+    let Some((headers, body)) = response.split_once("\r\n\r\n") else {
+        return false;
+    };
+    headers.lines().next() == Some("HTTP/1.1 200 OK") && body == "{\"status\":\"ready\"}"
 }
 
 fn demo_gateway() -> Result<Gateway, CliError> {
@@ -1120,6 +1148,7 @@ mod tests {
         assert!(matches!(parse_args(["check"]), Ok(Command::Check(_))));
         assert!(matches!(parse_args(["doctor"]), Ok(Command::Doctor)));
         assert!(matches!(parse_args(["health"]), Ok(Command::Health)));
+        assert!(matches!(parse_args(["ready"]), Ok(Command::Ready)));
         assert!(matches!(parse_args(["run", "--demo"]), Ok(Command::Demo)));
         assert!(matches!(
             parse_args(["serve", "--demo"]),
@@ -1376,6 +1405,19 @@ mod tests {
         ));
         assert!(!healthy_response(
             b"HTTP/1.1 200 OK\r\n\r\n{\"status\":\"ok\"}\n"
+        ));
+    }
+
+    #[test]
+    fn readiness_check_accepts_only_the_static_admission_contract() {
+        assert!(ready_response(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 18\r\n\r\n{\"status\":\"ready\"}"
+        ));
+        assert!(!ready_response(
+            b"HTTP/1.1 503 Service Unavailable\r\n\r\n{\"status\":\"not_ready\"}"
+        ));
+        assert!(!ready_response(
+            b"HTTP/1.1 200 OK\r\n\r\n{\"status\":\"ready\"}\n"
         ));
     }
 }

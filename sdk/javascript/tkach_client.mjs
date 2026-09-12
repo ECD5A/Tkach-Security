@@ -39,6 +39,7 @@ export const ErrorCode = Object.freeze({
   NON_LOOPBACK_ADDRESS: "non_loopback_address",
   RESPONSE_TOO_LARGE: "response_too_large",
   UNEXPECTED_HEALTH_RESPONSE: "unexpected_health_response",
+  UNEXPECTED_READINESS_RESPONSE: "unexpected_readiness_response",
 });
 
 const ID_PATTERN = /^[A-Za-z0-9._:-]+$/;
@@ -108,6 +109,13 @@ export class TkachClient {
     const response = await this._exchange("GET", "/healthz");
     if (response.statusCode !== 200 || !response.body.equals(Buffer.from('{"status":"ok"}'))) {
       throw new TkachClientError(ErrorCode.UNEXPECTED_HEALTH_RESPONSE);
+    }
+  }
+
+  async ready() {
+    const response = await this._exchange("GET", "/readyz");
+    if (response.statusCode !== 200 || !response.body.equals(Buffer.from('{"status":"ready"}'))) {
+      throw new TkachClientError(ErrorCode.UNEXPECTED_READINESS_RESPONSE);
     }
   }
 

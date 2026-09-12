@@ -14,9 +14,10 @@ The Core security contract remains frozen. A change needs a reproducible
 security or product defect; new integrations must stay thin and must not
 duplicate policy, authority, or execution logic.
 
-The current main branch contains an unreleased adapter hardening candidate that
-aligns bounded client deadlines and adds slow-response coverage. It is not part
-of the published `v0.1.1` artifacts until a coordinated package release.
+The current main branch contains an unreleased adapter/runtime hardening
+candidate that aligns bounded client deadlines, adds slow-response coverage,
+and separates liveness from replay-capacity admission readiness. It is not
+part of the published `v0.1.1` artifacts until a coordinated package release.
 
 ## Delivered
 
@@ -33,7 +34,7 @@ of the published `v0.1.1` artifacts until a coordinated package release.
   real loopback provider runtime with a read-only default effect profile.
   The optional OpenAI Responses adapter is non-streaming, with offline
   fixtures and an opt-in live guard.
-- **Integration:** bounded HTTP/1.1 `/v1/run` and `/healthz`, thin Rust,
+- **Integration:** bounded HTTP/1.1 `/v1/run`, `/healthz`, and `/readyz`, thin Rust,
   Python, JavaScript/TypeScript and Go clients, and a separate MCP stdio
   adapter with one `tkach_run` tool. Python and Node packages have no runtime
   dependencies or install hooks; Go remains a source-level module.

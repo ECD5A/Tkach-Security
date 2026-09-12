@@ -436,6 +436,7 @@ impl CancellationToken {
 pub struct RuntimeLimits {
     max_frame_bytes: usize,
     max_active_requests: usize,
+    max_replay_entries: usize,
 }
 
 impl RuntimeLimits {
@@ -449,15 +450,41 @@ impl RuntimeLimits {
         max_frame_bytes: usize,
         max_active_requests: usize,
     ) -> Result<Self, RuntimeConfigError> {
+        Self::new_with_replay_entries(
+            max_frame_bytes,
+            max_active_requests,
+            MAX_RUNTIME_REPLAY_ENTRIES,
+        )
+    }
+
+    /// Construct limits with an explicit bounded replay-ledger capacity.
+    ///
+    /// The capacity is retained for the lifetime of the runtime instance. It
+    /// is never evicted or reused, because eviction would make an old request
+    /// identity valid again. A deployment that reaches this bound must rotate
+    /// the runtime instance rather than silently weakening replay protection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuntimeConfigError::InvalidLimit`] for zero or oversized
+    /// values.
+    pub fn new_with_replay_entries(
+        max_frame_bytes: usize,
+        max_active_requests: usize,
+        max_replay_entries: usize,
+    ) -> Result<Self, RuntimeConfigError> {
         if max_frame_bytes == 0
             || max_frame_bytes > MAX_RUNTIME_FRAME_BYTES
             || max_active_requests == 0
+            || max_replay_entries == 0
+            || max_replay_entries > MAX_RUNTIME_REPLAY_ENTRIES
         {
             return Err(RuntimeConfigError::InvalidLimit);
         }
         Ok(Self {
             max_frame_bytes,
             max_active_requests,
+            max_replay_entries,
         })
     }
 
@@ -472,6 +499,12 @@ impl RuntimeLimits {
     pub const fn max_active_requests(self) -> usize {
         self.max_active_requests
     }
+
+    /// Return the configured replay-ledger capacity.
+    #[must_use]
+    pub const fn max_replay_entries(self) -> usize {
+        self.max_replay_entries
+    }
 }
 
 impl Default for RuntimeLimits {
@@ -479,6 +512,7 @@ impl Default for RuntimeLimits {
         Self {
             max_frame_bytes: MAX_RUNTIME_FRAME_BYTES,
             max_active_requests: DEFAULT_MAX_ACTIVE_REQUESTS,
+            max_replay_entries: MAX_RUNTIME_REPLAY_ENTRIES,
         }
     }
 }
@@ -515,8 +549,8 @@ impl RuntimeLedger {
         if self.request_ids.contains(&request_id) || self.lifecycle_ids.contains(&lifecycle_id) {
             return Err(RuntimeFailure::Replay);
         }
-        if self.request_ids.len() >= MAX_RUNTIME_REPLAY_ENTRIES
-            || self.lifecycle_ids.len() >= MAX_RUNTIME_REPLAY_ENTRIES
+        if self.request_ids.len() >= limits.max_replay_entries
+            || self.lifecycle_ids.len() >= limits.max_replay_entries
         {
             return Err(RuntimeFailure::ReplayCapacityExceeded);
         }
@@ -528,6 +562,16 @@ impl RuntimeLedger {
 
     fn finish(&mut self) {
         self.active_requests = self.active_requests.saturating_sub(1);
+    }
+
+    fn replay_entries_remaining(&self, limits: RuntimeLimits) -> usize {
+        limits
+            .max_replay_entries
+            .saturating_sub(self.request_ids.len().max(self.lifecycle_ids.len()))
+    }
+
+    fn is_ready(&self, limits: RuntimeLimits) -> bool {
+        self.accepting && self.replay_entries_remaining(limits) != 0
     }
 }
 
@@ -588,6 +632,23 @@ impl<P: Provider> RuntimeService<P> {
     #[must_use]
     pub const fn limits(&self) -> RuntimeLimits {
         self.limits
+    }
+
+    /// Return whether the runtime can admit another lifecycle.
+    ///
+    /// This is an admission/readiness signal, not a provider connectivity
+    /// probe. It is false after shutdown or when the non-evicting replay
+    /// ledger is full. The ledger is intentionally never evicted: accepting
+    /// an old identity again would weaken replay protection.
+    #[must_use]
+    pub fn is_ready(&self) -> bool {
+        self.ledger.is_ready(self.limits)
+    }
+
+    /// Return the remaining replay-ledger entries before admission closes.
+    #[must_use]
+    pub fn replay_entries_remaining(&self) -> usize {
+        self.ledger.replay_entries_remaining(self.limits)
     }
 
     /// Handle one bounded authenticated frame.
@@ -1372,6 +1433,18 @@ mod tests {
         let limits = RuntimeLimits::new(4096, 2).unwrap();
         assert_eq!(limits.max_frame_bytes(), 4096);
         assert_eq!(limits.max_active_requests(), 2);
+        assert_eq!(limits.max_replay_entries(), MAX_RUNTIME_REPLAY_ENTRIES);
+        let small = RuntimeLimits::new_with_replay_entries(4096, 2, 3).unwrap();
+        assert_eq!(small.max_replay_entries(), 3);
+        assert!(RuntimeLimits::new_with_replay_entries(MAX_RUNTIME_FRAME_BYTES, 1, 0).is_err());
+        assert!(
+            RuntimeLimits::new_with_replay_entries(
+                MAX_RUNTIME_FRAME_BYTES,
+                1,
+                MAX_RUNTIME_REPLAY_ENTRIES + 1
+            )
+            .is_err()
+        );
         assert!(RequestId::new("../escape").is_err());
         assert!(LifecycleId::new(" ").is_err());
     }
@@ -1484,6 +1557,8 @@ mod tests {
             ),
             Err(RuntimeFailure::ReplayCapacityExceeded)
         );
+        assert_eq!(ledger.replay_entries_remaining(limits), 0);
+        assert!(!ledger.is_ready(limits));
     }
 
     #[test]

@@ -40,6 +40,9 @@ With a correctly integrated Gateway and protected executor:
 12. The local runtime frame boundary authenticates before Gateway/provider or
     protected-effect admission, rejects duplicate request/lifecycle identities,
     and reports uncertain outcomes without automatic retry.
+13. The local runtime exposes separate static liveness (`/healthz`) and
+    admission-readiness (`/readyz`) signals; readiness fails closed when
+    shutdown begins or the non-evicting replay ledger is full.
 
 The OpenAI adapter adds a bounded, non-streaming Responses API boundary. It
 does not change these guarantees or create a second policy engine.
@@ -92,6 +95,7 @@ Tkach Security does not:
   context outside Klyuchnik;
 - infer whether an allowed action is business-wise desirable;
 - provide durable distributed replay protection or transaction semantics;
+- treat `/readyz` as a provider, policy, or effect-availability guarantee;
 - provide durable replay protection across restart, cluster-wide exactly-once
   effects, or forceful interruption of a blocking synchronous call;
 - make the current OpenAI adapter a production gateway;

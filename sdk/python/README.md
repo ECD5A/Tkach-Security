@@ -36,6 +36,13 @@ than 0 and up to 120; a timeout is not a retry signal and does not prove that
 an effect did not happen. The published `0.1.1` package retains its original
 500ms budget.
 
+`health()` is liveness only. `ready()` checks the unauthenticated `/readyz`
+admission signal; it becomes non-ready when the runtime is shutting down or
+its non-evicting replay ledger is full. It does not prove provider
+connectivity or effect availability. This readiness method is part of the
+current source candidate and will ship in the next coordinated adapter
+release.
+
 Run the offline contract tests from this directory:
 
 ```text

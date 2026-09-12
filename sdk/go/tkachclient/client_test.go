@@ -55,6 +55,30 @@ func TestHealthUsesExactPublicEndpoint(t *testing.T) {
 	}
 }
 
+func TestReadyUsesExactPublicEndpoint(t *testing.T) {
+	var seenAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		seenAuth = request.Header.Get("Authorization")
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("Connection", "close")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(`{"status":"ready"}`))
+	}))
+	defer server.Close()
+	host, port := splitServerAddress(t, server)
+	client, err := NewClient(host, port, "secret-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if err := client.Ready(); err != nil {
+		t.Fatal(err)
+	}
+	if seenAuth != "" {
+		t.Fatalf("ready sent bearer auth: %q", seenAuth)
+	}
+}
+
 func TestRunSendsBoundedRequestAndReturnsObservation(t *testing.T) {
 	var seen *http.Request
 	var body []byte

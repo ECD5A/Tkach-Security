@@ -118,6 +118,21 @@ class PythonClientTests(unittest.TestCase):
         ):
             client.health()
 
+    def test_ready_requires_exact_static_response(self) -> None:
+        server, _thread = self._json_server()
+        _JsonHandler.response_body = b'{"status":"ready"}'
+        client = TkachClient("127.0.0.1", server.server_port, "secret-token")
+        self.addCleanup(client.close)
+        client.ready()
+        self.assertEqual(_JsonHandler.requests[0][0:2], ("GET", "/readyz"))
+        self.assertNotIn("Authorization", _JsonHandler.requests[0][2])
+
+        _JsonHandler.response_body = b'{"status":"not_ready"}'
+        with self.assertRaisesRegex(
+            TkachClientError, ErrorCode.UNEXPECTED_READINESS_RESPONSE.value
+        ):
+            client.ready()
+
     def test_run_sends_one_bounded_json_request_and_returns_observation(self) -> None:
         server, _thread = self._json_server()
         _JsonHandler.response_body = b'{"Success":{"output":"bounded response"}}'

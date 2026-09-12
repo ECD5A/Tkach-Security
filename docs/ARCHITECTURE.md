@@ -201,9 +201,16 @@ Authentication is intentionally not authorization: it identifies the runtime
 caller, while model proposals still use the fixed provider vocabulary and must
 obtain a fresh Krosna-issued Propusk. Request/lifecycle IDs are consumed by a
 bounded in-memory ledger, so duplicate/replayed IDs fail closed and an unknown
-effect outcome cannot be retried automatically. The listener has no queue and
-serves one connection at a time; existing Gateway/provider/effect budgets
-remain the inner bounds.
+effect outcome cannot be retried automatically. The ledger never evicts an
+identity; `RuntimeLimits::new_with_replay_entries` can select a smaller
+bounded capacity, and `/readyz` becomes unavailable before new admission is
+rejected at that capacity. Runtime rotation is required for a fresh ledger.
+The listener has no queue and serves one connection at a time; existing
+Gateway/provider/effect budgets remain the inner bounds.
+
+`/healthz` is static liveness. `/readyz` reports only local admission
+readiness: it does not verify provider connectivity, policy quality, or effect
+availability.
 
 `CancellationToken` is checked at Gateway lifecycle boundaries and before each
 executor call. `shutdown()` stops new admission but does not claim to interrupt

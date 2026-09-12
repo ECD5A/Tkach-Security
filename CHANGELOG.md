@@ -10,6 +10,10 @@ All notable Tkach Security changes are recorded here.
 - Enforce the deadline across the whole Python and Node.js exchange, including
   slow-trickle responses, with delayed-response coverage across all carriers
   and finite timeout validation for the configurable clients.
+- Add a bounded runtime replay-capacity configuration that never evicts old
+  identities, expose explicit `/readyz` admission readiness beside liveness
+  `/healthz`, and add matching CLI and SDK checks. Readiness becomes 503 when
+  shutdown begins or the replay ledger is full; it does not probe providers.
 
 ## [0.1.1] — 2026-09-12
 
