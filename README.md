@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/tkach-preview.png" alt="Tkach Security preview — Krosna, Zaslon, Propusk and Sled">
+  <img src="assets/tkach-preview.png" alt="Tkach Security — Krosna, Zaslon, Propusk and Sled">
 </p>
 
 <div align="center">
@@ -11,10 +11,11 @@
 **A fail-closed security boundary for AI agents and compromised model output.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
+<a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli on crates.io"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache 2.0 license">
-<img src="https://img.shields.io/badge/status-Strong%20Core%20release%20candidate-5b6ee1" alt="Strong Core release candidate">
 
 </div>
 
@@ -23,41 +24,41 @@ probabilistic or compromised models.
 
 > The model proposes. Tkach authorizes.
 
-If a model is compromised, its output remains untrusted DATA. Tkach limits
-which actions, information flows, and brokered-secret operations can cross the
-protected boundary. It does not attempt to make the model trustworthy.
+Model output remains untrusted DATA. Tkach prevents it from minting authority,
+crossing protected information-flow boundaries, or using brokered secrets as
+ordinary context. It does not attempt to make a model trustworthy.
 
 ## Why Tkach
 
 - Model text and tool proposals cannot mint execution authority.
-- Protected effects require a kernel-issued, exact-scope `Propusk`.
+- Protected effects require an exact-scope, kernel-issued `Propusk`.
 - `READ`, `EXPORT`, and other directions are separate `Ruslo` decisions.
-- `Gnezdo`, `Niti`, and `Metka` preserve conservative data and provenance state.
+- `Gnezdo`, `Niti`, and `Metka` retain conservative data and provenance state.
 - `Zaslon` and final release gates fail closed on malformed, over-limit, denied,
   replayed, cancelled, or uncertain states.
 - `Klyuchnik` keeps broker-held secret values outside ordinary model-visible
   context; `Sled` records bounded, payload-free evidence.
 
-This protects the enforcement path when the model is hostile. It does not
-protect an integrator that deliberately routes around Tkach.
+This secures the enforcement path when the model is hostile. An integrator that
+routes around Tkach is outside that boundary.
 
 ## Golden Case
 
-Run the offline proof without a model, network, or real side effect:
+The offline proof needs no model, network, or real effect:
 
 ```console
 cargo run -p tkach-gateway --example golden_case --locked
 GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
 ```
 
-The useful bounded response is released. A compromised provider proposes a
-protected write, Strong Core returns `ActionDenied`, and the executor is never
-called. This is a deterministic boundary proof, not a claim of universal
-semantic prompt-injection detection or host compromise protection.
+Useful bounded output is released. A compromised provider's protected-write
+proposal is denied before the executor is invoked. This is a deterministic
+boundary proof, not a claim of universal prompt-injection detection or host
+compromise protection.
 
-## Five-minute local start
+## Start in minutes
 
-From a checkout with Rust 1.85 or newer:
+Install from crates.io with Rust 1.85 or newer:
 
 ```console
 cargo install tkach-cli --locked
@@ -66,101 +67,33 @@ tkach check my-agent/.tkach/request.json
 tkach run --demo
 ```
 
-`init` creates a bounded starter request and refuses to overwrite an existing
-one. `check` validates the same strict request shape used by the Gateway.
-`run --demo` exercises the deterministic local Gateway proof without a provider
-network call or a real side effect.
+`init` refuses to overwrite an existing request; `check` validates the strict
+Gateway shape; `run --demo` proves the local fail-closed path.
 
-The CLI and the seven Rust crates are available on crates.io. Prebuilt
-binaries and a public production service have not been published yet.
+You can also download a verified binary archive for Linux, macOS, or Windows
+from the [v0.1.0 release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0).
+Each archive has a SHA-256 manifest, keyless Sigstore bundle, and GitHub build
+attestation. See the [distribution guide](docs/DISTRIBUTION.md) before using a
+release artifact.
 
-The JavaScript/TypeScript transport adapter is available as a thin public npm
-package:
+The thin Node.js/TypeScript carrier is available from npm:
 
 ```console
 npm install tkach-security-client
 ```
 
-## CLI preview
+## Integrate without moving policy out of Rust
 
-The intended onboarding surface is deliberately small and readable:
+`tkach-core` stays provider-, protocol-, and language-independent. The CLI,
+local HTTP contract, Rust client, Python/JavaScript/Go carriers, and MCP stdio
+server are adapters around that Core; none defines a second policy engine.
 
-```text
-$ tkach --version
-Tkach Security 0.1.0
-
-$ tkach init my-agent
-initialized my-agent/.tkach/request.json
-  -> next: tkach check my-agent/.tkach/request.json
-  -> demo: tkach run --demo
-
-$ tkach check my-agent/.tkach/request.json
-valid bounded request: 1 message(s), 0 metadata entr(y/ies), 0 tool declaration(s)
-
-$ tkach run --demo
-demo passed: bounded Gateway response released after final gates
-```
-
-For a local HTTP smoke test, start the explicit deterministic reference runtime
-with a bearer token supplied outside the command line:
-
-```console
-TKACH_BEARER_TOKEN=local-development-secret TKACH_HTTP_ADDR=127.0.0.1:8080 tkach serve --demo
-```
-
-It exposes only loopback `/healthz` and authenticated `/v1/run`, performs no
-real model call or protected side effect, and is not a production gateway.
-
-For a real local provider runtime, use `tkach serve`. It keeps the same
-loopback-only HTTP boundary and requires `TKACH_BEARER_TOKEN` plus
-`OPENAI_API_KEY`; `OPENAI_MODEL` defaults to `gpt-4.1-mini`, and trusted
-OpenAI-compatible HTTPS endpoints may be selected with `OPENAI_BASE_URL`.
-The default runtime profile is read-only: model-proposed protected effects are
-denied, and credentials are accepted only from the environment, never from
-request data or CLI arguments. Ctrl-C requests a bounded graceful stop.
-
-Use `tkach --lang ru --help` for Russian help, or set `TKACH_LANG=ru` as the
-default interface language. `--lang en|ru` is an interface setting only; it
-does not change policy, authority, limits, or execution behavior.
-
-Run `tkach` without arguments in a terminal, or `tkach ui`, to open the menu.
-Use **Up/Down** (or **1–8**) to select, **Enter** to open an action, and **Esc**
-to go back or exit. **F1**, **l/L**, and **д/Д** switch English/Russian immediately.
-While entering a path, use **F1**; letters remain part of the path.
-The menu guides starter creation, request validation, local diagnostics, an
-offline demo, integration, session-only UI settings, and safety help.
-It does not deploy a security policy or connect a model. `serve --demo` is a
-separate non-interactive reference command.
-Piped `tkach ui` retains bounded line commands (`/l en`, `/l ru`, `q`);
-scripts and CI can use `init`, `check`, and `run --demo` directly.
-
-For a private container smoke deployment, build the local OCI image:
-
-```console
-docker build -t tkach:local .
-docker run --rm --network host \\
-  -e TKACH_BEARER_TOKEN=local-development-secret \\
-  -e OPENAI_API_KEY=trusted-provider-secret \\
-  tkach:local serve
-```
-
-The image runs as a non-root user, keeps the service loopback-only, and has a
-bounded `/healthz` Docker healthcheck. `--network host` is the Linux host-local
-mode; exposing the container through a bridge or proxy requires a separately
-reviewed network boundary and is not enabled by this image.
-
-The interactive menu is a responsive cross-platform Ratatui panel with a
-selected action, local status panel, keyboard footer, and the supplied dense
-Unicode block-art banner. It is compiled directly into `tkach-cli`, so the
-runtime does not read an asset file or download anything. The banner fits a
-113-column by 11-row header and hides automatically when the terminal is too
-narrow.
-If the terminal is too small, the CLI uses the compact header. This path uses
-common block characters rather than Braille glyphs, but the terminal emulator
-still controls the final font and code-page rendering.
+For the exact CLI, TUI, local `serve` lifecycle, HTTP, MCP, container, and
+language-adapter instructions, use the [integration guide](docs/INTEGRATION.md).
+Copyable end-to-end commands are in [`examples/`](examples/).
 
 <details>
-<summary>Show the CLI window — Windows and WSL Ubuntu</summary>
+<summary>Show the cross-platform CLI window</summary>
 
 <p align="center">
   <img src="assets/tkach-cli-en.png" width="100%" alt="Tkach CLI in English on WSL Ubuntu">
@@ -193,112 +126,38 @@ untrusted model/provider output
                  bounded Sled receipt
 ```
 
-`tkach-core` is provider-, protocol-, and runtime-independent. Adapters carry
-requests to the boundary; they do not define a second policy engine or create
-authority outside the Core.
+## v0.1.0 release status
 
-## Verification status
+- Seven Rust crates are published on crates.io: `tkach-core`, `tkach-gateway`,
+  `tkach-http`, `tkach-client`, `tkach-mcp`, `tkach-cli`, and
+  `tkach-provider-openai`.
+- `tkach-security-client@0.1.0` is published on npm.
+- The public GitHub release contains signed, attested Linux x86_64, macOS
+  x86_64/aarch64, and Windows x86_64 CLI archives.
+- The hosted release matrix built and tested Linux, macOS, Windows, OCI smoke,
+  checksum, keyless Sigstore, and GitHub attestation paths.
 
-The main CI workflow is the evidence gate for source changes. It currently
-checks the pinned Rust 1.85.1 toolchain, formatting, Clippy, debug/release/doc
-tests, warnings-denied documentation, dependency audit, package metadata,
-adapter tests, and fuzz smoke coverage. A separate platform matrix compiles
-and tests the workspace on Ubuntu 24.04, macOS 14 (arm64), and Windows 2022.
-
-These are source-checkout gates for a release candidate. They do not imply
-that signed binaries, public container images, or a hosted service have been
-published.
-
-## Included in this release candidate
-
-| Package | Role |
-| --- | --- |
-| `tkach-core` | Strong Core: Krosna, Zaslon, Gnezdo, Propusk, Ruslo, Niti, Metka, Klyuchnik, and Sled |
-| `tkach-gateway` | Bounded lifecycle, provider orchestration, protected execution boundary, and final release |
-| `tkach-provider-openai` | Optional bounded non-streaming OpenAI Responses adapter; provider output remains hostile DATA |
-| `tkach-cli` | Local `init`, `check`, deterministic proof, and loopback provider/demo runtimes |
-| `tkach-http` | Loopback-only HTTP/1.1 carrier around an existing runtime service |
-| `tkach-client` | Bounded Rust client for the reviewed local HTTP contract |
-| `tkach-mcp` | Separate stdio MCP adapter exposing one delegated `tkach_run` tool |
-
-### Integration boundary
-
-Available today:
-
-- Rust in-process integration through `tkach-core` and `tkach-gateway`;
-- a loopback-only HTTP contract for a host that wires the runtime service;
-- a typed Rust HTTP client;
-- a source-level standard-library Python HTTP adapter;
-- a dependency-free Node.js adapter with TypeScript declarations;
-- a dependency-free Go adapter;
-- an MCP stdio adapter over the local HTTP runtime;
-- a small CLI for safe onboarding and a deterministic proof;
-- a local authenticated provider runtime with a read-only default effect profile;
-- an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests;
-- copyable multi-language and MCP examples under [`examples/`](examples/).
-
-Not claimed yet:
-
-- signed public GitHub Release binaries;
-- published Docker/OCI images;
-- a ready-to-run public HTTP gateway or TLS termination;
-- Streamable HTTP, streaming release, or a public network service;
-- published Python, Go, or other multi-language SDK packages (the thin
-  JavaScript/TypeScript adapter is published separately on npm);
-- UI, cloud control plane, generic executor, or MCP Registry registration.
-
-These are scope facts, not hidden promises. The HTTP JSON contract is the
-language-neutral integration point for future clients, while security logic
-must remain in the Rust boundary.
-
-## Security non-goals
-
-Tkach does not detect every prompt injection, semantic paraphrase,
-hallucination, or bad intention. It does not make an LLM truthful or aligned,
-protect a fully compromised host/OS, stop an out-of-band executor, or recover
-credentials deliberately copied into model context. It does not provide
-distributed exactly-once effects, TLS, process isolation, or universal
-concurrent filesystem-race protection.
-
-The guarantees apply only when every protected effect and release passes
-through the configured Gateway and typed executor boundary, with no raw
-credential or privileged bypass around it.
+Tkach does **not** claim a public internet gateway, TLS termination, a public
+OCI image, a PyPI package, Streamable HTTP, a cloud control plane, a generic
+executor, or MCP Registry registration. The runtime is loopback-only by
+default; deployment beyond that boundary is an explicit integrator decision.
 
 ## Documentation
 
 - [Product contract](docs/PRODUCT_CONTRACT.md) — guarantees and deployment conditions.
-- [Architecture](docs/ARCHITECTURE.md) — implemented boundaries and trusted computing base.
-- [Security model](docs/SECURITY_MODEL.md) — primitive roles, assumptions, and non-goals.
-- [Threat model](docs/THREAT_MODEL.md) — attacker capabilities and containment goals.
-- [Integration guide](docs/INTEGRATION.md) — CLI, Rust, HTTP, MCP, and deployment profiles.
-- [Examples](examples/) — copyable Rust, HTTP, Python, JavaScript, Go, and MCP paths.
-- [Distribution contract](docs/DISTRIBUTION.md) — package and release status.
-- [Security policy](SECURITY.md) — reporting scope and responsible disclosure.
-- [Changelog](CHANGELOG.md) — version history.
-- [Contributing](CONTRIBUTING.md) — development, security, and review contract.
-
-## Validate locally
-
-```console
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
-cargo audit --no-fetch
-cargo deny check
-```
-
-The project uses Apache-2.0 licensing. The current status is a Strong Core
-release candidate, not a public production release.
+- [Architecture](docs/ARCHITECTURE.md) — boundaries and trusted computing base.
+- [Security model](docs/SECURITY_MODEL.md) and [threat model](docs/THREAT_MODEL.md).
+- [Integration guide](docs/INTEGRATION.md) — CLI, HTTP, MCP, containers, and adapters.
+- [Examples](examples/) — Rust, HTTP, Python, JavaScript, Go, and MCP paths.
+- [Distribution](docs/DISTRIBUTION.md) and [v0.1.0 release notes](docs/releases/v0.1.0.md).
+- [Security policy](SECURITY.md), [contributing](CONTRIBUTING.md), and [changelog](CHANGELOG.md).
 
 ## Contributing
 
-Keep changes small, reviewable, and explicit about the security boundary. Do
-not add authority paths, provider-specific policy, credentials, generated
-artifacts, local scan output, or internal engineering instructions to commits.
-For a change, run the relevant Rust formatting, lint, tests, and security
-checks locally and explain any residual limitation in the pull request. Core
-changes require a demonstrated security or product defect; adapters must stay
-thin and must not duplicate Core logic.
+Keep changes small and explicit about the security boundary. Core changes need
+a demonstrated security or product defect; adapters must remain thin and must
+not duplicate Core logic. See [CONTRIBUTING.md](CONTRIBUTING.md) for required
+checks, public-claim rules, and files that must remain local.
 
 ## Support
 
