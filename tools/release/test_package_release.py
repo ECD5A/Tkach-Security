@@ -102,6 +102,37 @@ class ReleasePackageTests(unittest.TestCase):
             workflow,
         )
 
+    def test_oci_publication_is_release_gated_and_attested(self) -> None:
+        root = Path(__file__).parents[2]
+        dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+        workflow = (root / ".github/workflows/publish-oci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('LABEL org.opencontainers.image.source="https://github.com/ECD5A/Tkach-Security"', dockerfile)
+        self.assertIn("USER 10001:10001", dockerfile)
+        self.assertIn("types: [published]", workflow)
+        self.assertIn("environment: ghcr-publish", workflow)
+        self.assertIn("packages: write", workflow)
+        self.assertIn("platforms: linux/amd64,linux/arm64", workflow)
+        self.assertIn("push-to-registry: true", workflow)
+        self.assertNotIn(":latest", workflow)
+        self.assertIn("docker/login-action@dbcb813823bdd20940b903addbd779551569679f", workflow)
+        self.assertIn("docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a", workflow)
+
+    def test_mcp_publication_validates_before_oidc_publish(self) -> None:
+        workflow = (Path(__file__).parents[2] / ".github/workflows/publish-mcp.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("environment: mcp-publish", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("mcp-publisher_linux_amd64.tar.gz", workflow)
+        self.assertIn("MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc", workflow)
+        validate_at = workflow.index(" validate server.json")
+        login_at = workflow.index(" login github-oidc")
+        publish_at = workflow.index(" publish server.json")
+        self.assertLess(validate_at, login_at)
+        self.assertLess(login_at, publish_at)
+
     def test_source_epoch_changes_archive_and_existing_output_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

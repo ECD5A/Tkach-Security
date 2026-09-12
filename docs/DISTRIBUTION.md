@@ -114,12 +114,26 @@ replace checksum verification. The release also includes matching keyless
 Sigstore bundles for users whose deployment policy requires independent
 bundle verification.
 
-The repository also contains a local multi-stage `Dockerfile`. It builds the
-CLI from the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
+The repository also contains a multi-stage `Dockerfile`. It builds the CLI from
+the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
 loopback-only, and checks `/healthz` through the CLI's bounded `health`
 command. Linux host networking is the only documented host-local container
-profile; wildcard binds, TLS termination, ingress, and OCI publication remain
-separate reviewed boundaries.
+profile; wildcard binds, TLS termination, ingress, and public network exposure
+remain separate reviewed boundaries.
+
+The GHCR publication boundary is now encoded in
+[`.github/workflows/publish-oci.yml`](../.github/workflows/publish-oci.yml).
+It runs only for a published GitHub Release or an explicit manual dispatch,
+requires the protected `ghcr-publish` environment, builds `linux/amd64` and
+`linux/arm64`, publishes only version and commit-SHA tags (never `latest`), and
+attaches GitHub build provenance to the pushed digest. The image remains
+non-root and loopback-only. GHCR creates a package as private on first
+publication; the maintainer must explicitly review and change package
+visibility if a public image is intended. Consumers should pin the published
+digest rather than trust a mutable tag.
+
+No GHCR image has been published by this local phase. The existing `container`
+job in `release.yml` remains a build-and-health smoke gate and does not push.
 
 ## Artifact and integration boundaries
 
@@ -157,22 +171,34 @@ to it; tag protection remains the release authorization boundary.
 
 ## MCP Registry readiness gate
 
-The MCP adapter is not registered in the Official MCP Registry. The matching
-`tkach-mcp@0.1.0` crate and the repository are public, but the binary remains
-a local stdio adapter that requires an already-running loopback Tkach runtime
-and a locally supplied bearer token. Registry metadata would otherwise make
-installation and operational readiness look stronger than they are, so
-registration remains intentionally deferred.
+The matching `tkach-mcp@0.1.0` crate and the repository are public, and the
+Cargo manifest satisfies the current Registry package shape. The adapter is
+still a local stdio process that requires an already-running loopback Tkach
+runtime and a locally supplied bearer token. That operational prerequisite is
+documented in the package README and must remain visible to MCP users; Registry
+publication does not turn it into a hosted service.
+
+The adapter is not registered yet. The gated publication workflow is now
+encoded in
+[`.github/workflows/publish-mcp.yml`](../.github/workflows/publish-mcp.yml).
+It checks out the exact published tag, runs the repository version contract,
+downloads a pinned official `mcp-publisher` release with a SHA-256 check, runs
+the official `validate` command before authentication, then uses GitHub OIDC
+from the protected `mcp-publish` environment for publication. No Registry
+credential is stored in the repository.
+
+The exact current manifest was also accepted locally by the official
+`mcp-publisher v1.8.1 validate` command. This proves metadata/schema and
+package-verification readiness only; it is not a Registry publication result.
 
 When that boundary is ready, the release owner must use the current official
 Registry workflow rather than hand-editing registry data:
 
-1. verify the installable `tkach-mcp` Cargo package and its release artifact;
-2. validate the repository `server.json` with the official
-   `mcp-publisher validate` command;
-3. authenticate the package namespace and repository ownership;
-4. publish through `mcp-publisher publish` and verify the returned Registry
-   record.
+1. configure protection/review rules for the `mcp-publish` GitHub Environment;
+2. verify the installable `tkach-mcp` Cargo package and its release artifact;
+3. dispatch the workflow for the exact published tag, or publish a future
+   GitHub Release and approve the environment gate;
+4. verify the returned Registry record through the official API.
 
 The manifest uses the current Cargo package contract and the visible
 `mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. It is
@@ -182,8 +208,9 @@ The authoritative workflow and schema are maintained by the
 [MCP Registry publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),
 the [publisher CLI reference](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/cli/commands.md),
 and the [official Registry API documentation](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/official-registry-api.md).
-No Registry credentials are stored in this repository, and no publication was
-attempted during local development.
+The Registry is currently in preview, so publication is still a deliberate
+release-owner action. No Registry credentials are stored in this repository,
+and no publication was attempted during local development.
 
 The regular version-contract CI gate also binds `server.json` to the
 `tkach-mcp` Cargo package, the visible ownership marker, the loopback address,
@@ -203,8 +230,13 @@ Completed:
 
 Not performed yet:
 
-- Docker/OCI publication;
+- GHCR/OCI publication;
 - MCP Registry registration.
+
+Prepared but not executed:
+
+- protected GHCR publication with multi-arch image provenance;
+- protected MCP Registry publication with official validation and GitHub OIDC.
 
 Those actions require owner-controlled credentials, reviewed deployment
 boundaries, and final platform/registry verification. This runbook describes

@@ -12,6 +12,10 @@ All notable Tkach Security changes are recorded here.
 - Bind MCP Registry metadata to the published Cargo adapter, visible ownership
   marker, loopback default, and secret-token contract in the regular CI gate;
   this does not publish or register the server.
+- Add protected GHCR and MCP Registry publication workflows: multi-arch OCI
+  builds use immutable release/SHA tags and GitHub provenance, while MCP
+  publication pins and hashes the official publisher and validates metadata
+  before GitHub OIDC publication; neither workflow was executed externally.
 
 ## [0.1.0] — 2026-09-12
 

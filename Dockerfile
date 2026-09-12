@@ -22,6 +22,10 @@ RUN apt-get update \
 
 COPY --from=builder /src/target/release/tkach /usr/local/bin/tkach
 
+LABEL org.opencontainers.image.source="https://github.com/ECD5A/Tkach-Security" \
+      org.opencontainers.image.description="Loopback-only Tkach Security runtime with fail-closed defaults" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 WORKDIR /app
 USER 10001:10001
 ENV TKACH_HTTP_ADDR=127.0.0.1:8080
