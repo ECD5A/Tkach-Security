@@ -40,6 +40,20 @@ protected boundary. It does not attempt to make the model trustworthy.
 This protects the enforcement path when the model is hostile. It does not
 protect an integrator that deliberately routes around Tkach.
 
+## Golden Case
+
+Run the offline proof without a model, network, or real side effect:
+
+```console
+cargo run -p tkach-gateway --example golden_case --locked
+GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+```
+
+The useful bounded response is released. A compromised provider proposes a
+protected write, Strong Core returns `ActionDenied`, and the executor is never
+called. This is a deterministic boundary proof, not a claim of universal
+semantic prompt-injection detection or host compromise protection.
+
 ## Five-minute local start
 
 From a checkout with Rust 1.85 or newer:

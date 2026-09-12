@@ -45,6 +45,20 @@ Tkach Security — детерминированная типизированна
 Это защищает путь контроля, даже если модель ведёт себя враждебно. Tkach не
 защищает интегратора, который намеренно обходит границу.
 
+## Golden Case
+
+Запустите offline-доказательство без модели, сети и реального side effect:
+
+```console
+cargo run -p tkach-gateway --example golden_case --locked
+GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+```
+
+Полезный ограниченный ответ выпускается. Скомпрометированный provider
+предлагает protected write, Strong Core возвращает `ActionDenied`, а executor
+не вызывается. Это детерминированное доказательство boundary, а не заявление
+о полной semantic prompt-injection или host-compromise защите.
+
 ## Локальный старт за пять минут
 
 Из checkout с Rust 1.85 или новее:
