@@ -47,13 +47,11 @@ jobs:
           test "${expected}" = "${actual}"
           python tools/release/check_versions.py
 
-      - name: Package every public crate before authentication
+      - name: Package the root crate before authentication
         shell: bash
         run: |
           set -euo pipefail
-          for crate in tkach-core tkach-gateway tkach-http tkach-client tkach-provider-openai tkach-mcp tkach-cli; do
-            cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked
-          done
+          cargo +"${RUST_TOOLCHAIN}" package --package tkach-core --locked
 
       - name: Authenticate with crates.io Trusted Publishing
         id: auth
@@ -73,6 +71,7 @@ jobs:
                 echo "${crate}@${version} already exists; skipping duplicate publish."
                 ;;
               404)
+                cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked
                 cargo +"${RUST_TOOLCHAIN}" publish --package "${crate}" --locked
                 for attempt in $(seq 1 24); do
                   status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/${crate}/${version}")"

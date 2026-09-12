@@ -168,6 +168,21 @@ class ReleasePackageTests(unittest.TestCase):
             "tkach-provider-openai tkach-mcp tkach-cli",
             crates,
         )
+        self.assertIn("Package the root crate before authentication", crates)
+        self.assertIn(
+            'cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked',
+            crates,
+        )
+        self.assertLess(
+            crates.index("Package the root crate before authentication"),
+            crates.index("Authenticate with crates.io Trusted Publishing"),
+        )
+        self.assertLess(
+            crates.index("Authenticate with crates.io Trusted Publishing"),
+            crates.index(
+                'cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked'
+            ),
+        )
 
     def test_source_epoch_changes_archive_and_existing_output_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
