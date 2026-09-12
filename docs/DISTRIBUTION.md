@@ -126,14 +126,18 @@ The GHCR publication boundary is now encoded in
 It runs only for a published GitHub Release or an explicit manual dispatch,
 requires the protected `ghcr-publish` environment, builds `linux/amd64` and
 `linux/arm64`, publishes only version and commit-SHA tags (never `latest`), and
-attaches GitHub build provenance to the pushed digest. The image remains
+attaches GitHub build provenance to the pushed digest. After the successful
+attestation, the workflow changes the package to public for a release event or
+an explicit `public` manual-dispatch choice; `private` remains available for a
+review-only push. The image remains
 non-root and loopback-only. GHCR creates a package as private on first
-publication; the maintainer must explicitly review and change package
-visibility if a public image is intended. Consumers should pin the published
-digest rather than trust a mutable tag.
+publication, so this workflow makes the visibility transition explicit and
+review-gated. Consumers should pin the published digest rather than trust a
+mutable tag.
 
-No GHCR image has been published by this local phase. The existing `container`
-job in `release.yml` remains a build-and-health smoke gate and does not push.
+The v0.1.0 image has been built and attested, but its first package is still
+private until the updated visibility step runs. The existing `container` job in
+`release.yml` remains a build-and-health smoke gate and does not push.
 
 ## Artifact and integration boundaries
 
