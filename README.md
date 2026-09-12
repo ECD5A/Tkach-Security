@@ -193,6 +193,7 @@ Available today:
 - a small CLI for safe onboarding and a deterministic proof.
 - a local authenticated provider runtime with a read-only default effect profile;
 - an explicit loopback-only `serve --demo` reference runtime for HTTP smoke tests.
+- copyable multi-language and MCP examples under [`examples/`](examples/).
 
 Not claimed yet:
 
@@ -228,6 +229,7 @@ credential or privileged bypass around it.
 - [Security model](docs/SECURITY_MODEL.md) — primitive roles, assumptions, and non-goals.
 - [Threat model](docs/THREAT_MODEL.md) — attacker capabilities and containment goals.
 - [Integration guide](docs/INTEGRATION.md) — CLI, Rust, HTTP, MCP, and deployment profiles.
+- [Examples](examples/) — copyable Rust, HTTP, Python, JavaScript, Go, and MCP paths.
 - [Distribution contract](docs/DISTRIBUTION.md) — package and release status.
 - [Security policy](SECURITY.md) — reporting scope and responsible disclosure.
 - [Changelog](CHANGELOG.md) — version history.

@@ -81,6 +81,13 @@ jobs:
         run: |
           go test ./...
           go vet ./...
+      - name: Compile the copyable examples
+        run: |
+          python -m py_compile examples/python/run.py
+          node --check examples/javascript/run.mjs
+      - name: Compile the Go example
+        working-directory: examples/go
+        run: go test ./...
 
   build:
     name: Build ${{ matrix.target }}

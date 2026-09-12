@@ -243,6 +243,11 @@ Installation and usage live with each adapter:
   runtime, TypeScript declarations, and local npm package.
 - [Go](../sdk/go/README.md): dependency-free local module.
 
+The [`examples/`](../examples/) directory contains copyable end-to-end
+invocations for these adapters and the MCP stdio path. All examples use the
+same loopback contract and a placeholder/trusted environment token; none
+embeds credentials or reimplements Core policy.
+
 See [Distribution](DISTRIBUTION.md#external-publication-status) for publication
 status and [Contributing](../CONTRIBUTING.md#required-checks) for validation.
 These clients do not provide TLS, process isolation, policy, or secret brokering.

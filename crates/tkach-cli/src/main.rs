@@ -29,9 +29,9 @@ use tkach_core::propusk::{ExecutionError, Propusk, ProtectedExecutor};
 use tkach_core::ruslo::{FlowMatcher, FlowOperation, FlowRule, FlowSource, Ruslo};
 use tkach_core::zaslon::Zaslon;
 use tkach_gateway::{
-    DeterministicProvider, ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway,
-    MAX_REQUEST_BODY_BYTES, ProviderStep, RuntimeAuthenticator, RuntimeLimits, RuntimeService,
-    ScriptedStep, ToolResult,
+    ExternalMessage, ExternalRequest, ExternalRole, FakeToolBroker, Gateway,
+    MAX_REQUEST_BODY_BYTES, Provider, ProviderError, ProviderRequest, ProviderSink, ProviderStep,
+    RuntimeAuthenticator, RuntimeLimits, RuntimeService, ToolResult,
 };
 use tkach_http::{HttpListener, HttpTransportError};
 use tkach_provider_openai::{OpenAiConfig, OpenAiProvider};
@@ -881,12 +881,27 @@ fn demo_gateway() -> Result<Gateway, CliError> {
     ))
 }
 
-fn demo_provider() -> DeterministicProvider {
-    DeterministicProvider::new(vec![ScriptedStep {
-        chunks: vec!["bounded response".to_owned()],
-        actions: Vec::new(),
-        continuation: ProviderStep::Complete,
-    }])
+fn demo_provider() -> DemoProvider {
+    DemoProvider
+}
+
+/// Repeatable deterministic provider for the local HTTP smoke runtime.
+///
+/// Unlike the finite scripted provider used by unit proofs, this provider can
+/// service multiple independent local requests without creating authority or
+/// proposing effects.
+struct DemoProvider;
+
+impl Provider for DemoProvider {
+    fn invoke(
+        &mut self,
+        _request: &ProviderRequest,
+        sink: &mut dyn ProviderSink,
+    ) -> Result<ProviderStep, ProviderError> {
+        sink.text_chunk("bounded response")
+            .map_err(|_| ProviderError::OutputLimitExceeded)?;
+        Ok(ProviderStep::Complete)
+    }
 }
 
 /// Defense-in-depth executor for the first local provider runtime.
@@ -1048,7 +1063,28 @@ fn run_demo(language: Language) -> Result<String, CliError> {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use tkach_gateway::{GatewayErrorKind, protected_write_request};
+    use tkach_gateway::{
+        DeterministicProvider, GatewayErrorKind, ProviderSinkError, ScriptedStep,
+        protected_write_request,
+    };
+
+    struct TextSink {
+        text: String,
+    }
+
+    impl ProviderSink for TextSink {
+        fn text_chunk(&mut self, chunk: &str) -> Result<(), ProviderSinkError> {
+            self.text.push_str(chunk);
+            Ok(())
+        }
+
+        fn action(
+            &mut self,
+            _action: tkach_core::domain::ActionRequest,
+        ) -> Result<(), ProviderSinkError> {
+            panic!("repeatable demo provider must not propose actions");
+        }
+    }
 
     #[test]
     fn parser_keeps_the_onboarding_surface_small_and_explicit() {
@@ -1273,6 +1309,22 @@ mod tests {
             run_demo(Language::English).unwrap(),
             "demo passed: bounded Gateway response released after final gates"
         );
+    }
+
+    #[test]
+    fn demo_provider_is_repeatable_for_multiple_local_requests() {
+        let request = ProviderRequest::new(Vec::new(), Vec::new(), 0);
+        let mut provider = demo_provider();
+        for _ in 0..2 {
+            let mut sink = TextSink {
+                text: String::new(),
+            };
+            assert_eq!(
+                provider.invoke(&request, &mut sink),
+                Ok(ProviderStep::Complete)
+            );
+            assert_eq!(sink.text, "bounded response");
+        }
     }
 
     #[test]

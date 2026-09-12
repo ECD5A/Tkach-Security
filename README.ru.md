@@ -199,6 +199,7 @@ block-art баннером. Он встроен прямо в `tkach-cli`: runti
 - MCP stdio-адаптер поверх локального HTTP runtime;
 - небольшой CLI для безопасного onboarding и детерминированной проверки.
 - отдельный loopback-only `serve --demo` для smoke-проверки HTTP-интеграции.
+- копируемые примеры Rust, HTTP, Python, JavaScript, Go и MCP в [`examples/`](examples/).
 
 Пока не заявляется:
 
@@ -235,6 +236,7 @@ Tkach не обнаруживает каждую prompt injection, смысло�
 - [Модель безопасности](docs/SECURITY_MODEL.md) — роли примитивов, допущения и non-goals.
 - [Модель угроз](docs/THREAT_MODEL.md) — возможности атакующего и цели containment.
 - [Руководство по интеграции](docs/INTEGRATION.md) — CLI, Rust, HTTP, MCP и deployment profiles.
+- [Примеры](examples/) — копируемые сценарии для Rust, HTTP, Python, JavaScript, Go и MCP.
 - [Контракт распространения](docs/DISTRIBUTION.md) — статус пакетов и релиза.
 - [Политика безопасности](SECURITY.md) — scope для сообщений и responsible disclosure.
 - [История изменений](CHANGELOG.md) — версии проекта.

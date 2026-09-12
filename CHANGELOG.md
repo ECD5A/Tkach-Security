@@ -5,6 +5,9 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Add copyable multi-language and MCP examples with trusted environment-only
+  credentials, and make the local deterministic HTTP demo provider repeatable
+  across independent requests instead of exhausting after the first smoke call.
 - Add a real local `tkach serve` provider runtime with loopback-only HTTP,
   environment-only credentials, health/auth boundaries, graceful Ctrl-C
   shutdown, and a read-only fail-closed default effect profile. Keep
