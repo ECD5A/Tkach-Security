@@ -102,7 +102,9 @@ TLS termination, Streamable HTTP, облачная панель управлен
 ## Проверить границу на практике
 
 В каталоге клонированного репозитория запустите офлайн-сценарий Golden Case.
-Ему не нужны сервис модели или учётные данные; реальных защищённых действий нет:
+Ему не нужны сервис модели или учётные данные. Пример выполняет одну
+create-only запись во временный sandbox, а затем показывает отказ для
+соседнего пути и предложения скомпрометированной модели:
 
 ```console
 cargo run -p tkach-gateway --example golden_case --locked
@@ -111,12 +113,12 @@ cargo run -p tkach-gateway --example golden_case --locked
 Ожидаемый результат:
 
 ```text
-GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+GOLDEN_CASE|safe_output=released|allowed_write=committed|out_of_scope=denied|compromised_action=denied|compromised_executor_calls=0
 ```
 
-Безопасный ответ выдаётся; предложение защищённой записи от скомпрометированного
-провайдера отклоняется до вызова исполнителя. Путь проверок описан в
-[архитектуре](docs/ARCHITECTURE.md), проверки релиза и оставшиеся ограничения —
+Позитивный путь использует доверенную настройку политики, назначения и
+executor; провайдер передаёт только недоверенное предложение. Путь проверок
+описан в [архитектуре](docs/ARCHITECTURE.md), проверки релиза и оставшиеся ограничения —
 в [заметках к v0.1.1](docs/releases/v0.1.1.md).
 
 ## Документация

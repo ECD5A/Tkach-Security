@@ -4,6 +4,10 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+- Strengthen the offline Golden Case: trusted host configuration now permits
+  one exact create-only write, proves the committed effect and final output,
+  and rejects both a sibling-path scope escape and a compromised provider
+  proposal before executor invocation.
 - Align the default bounded client exchange deadline at 35 seconds across Rust,
   Python, Node.js, Go, and MCP so local adapters cover the provider's default
   30-second request budget without adding retries or public exposure.

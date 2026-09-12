@@ -101,7 +101,9 @@ are **not included**; see the [deployment contract](docs/PRODUCT_CONTRACT.md).
 ## See the boundary in action
 
 From a repository checkout, run the offline Golden Case. It needs no model
-service or credentials and performs no real protected effect:
+service or credentials. It performs one create-only write inside a temporary
+sandbox, then proves that a sibling path and a compromised provider proposal
+are denied:
 
 ```console
 cargo run -p tkach-gateway --example golden_case --locked
@@ -110,13 +112,14 @@ cargo run -p tkach-gateway --example golden_case --locked
 Expected result:
 
 ```text
-GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
+GOLDEN_CASE|safe_output=released|allowed_write=committed|out_of_scope=denied|compromised_action=denied|compromised_executor_calls=0
 ```
 
-Safe output is released; a compromised provider's protected-write proposal is
-denied before executor invocation. Read the [architecture](docs/ARCHITECTURE.md)
-for the enforcement path and the [release notes](docs/releases/v0.1.1.md) for
-the release checks and remaining limitations.
+The positive path uses trusted host configuration for the exact policy,
+destination, and executor binding; the provider supplies only an untrusted
+proposal. Read the [architecture](docs/ARCHITECTURE.md) for the enforcement
+path and the [release notes](docs/releases/v0.1.1.md) for the release checks and
+remaining limitations.
 
 ## Documentation
 
