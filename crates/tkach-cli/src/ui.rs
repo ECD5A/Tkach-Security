@@ -45,7 +45,8 @@ enum BannerMode {
     Blocks { rows: u16 },
 }
 
-const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄    ▄     ▄▄▄▄  ▄   ▄▄      ▄▄▄   ▄▄▄▄   ▄▄▄▄  ▄   ▄  ▄ ▄▄   ▄  ▄▄▄▄▄ ▄    ▄
+const BANNER_TEXT: &str = r"
+                        ▄▄▄ ▄  ▄   ▄▄    ▄     ▄▄▄▄  ▄   ▄▄      ▄▄▄   ▄▄▄▄   ▄▄▄▄  ▄   ▄  ▄ ▄▄   ▄  ▄▄▄▄▄ ▄    ▄
                ▄▄       ▀▀██▀▀ █  █▀    ███   ██▀▀██ ██  ██     █▀▀▀█ ▀█▀▀▀▀ █▀▀▀█▄ █   █  █▀▀▀█  █ ▀▀██▀▀ ▀█  ██
    ▀▀██▄▄▄  ▄██▀          ██   █▄█▀    ▄█▀█▄  ██     █▄▄▄██     █▄▄▄  ██▄▄▄  █   ▀  █   █  █▄  █  █   ██    ▀███
        ▀███ ██▀           ██   █▀█▄    ██▄██  ██     █▀▀▀██      ▀▀▀█ ▀█▀▀▀  █      █   █  █▀▀█▀  █   ██     ██
@@ -53,8 +54,7 @@ const BANNER_TEXT: &str = r"                        ▄▄▄ ▄  ▄   ▄▄ 
          ███▀             ▀    ▀   ▀▀ ▀     ▀  ▀▀▀▀  ▀   ▀▀     ▀▀▀▀   ▀▀▀▀▀ ▀▀▀▀▀  ▀▀▀▀▀  ▀   ▀  ▀    ▀     ▀▀
          ██▀
          █
-         ▀
-
+          ▀
                A r c h i t e c t e d   d e f e n s e   f r o m   f i r s t   p r i n c i p l e s";
 const BANNER_TEXT_WIDTH: u16 = 113;
 
@@ -1089,6 +1089,13 @@ mod tests {
         assert_eq!(choose_banner(Rect::new(0, 0, 128, 10)), BannerMode::Compact);
         let text_lines = terminal_banner_lines(true);
         assert_eq!(text_lines.len(), 11);
+        assert_eq!(text_lines.first().map(Line::width), Some(0));
+        assert!(
+            BANNER_TEXT
+                .lines()
+                .last()
+                .is_some_and(|line| line.contains("A r c h i t e c t e d"))
+        );
         assert_eq!(text_lines.iter().map(Line::width).max(), Some(113));
         assert!(text_lines.iter().all(|line| line.width() <= 113));
     }
