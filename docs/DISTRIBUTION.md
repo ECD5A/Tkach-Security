@@ -37,6 +37,11 @@ Run the complete [contributor checks](../CONTRIBUTING.md#required-checks)
 and onboarding commands from a clean checkout with the pinned toolchain.
 That list is shared with regular development; release-specific gates follow.
 
+For code changes, regular GitHub CI runs the complete Rust build and test suite
+on Ubuntu, macOS, and Windows. Documentation, license, and asset-only changes
+are intentionally excluded from the code CI trigger; changing workflow files
+still runs CI so the gate itself cannot silently drift.
+
 The release process must additionally verify the exact tag, clean worktree,
 artifact checksums, and a fresh install of the CLI and MCP adapter. The tag
 workflow installs both with `cargo install --locked --root` into an isolated
