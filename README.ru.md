@@ -139,13 +139,13 @@ server — адаптеры вокруг Core; ни один из них не с
   checksums, keyless Sigstore и GitHub attestations.
 - `tkach-mcp@0.1.0` зарегистрирован в Official MCP Registry как
   `io.github.ECD5A/tkach-security` для локального stdio-сценария.
-- Multi-arch OCI-образ отправлен в GHCR и attested; пакет пока приватный, пока
-  владелец репозитория не изменит видимость в GitHub Package Settings.
+- Multi-arch OCI-образ отправлен в GHCR, attested и сделан публичным владельцем
+  репозитория для анонимного pull.
 
-Tkach **не** заявляет публичный internet gateway, TLS termination, публичный
-OCI image до выполнения владельцем контролируемого шага видимости, PyPI-пакет,
-Streamable HTTP, cloud control plane или generic executor. Runtime по умолчанию
-только loopback; выход за эту границу — явное решение интегратора.
+Tkach **не** заявляет публичный internet gateway, TLS termination, PyPI-пакет,
+Streamable HTTP, cloud control plane или generic executor. OCI image доступен
+для распространения, но Runtime по умолчанию только loopback; выход за эту
+границу — явное решение интегратора.
 
 ## Документация
 

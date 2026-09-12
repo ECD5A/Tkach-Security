@@ -133,8 +133,8 @@ Package Settings and is not changed by this workflow. Consumers should pin
 the published digest rather than trust a mutable tag.
 
 The v0.1.0 image was built for both supported Linux architectures, pushed, and
-attested successfully. Its package is still private until the repository owner
-changes visibility at the [GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
+attested successfully. Its package is now public after the repository owner
+changed visibility at the [GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
 The verified multi-arch index is
 `ghcr.io/ecd5a/tkach-security@sha256:6e9f7e815a24385ca8e2ed6a3851ca7ab55d48410aad0167a63402149c64ed0f`.
 The existing `container` job in `release.yml` remains a build-and-health smoke
@@ -153,9 +153,8 @@ generic executor.
 `tkach-mcp` is a stdio adapter over an already running loopback Tkach HTTP
 runtime. `tkach-http` remains a library boundary, not a production server
 binary. Consequently this repository does not yet claim a ready-to-run public
-HTTP service, TLS termination, process supervisor, or public OCI image. The
-GHCR image is currently a private deployment artifact, not a public network
-gateway.
+HTTP service, TLS termination, or process supervisor. The public GHCR image is
+distributable, but it is not a public network gateway.
 
 The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
@@ -235,21 +234,19 @@ Completed:
 - the public [v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0)
   with Linux x86_64, macOS x86_64/aarch64, and Windows x86_64 archives,
   SHA-256 manifests, keyless Sigstore bundles, and GitHub attestations.
-- the v0.1.0 multi-arch GHCR image, pushed with immutable release/SHA tags and
-  GitHub build provenance; the package is currently private pending owner
-  visibility approval;
+- the v0.1.0 multi-arch GHCR image, pushed with immutable release/SHA tags,
+  GitHub build provenance, and public package visibility;
 - `tkach-mcp@0.1.0` registered as `io.github.ECD5A/tkach-security` in the
   Official MCP Registry.
 
 Not performed yet:
 
-- public GHCR visibility (owner action in GitHub Package Settings);
 - PyPI publication, Streamable HTTP, and public gateway operation.
 
-Public GHCR visibility requires an explicit owner action because the
-repository's `GITHUB_TOKEN` cannot use the user-scoped package-visibility API
-in this workflow. This runbook describes release work; it does not grant
-publication authority.
+The workflow deliberately does not change package visibility. Future package
+visibility changes remain an explicit owner action because the repository's
+`GITHUB_TOKEN` cannot use the user-scoped package-visibility API. This runbook
+describes release work; it does not grant publication authority.
 
 ### v0.1.0 Windows archive note
 

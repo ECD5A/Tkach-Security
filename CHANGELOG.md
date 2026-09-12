@@ -12,8 +12,8 @@ All notable Tkach Security changes are recorded here.
 - Bind MCP Registry metadata to the published Cargo adapter, visible ownership
   marker, loopback default, and secret-token contract in the regular CI gate.
 - Publish and attest the v0.1.0 multi-arch GHCR image with immutable
-  release/SHA tags; package visibility remains an explicit owner action in
-  GitHub Package Settings.
+  release/SHA tags; the package is publicly pullable after the owner-approved
+  visibility change in GitHub Package Settings.
 - Register `tkach-mcp@0.1.0` as `io.github.ECD5A/tkach-security` in the
   Official MCP Registry through the protected OIDC workflow.
 

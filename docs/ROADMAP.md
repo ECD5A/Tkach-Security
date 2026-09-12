@@ -100,12 +100,11 @@ this order:
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks (the seven
   `0.1.0` crates, npm adapter, and signed GitHub archives are published;
-  the v0.1.0 GHCR image is built, pushed, and attested; package visibility
-  remains an owner-controlled GitHub Package Settings action);
+  the v0.1.0 GHCR image is built, pushed, attested, and public);
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing
-  (GitHub Release v0.1.0 is published; the multi-arch GHCR image is pushed
-  and attested, with public visibility pending owner action);
+  (GitHub Release v0.1.0 is published; the multi-arch GHCR image is pushed,
+  attested, and publicly pullable);
 - MCP stdio adapter (done); Streamable HTTP and, only after current
   requirements are researched and met, Official MCP Registry publication
   (adapter, public package, manifest, and active Registry registration are

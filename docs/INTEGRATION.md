@@ -171,9 +171,8 @@ put it in model-controlled request data, shell history, or committed examples.
 
 The repository includes a multi-stage `Dockerfile` for local or private
 deployment. The v0.1.0 image was built for `linux/amd64` and `linux/arm64`,
-pushed to GHCR, and attached to GitHub build provenance. The package is
-currently private; after the owner changes its visibility in GitHub Package
-Settings, the immutable release tag can be pulled with:
+pushed to GHCR, attached to GitHub build provenance, and made public. The
+immutable release tag can be pulled anonymously with:
 
 ```text
 docker pull ghcr.io/ecd5a/tkach-security:v0.1.0
