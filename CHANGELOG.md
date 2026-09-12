@@ -12,6 +12,11 @@ All notable Tkach Security changes are recorded here.
   target's logs and libFuzzer artifact inputs on failure, and emit a
   deterministic latency plus declared-payload-memory baseline. The memory
   figure is bounded payload accounting, not a process-RSS claim.
+- Reconcile architecture, security-model, contributor, and integration claims
+  with the published Python/Node packages, source-level Go carrier, OCI image,
+  and MCP Registry record; remaining non-goals are now stated as additional
+  provider adapters, streaming/hosted transports, and public service
+  operation.
 - Strengthen the offline Golden Case: trusted host configuration now permits
   one exact create-only write, proves the committed effect and final output,
   and rejects both a sibling-path scope escape and a compromised provider

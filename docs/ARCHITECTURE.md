@@ -254,11 +254,12 @@ but cannot construct Decision/Propusk, call an executor, access Klyuchnik, or
 release output. The real provider path is therefore still subject to the same
 Krosna, Ruslo, Niti/Metka, and egress-Zaslon gates as hostile test doubles.
 
-Responses streaming, provider-side tools, automatic retry, multi-language
-SDKs, Streamable HTTP, and
-production transport orchestration are not implemented in the current source
-surface. The Gateway contract is synchronous and buffers security-relevant
-output before release; no token-by-token release API exists in this baseline.
+Responses streaming, provider-side tools, automatic retry, Streamable HTTP,
+and production transport orchestration are not implemented in the current
+source surface. Thin Python/Node packages and a source-level Go carrier exist,
+but they remain transport adapters rather than Core implementations. The
+Gateway contract is synchronous and buffers security-relevant output before
+release; no token-by-token release API exists in this baseline.
 
 ## Architecture pruning and product contract
 
@@ -273,17 +274,19 @@ checks, not competing policy engines.
 
 `INTEGRATION.md` defines Basic Gateway, Controlled Agent, Sealed Agent, Local
 Authenticated Runtime, the narrow RealEffectExecutor profile, the local Rust
-client carrier, source-level Python/Node/Go carriers, and the MCP stdio carrier.
-The current source surface has no configuration DSL, provider abstraction
-layer, streaming event model, Streamable HTTP, or internet gateway.
+client carrier, published Python/Node carriers, the source-level Go carrier,
+and the MCP stdio carrier. The current source surface has no configuration
+DSL, provider abstraction layer, streaming event model, Streamable HTTP, or
+internet gateway.
 
 ## Current non-implemented surfaces
 
-Anthropic, Streamable HTTP, cloud services, published multi-language SDK
-packages, hosted dashboards, human approval services,
-production gateway orchestration, TLS/process supervisor integration, and
-generic executors are not part of this baseline. The runtime listener is a
-narrow local frame boundary, not a claim of generic production readiness.
+Additional provider adapters such as Anthropic, Streamable HTTP, cloud
+services, SDK packages beyond the published Python/Node carriers, hosted
+dashboards, human approval services, production gateway orchestration,
+TLS/process supervisor integration, and generic executors are not part of this
+baseline. The runtime listener is a narrow local frame boundary, not a claim
+of generic production readiness.
 Future selection is governed by `ROADMAP.md`; these facts are not permanent
 bans.
 

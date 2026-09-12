@@ -134,11 +134,13 @@ generated build output and local scan files out of the repository.
 
 Documentation must describe the current implementation, not an intended future
 integration. Clearly label partial, local-only, opt-in, unavailable, or
-unverified features. At v0.1.0, the seven Rust crates, the npm JavaScript
-carrier, and signed/attested GitHub CLI archives are published. Do not claim
-an OCI image, hosted gateway, public Python/Go SDK package, or MCP Registry
-registration until the corresponding release owner has actually completed and
-verified it.
+unverified features. At v0.1.1, the seven Rust crates, npm and PyPI thin
+carriers, signed/attested GitHub CLI archives, Linux multi-arch OCI image, and
+MCP Registry registration are published. The Go adapter remains a source-level
+module, and the local image/HTTP runtime is not a hosted gateway. Do not claim
+TLS termination, Streamable HTTP, a public internet service, or additional
+SDKs until the corresponding release owner has actually completed and verified
+them.
 
 Keep maintainer-only engineering notes, local tool state, temporary scan
 configuration, and unpublished release records out of public docs. Public
