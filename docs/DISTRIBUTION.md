@@ -31,6 +31,15 @@ CI and the tag preflight run `tools/release/check_versions.py` so every Rust
 crate, the Python and Node adapters, and the MCP manifest share one exact
 version. Go remains module-versioned by its repository release tag.
 
+Before the first registry publication, CI packages the independent
+`tkach-core` crate and builds/tests every other workspace crate. Cargo cannot
+package the dependent crates against an empty crates.io index: their path
+dependencies are rewritten to registry dependencies and must already exist
+there. The owner-controlled publication sequence must therefore publish and
+verify `tkach-core` first, then package/publish the dependent crates in
+dependency order. A pre-publication `cargo package --workspace` gate would be
+invalid and is deliberately not used.
+
 ## Local release preflight
 
 Run the complete [contributor checks](../CONTRIBUTING.md#required-checks)

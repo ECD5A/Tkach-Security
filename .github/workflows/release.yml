@@ -25,6 +25,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install pinned Rust toolchain
         run: rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --no-self-update
+      - name: Install pinned rustfmt component
+        run: rustup component add rustfmt --toolchain "${RUST_TOOLCHAIN}"
       - name: Validate SemVer tag against the Core package
         env:
           TAG: ${{ github.ref_name }}
@@ -52,7 +54,8 @@ jobs:
       - name: Verify shared package version contract
         run: python tools/release/check_versions.py
       - run: cargo +${RUST_TOOLCHAIN} check --manifest-path fuzz/Cargo.toml --bins --locked
-      - run: cargo +${RUST_TOOLCHAIN} package --workspace --locked
+      - name: Package the registry-independent Core crate
+        run: cargo +${RUST_TOOLCHAIN} package -p tkach-core --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example quickstart --locked
       - run: cargo +${RUST_TOOLCHAIN} run -p tkach-gateway --example golden_case --locked
       - name: Test deterministic release packaging

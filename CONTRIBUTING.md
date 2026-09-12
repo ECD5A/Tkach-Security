@@ -33,6 +33,7 @@ repository root:
 
 ```text
 rustup toolchain install 1.85.1 --profile minimal --no-self-update
+rustup component add rustfmt --toolchain 1.85.1
 cargo +1.85.1 metadata --format-version=1 --locked --no-deps
 ```
 
@@ -55,7 +56,7 @@ RUSTDOCFLAGS="-D warnings" cargo +1.85.1 doc --workspace --all-features --no-dep
 cargo audit
 cargo deny check
 cargo check --manifest-path fuzz/Cargo.toml --bins --locked
-cargo +1.85.1 package --workspace --locked
+cargo +1.85.1 package -p tkach-core --locked
 python -m unittest discover -s tools/release -p "test_*.py" -v
 python -m unittest discover -s sdk/python -p "test_*.py" -v
 node --test sdk/javascript/test_tkach_client.mjs
