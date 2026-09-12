@@ -103,6 +103,13 @@ secret-handling logic. The thin Node.js/TypeScript adapter is now published as
 [`tkach-security-client`](https://www.npmjs.com/package/tkach-security-client)
 `0.1.0`; the Python and Go adapters remain source/local packages.
 
+Future npm releases use `.github/workflows/publish-npm.yml` with GitHub OIDC
+and npm staged publishing. The package's Trusted Publisher must be configured
+for GitHub user `ECD5A`, repository `Tkach-Security`, workflow filename
+`publish-npm.yml`, and environment `npm-publish`; only `npm stage publish`
+should be allowed. A maintainer reviews and approves each staged package with
+2FA before it becomes public.
+
 ## MCP Registry readiness gate
 
 The MCP adapter is not registered in the Official MCP Registry. Registration
