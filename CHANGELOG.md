@@ -65,6 +65,9 @@ release candidate description, not a claim that a public release exists.
   crate with strict locked verification; dependent crates remain covered by
   the full workspace build/test gates until the ordered crates.io publication
   sequence makes their registry dependencies resolvable.
+- Install the pinned `rustfmt` and `clippy` components explicitly for minimal
+  CI toolchains, and make CLI filesystem tests reserve unique temporary
+  directories atomically across Unix and Windows runners.
 - Correct the public README onboarding heading and source sentence, and record
   the evidence gate that remains before MCP Registry publication.
 - Add the explicit loopback-only `tkach serve --demo` reference runtime for

@@ -34,6 +34,7 @@ repository root:
 ```text
 rustup toolchain install 1.85.1 --profile minimal --no-self-update
 rustup component add rustfmt --toolchain 1.85.1
+rustup component add clippy --toolchain 1.85.1
 cargo +1.85.1 metadata --format-version=1 --locked --no-deps
 ```
 

@@ -540,8 +540,7 @@ fn same_file_identity(path_metadata: &fs::Metadata, handle_metadata: &fs::Metada
     {
         use std::os::unix::fs::MetadataExt;
 
-        return path_metadata.dev() == handle_metadata.dev()
-            && path_metadata.ino() == handle_metadata.ino();
+        path_metadata.dev() == handle_metadata.dev() && path_metadata.ino() == handle_metadata.ino()
     }
     #[cfg(windows)]
     {

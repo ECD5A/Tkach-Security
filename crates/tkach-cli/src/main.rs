@@ -1062,6 +1062,7 @@ fn run_demo(language: Language) -> Result<String, CliError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
     use std::time::{SystemTime, UNIX_EPOCH};
     use tkach_gateway::{
         DeterministicProvider, GatewayErrorKind, ProviderSinkError, ScriptedStep,
@@ -1070,6 +1071,25 @@ mod tests {
 
     struct TextSink {
         text: String,
+    }
+
+    fn create_test_directory(prefix: &str) -> PathBuf {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock is after the Unix epoch")
+            .as_nanos();
+        let process = std::process::id();
+        for _ in 0..128 {
+            let counter = COUNTER.fetch_add(1, AtomicOrdering::Relaxed);
+            let path = env::temp_dir().join(format!("{prefix}-{process}-{timestamp}-{counter}"));
+            match fs::create_dir(&path) {
+                Ok(()) => return path,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("test directory creation failed: {error}"),
+            }
+        }
+        panic!("could not reserve a unique test directory");
     }
 
     impl ProviderSink for TextSink {
@@ -1203,11 +1223,8 @@ mod tests {
 
     #[test]
     fn init_is_no_overwrite_and_starter_is_accepted_by_gateway_parser() {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock is after the Unix epoch")
-            .as_nanos();
-        let root = env::temp_dir().join(format!("tkach-cli-{suffix}"));
+        let test_directory = create_test_directory("tkach-cli");
+        let root = test_directory.join("workspace");
         let initialized =
             initialize(&root, Language::English).expect("starter initialization succeeds");
         assert!(initialized.contains("tkach check"));
@@ -1217,22 +1234,19 @@ mod tests {
             initialize(&root, Language::English).unwrap_err(),
             CliError::AlreadyInitialized
         );
-        fs::remove_dir_all(root).expect("test directory cleanup succeeds");
+        fs::remove_dir_all(test_directory).expect("test directory cleanup succeeds");
     }
 
     #[test]
     fn oversized_check_fails_before_request_deserialization() {
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock is after the Unix epoch")
-            .as_nanos();
-        let path = env::temp_dir().join(format!("tkach-cli-oversized-{suffix}.json"));
+        let test_directory = create_test_directory("tkach-cli-oversized");
+        let path = test_directory.join("request.json");
         fs::write(&path, vec![b'x'; MAX_REQUEST_BODY_BYTES + 1]).expect("test file write succeeds");
         assert_eq!(
             check_request(&path, Language::English).unwrap_err(),
             CliError::InvalidRequest
         );
-        fs::remove_file(path).expect("test file cleanup succeeds");
+        fs::remove_dir_all(test_directory).expect("test directory cleanup succeeds");
     }
 
     #[test]
@@ -1257,14 +1271,8 @@ mod tests {
     fn init_rejects_a_preexisting_directory_symlink() {
         use std::os::unix::fs::symlink;
 
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock is after the Unix epoch")
-            .as_nanos();
-        let root = env::temp_dir().join(format!("tkach-cli-link-{suffix}"));
-        let outside = env::temp_dir().join(format!("tkach-cli-outside-{suffix}"));
-        fs::create_dir_all(&root).expect("test root creation succeeds");
-        fs::create_dir_all(&outside).expect("test outside directory creation succeeds");
+        let root = create_test_directory("tkach-cli-link");
+        let outside = create_test_directory("tkach-cli-outside");
         symlink(&outside, root.join(".tkach")).expect("test symlink creation succeeds");
 
         assert_eq!(
@@ -1282,15 +1290,9 @@ mod tests {
     fn init_rejects_a_symlink_in_an_existing_parent_component() {
         use std::os::unix::fs::symlink;
 
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock is after the Unix epoch")
-            .as_nanos();
-        let base = env::temp_dir().join(format!("tkach-cli-parent-{suffix}"));
-        let outside = env::temp_dir().join(format!("tkach-cli-parent-outside-{suffix}"));
+        let base = create_test_directory("tkach-cli-parent");
+        let outside = create_test_directory("tkach-cli-parent-outside");
         let linked_root = base.join("linked").join("nested");
-        fs::create_dir_all(&base).expect("test base creation succeeds");
-        fs::create_dir_all(&outside).expect("test outside creation succeeds");
         symlink(&outside, base.join("linked")).expect("test parent symlink creation succeeds");
 
         assert_eq!(

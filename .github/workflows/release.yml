@@ -27,6 +27,8 @@ jobs:
         run: rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal --no-self-update
       - name: Install pinned rustfmt component
         run: rustup component add rustfmt --toolchain "${RUST_TOOLCHAIN}"
+      - name: Install pinned clippy component
+        run: rustup component add clippy --toolchain "${RUST_TOOLCHAIN}"
       - name: Validate SemVer tag against the Core package
         env:
           TAG: ${{ github.ref_name }}
