@@ -7,8 +7,9 @@ release candidate description, not a claim that a public release exists.
 
 - Publish the dependency-free JavaScript/TypeScript HTTP adapter as the public
   `tkach-security-client@0.1.0` npm package and verify its four-file bundle.
-- Add an OIDC-based, stage-only npm release workflow so future package
-  versions require maintainer review and 2FA before publication.
+- Add a tag-only OIDC npm release workflow that tests, inspects, and publishes
+  future package versions automatically with provenance, while safely skipping
+  versions that already exist in the registry.
 - Refresh the bilingual README showcase, verification scope, contributor
   workflow, issue template, and private-repository metadata/topics without
   changing the security contract.

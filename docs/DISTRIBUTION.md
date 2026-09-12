@@ -104,11 +104,14 @@ secret-handling logic. The thin Node.js/TypeScript adapter is now published as
 `0.1.0`; the Python and Go adapters remain source/local packages.
 
 Future npm releases use `.github/workflows/publish-npm.yml` with GitHub OIDC
-and npm staged publishing. The package's Trusted Publisher must be configured
+and direct npm publishing. The package's Trusted Publisher must be configured
 for GitHub user `ECD5A`, repository `Tkach-Security`, workflow filename
-`publish-npm.yml`, and environment `npm-publish`; only `npm stage publish`
-should be allowed. A maintainer reviews and approves each staged package with
-2FA before it becomes public.
+`publish-npm.yml`, and environment `npm-publish`; direct `npm publish` must be
+allowed for this workflow. The workflow is tag-only, runs the package tests,
+prints the exact package contents, attaches npm provenance, and skips an
+already published version instead of attempting a duplicate upload. The
+environment must not have unreviewed workflows or untrusted branches attached
+to it; tag protection remains the release authorization boundary.
 
 ## MCP Registry readiness gate
 

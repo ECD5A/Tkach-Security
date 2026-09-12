@@ -1,4 +1,4 @@
-name: Stage npm package
+name: Publish npm package
 
 on:
   push:
@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  stage:
-    name: Stage JavaScript adapter
+  publish:
+    name: Publish JavaScript adapter
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: npm-publish
@@ -31,7 +31,7 @@ jobs:
           node-version: '24'
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Install npm staged-publishing CLI
+      - name: Install pinned npm CLI
         run: npm install --global npm@11.19.1 --ignore-scripts
       - name: Verify tag and package version
         if: startsWith(github.ref, 'refs/tags/')
@@ -48,5 +48,19 @@ jobs:
         run: npm test
       - name: Inspect package contents
         run: npm pack --dry-run --ignore-scripts
-      - name: Stage package for maintainer approval
-        run: npm stage publish
+      - name: Check whether the version is already published
+        id: registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name="$(node -p "require('./package.json').name")"
+          package_version="$(node -p "require('./package.json').version")"
+          if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+            echo "${package_name}@${package_version} already exists; no duplicate publish will be attempted."
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Publish package with npm OIDC
+        if: steps.registry.outputs.exists != 'true'
+        run: npm publish --provenance --access public --ignore-scripts
