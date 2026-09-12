@@ -70,9 +70,11 @@ build provenance, and creates a draft GitHub Release after checksum
 verification. The v0.1.0 draft was manually reviewed and published after its
 hosted release jobs passed. The helper's tests prove byte-stable archives for
 identical inputs; this does not claim byte-identical Rust binaries across
-different toolchains or operating systems. Future public release publication
-remains a maintainer action; the workflow never publishes a draft
-automatically.
+different toolchains or operating systems. Before upload, each native runner
+also unpacks its emitted archive and runs `--version` for both CLI binaries;
+this catches archive-layout and filename regressions before signing. Future
+public release publication remains a maintainer action; the workflow never
+publishes a draft automatically.
 
 The repository also contains a local multi-stage `Dockerfile`. It builds the
 CLI from the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`

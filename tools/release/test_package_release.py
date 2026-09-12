@@ -90,6 +90,18 @@ class ReleasePackageTests(unittest.TestCase):
             workflow,
         )
 
+    def test_release_workflow_smokes_packaged_archives(self) -> None:
+        workflow = (Path(__file__).parents[2] / ".github/workflows/release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("- name: Smoke packaged Unix archive", workflow)
+        self.assertIn('tar -xzf "release/${name}.tar.gz"', workflow)
+        self.assertIn("- name: Smoke packaged Windows archive", workflow)
+        self.assertIn(
+            '([System.IO.Path]::Combine($extractDir, $name, "tkach.exe")) --version',
+            workflow,
+        )
+
     def test_source_epoch_changes_archive_and_existing_output_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

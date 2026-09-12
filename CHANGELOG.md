@@ -4,8 +4,9 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
-- Preserve the `.exe` filenames in future Windows release ZIP archives and
-  lock the workflow/package contract with a Windows archive regression test.
+- Preserve the `.exe` filenames in future Windows release ZIP archives, lock
+  the workflow/package contract with regression tests, and smoke the actual
+  native release archives before upload and signing.
 
 ## [0.1.0] — 2026-09-12
 

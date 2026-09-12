@@ -170,6 +170,37 @@ jobs:
           $hash = (Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
           $encoding = New-Object System.Text.UTF8Encoding($false)
           [System.IO.File]::WriteAllText("release/$name.zip.sha256", "$hash  $name.zip", $encoding)
+      - name: Smoke packaged Unix archive
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${VERSION#v}"
+          name="tkach-${version}-${TARGET}"
+          unpack_dir="$(mktemp -d)"
+          trap 'rm -rf "${unpack_dir}"' EXIT
+          tar -xzf "release/${name}.tar.gz" -C "${unpack_dir}"
+          "${unpack_dir}/${name}/tkach" --version
+          "${unpack_dir}/${name}/tkach-mcp" --version
+      - name: Smoke packaged Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:VERSION.Substring(1)
+          $name = "tkach-$version-$env:TARGET"
+          $extractDir = Join-Path $env:RUNNER_TEMP ("tkach-archive-" + [Guid]::NewGuid().ToString("N"))
+          Expand-Archive -LiteralPath "release/$name.zip" -DestinationPath $extractDir -Force
+          & ([System.IO.Path]::Combine($extractDir, $name, "tkach.exe")) --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ([System.IO.Path]::Combine($extractDir, $name, "tkach-mcp.exe")) --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
