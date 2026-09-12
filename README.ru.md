@@ -65,7 +65,7 @@ GOLDEN_CASE|safe_output=released|compromised_action=denied|executor_calls=0
 Из checkout с Rust 1.85 или новее:
 
 ```console
-cargo install --path crates/tkach-cli --locked
+cargo install tkach-cli --locked
 tkach init my-agent
 tkach check my-agent/.tkach/request.json
 tkach run --demo
@@ -76,8 +76,8 @@ tkach run --demo
 `run --demo` запускает детерминированную локальную проверку Gateway без сетевого
 вызова провайдера и реального побочного эффекта.
 
-Текущий CLI устанавливается локально из исходников. Публикации в crates.io,
-готовых бинарников и публичного production-сервиса пока нет.
+CLI и семь Rust-крейтов доступны в crates.io. Готовые бинарники и публичный
+production-сервис пока не опубликованы.
 
 Тонкий JavaScript/TypeScript-транспортный адаптер уже опубликован в npm:
 
@@ -211,8 +211,7 @@ asset-файл и ничего не скачивает. Баннер заним�
 тестирует workspace на Ubuntu 24.04, macOS 14 (arm64) и Windows 2022.
 
 Это проверки checkout для release candidate. Они не означают, что опубликованы
-пакеты crates.io, подписанные бинарники, публичные container images или hosted
-service.
+подписанные бинарники, публичные container images или hosted service.
 
 ## Что входит в этот release candidate
 
@@ -244,7 +243,6 @@ service.
 
 Пока не заявляется:
 
-- публикация в crates.io или другом публичном package registry;
 - подписанные публичные бинарники GitHub Release;
 - опубликованные Docker/OCI-образы;
 - готовый публичный HTTP gateway или TLS termination;

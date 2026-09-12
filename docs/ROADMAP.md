@@ -47,7 +47,8 @@ direction; the Core remains frozen.
 - Local Python wheel and Node package metadata for the thin HTTP carriers,
   including clean-machine bundle checks without runtime dependencies or
   install hooks; the thin Node adapter is published as
-  `tkach-security-client@0.1.0`, while PyPI publication remains deferred.
+  `tkach-security-client@0.1.0`; all seven Rust crates are published at
+  `0.1.0`, while PyPI publication remains deferred.
 - Deterministic cross-platform release archive helper with fixed metadata,
   source-epoch inputs, checksums, and regression tests; binary reproducibility
   across toolchains remains explicitly unclaimed.
@@ -98,8 +99,8 @@ this order:
   local wheel metadata, dependency-free Node runtime with TypeScript
   declarations and local package metadata, and Go module are done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
-  notes, licensing, supply-chain and reproducible-build checks (metadata and
-  checks prepared; publication remains pending);
+  notes, licensing, supply-chain and reproducible-build checks (the seven
+  `0.1.0` crates are published; public binary/container publication remains);
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing
   (workflow prepared; hosted tag execution and publication remain pending);

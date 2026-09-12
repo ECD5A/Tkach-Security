@@ -60,7 +60,7 @@ semantic prompt-injection detection or host compromise protection.
 From a checkout with Rust 1.85 or newer:
 
 ```console
-cargo install --path crates/tkach-cli --locked
+cargo install tkach-cli --locked
 tkach init my-agent
 tkach check my-agent/.tkach/request.json
 tkach run --demo
@@ -71,8 +71,8 @@ one. `check` validates the same strict request shape used by the Gateway.
 `run --demo` exercises the deterministic local Gateway proof without a provider
 network call or a real side effect.
 
-The current CLI onboarding is local and source-installed. crates.io packages,
-prebuilt binaries, and a public production service have not been published.
+The CLI and the seven Rust crates are available on crates.io. Prebuilt
+binaries and a public production service have not been published yet.
 
 The JavaScript/TypeScript transport adapter is available as a thin public npm
 package:
@@ -206,8 +206,8 @@ adapter tests, and fuzz smoke coverage. A separate platform matrix compiles
 and tests the workspace on Ubuntu 24.04, macOS 14 (arm64), and Windows 2022.
 
 These are source-checkout gates for a release candidate. They do not imply
-that crates.io packages, signed binaries, public container images, or a hosted
-service have been published.
+that signed binaries, public container images, or a hosted service have been
+published.
 
 ## Included in this release candidate
 
@@ -239,7 +239,6 @@ Available today:
 
 Not claimed yet:
 
-- crates.io publication or a public package registry listing;
 - signed public GitHub Release binaries;
 - published Docker/OCI images;
 - a ready-to-run public HTTP gateway or TLS termination;
