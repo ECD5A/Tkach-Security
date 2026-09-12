@@ -11,8 +11,9 @@ Compact public documentation tree after the Strong Core release candidate,
 trusted credential-ownership hardening, v0.1 public API contract, bounded CLI
 onboarding/dashboard, local HTTP adapter, thin Rust client, and MCP stdio
 adapter. The local authenticated provider runtime is now available in a
-read-only default profile. Productization is active by owner direction; the
-Core remains frozen.
+read-only default profile. Copyable multi-language examples and the Golden
+Case are part of the public showcase. Productization is active by owner
+direction; the Core remains frozen.
 
 ## DONE
 
@@ -49,14 +50,21 @@ Core remains frozen.
 - Deterministic cross-platform release archive helper with fixed metadata,
   source-epoch inputs, checksums, and regression tests; binary reproducibility
   across toolchains remains explicitly unclaimed.
+- Copyable Rust/HTTP/Python/JavaScript/Go/MCP examples and an offline Golden
+  Case that releases useful output while denying a compromised provider's
+  protected-write proposal before executor invocation.
+- Clean-install checks for isolated CLI/MCP binaries and Python/Node package
+  bundles; these prove local package shape, not public publication.
 
 ## NEXT
 
-The current productization cycle is distribution and developer-experience
-hardening: shared package metadata, release artifacts, and CI release checks
-are prepared; configuration diagnostics and owner-controlled publication remain
-next. It must not duplicate policy, authority, or execution logic. External
-publication remains behind that contract and an owner decision.
+The current productization cycle is at public release preparation: shared
+package metadata, release artifacts, CI checks, examples, Golden Case, and
+local clean-install checks are prepared. Remaining work is owner-controlled
+publication, real tagged-release verification on hosted runners, clean-machine
+onboarding across supported platforms, and final independent
+security/reliability/performance review. It must not duplicate policy,
+authority, or execution logic.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -89,14 +97,19 @@ this order:
   local wheel metadata, dependency-free Node runtime with TypeScript
   declarations and local package metadata, and Go module are done;
 - SemVer crate/package metadata, crates.io publication, changelog, release
-  notes, licensing, supply-chain and reproducible-build checks;
+  notes, licensing, supply-chain and reproducible-build checks (metadata and
+  checks prepared; publication remains pending);
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
-  OCI/Docker distribution, and CI build/test/security/release publishing;
+  OCI/Docker distribution, and CI build/test/security/release publishing
+  (workflow prepared; hosted tag execution and publication remain pending);
 - MCP stdio adapter (done); Streamable HTTP and, only after current
-  requirements are researched and met, Official MCP Registry publication;
-- production configuration, safe defaults, structured diagnostics, logging,
-  health checks, integration examples, and final reliability/performance/
-  security regression audit.
+  requirements are researched and met, Official MCP Registry publication
+  (adapter and draft manifest done; package/Registry publication remains
+  pending);
+- production configuration, safe defaults, diagnostics and health checks are
+  done for the local profile; structured logging, public TLS/service operation,
+  and process supervision remain separate deployment work. Integration
+  examples are done; final reliability/performance/security review remains.
 
 No item in this phase authorizes changing the frozen Core, adding
 integrations for quantity, or publishing externally without an explicit owner
