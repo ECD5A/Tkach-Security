@@ -33,7 +33,12 @@ use tkach_gateway::{
 use tkach_http::{MAX_HTTP_BODY_BYTES, MAX_HTTP_HEADER_BYTES};
 use zeroize::Zeroizing;
 
-const CLIENT_IO_TIMEOUT: Duration = Duration::from_millis(500);
+/// Default total transport budget for one local request/response exchange.
+///
+/// This leaves bounded headroom above the provider adapter's 30-second
+/// default without making a local client wait indefinitely. Requests are
+/// still sent once and are never retried.
+const CLIENT_IO_TIMEOUT: Duration = Duration::from_secs(35);
 
 /// Static client-side failures.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
@@ -447,6 +452,7 @@ fn parse_response_head(raw: &[u8]) -> Result<(u16, usize), ClientError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpListener;
     use std::thread;
     use tkach_core::domain::{Destination, Identity, PolicyId, Principal, RuleId};
     use tkach_core::krosna::{Krosna, Policy};
@@ -583,6 +589,57 @@ mod tests {
                 .body()
                 .windows(b"runtime-secret".len())
                 .any(|window| window == b"runtime-secret")
+        );
+    }
+
+    #[test]
+    fn run_accepts_a_bounded_slow_response_without_retry() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let peer = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            let mut byte = [0_u8; 1];
+            while !request.ends_with(b"\r\n\r\n") {
+                stream.read_exact(&mut byte).unwrap();
+                request.push(byte[0]);
+            }
+            let header_end = request.len();
+            let content_length = request
+                .windows(b"Content-Length: ".len())
+                .position(|window| window == b"Content-Length: ")
+                .and_then(|start| {
+                    let value = &request[start + b"Content-Length: ".len()..header_end];
+                    let end = value.windows(2).position(|pair| pair == b"\r\n")?;
+                    std::str::from_utf8(&value[..end])
+                        .ok()?
+                        .trim()
+                        .parse::<usize>()
+                        .ok()
+                })
+                .unwrap();
+            while request.len() < header_end + content_length {
+                let read = stream.read(&mut byte).unwrap();
+                assert_ne!(read, 0, "client closed before request body was received");
+                request.push(byte[0]);
+            }
+            let body = br#"{"Success":{"output":"slow but bounded"}}"#;
+            thread::sleep(Duration::from_millis(800));
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(body).unwrap();
+        });
+        let client = TkachClient::new(address, "runtime-secret").unwrap();
+        let response = client.run(&request()).unwrap();
+        peer.join().unwrap();
+        assert_eq!(response.status_code(), 200);
+        assert_eq!(
+            response.body(),
+            br#"{"Success":{"output":"slow but bounded"}}"#
         );
     }
 

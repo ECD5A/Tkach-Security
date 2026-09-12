@@ -14,6 +14,10 @@ The Core security contract remains frozen. A change needs a reproducible
 security or product defect; new integrations must stay thin and must not
 duplicate policy, authority, or execution logic.
 
+The current main branch contains an unreleased adapter hardening candidate that
+aligns bounded client deadlines and adds slow-response coverage. It is not part
+of the published `v0.1.1` artifacts until a coordinated package release.
+
 ## Delivered
 
 - **Security Core:** typed `Krosna`, `Propusk`, `Ruslo`, `Zaslon`, `Gnezdo`,

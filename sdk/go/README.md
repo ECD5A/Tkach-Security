@@ -22,6 +22,11 @@ response framing, rejects chunked/ambiguous responses, never retries, and
 returns transport observations. It is not TLS, process isolation, a public
 service, or a published Go module yet.
 
+The next release will give each exchange a finite 35-second total deadline,
+with no retry on timeout. The `v0.1.1` source remains documented with its
+original 500ms budget until that release. A timeout is a transport observation
+and does not prove that an effect did not happen.
+
 Run the offline contract tests:
 
 ```text

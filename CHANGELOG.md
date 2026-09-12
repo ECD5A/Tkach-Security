@@ -4,7 +4,12 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
-No unreleased changes.
+- Align the default bounded client exchange deadline at 35 seconds across Rust,
+  Python, Node.js, Go, and MCP so local adapters cover the provider's default
+  30-second request budget without adding retries or public exposure.
+- Enforce the deadline across the whole Python and Node.js exchange, including
+  slow-trickle responses, with delayed-response coverage across all carriers
+  and finite timeout validation for the configurable clients.
 
 ## [0.1.1] — 2026-09-12
 

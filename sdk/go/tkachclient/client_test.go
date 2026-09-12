@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestConfigurationIsLoopbackOnlyAndRedacted(t *testing.T) {
@@ -87,6 +88,30 @@ func TestRunSendsBoundedRequestAndReturnsObservation(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"request_id":"request-1"`) {
 		t.Fatalf("request id missing: %s", body)
+	}
+}
+
+func TestRunAcceptsABoundedSlowResponseWithoutRetry(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		time.Sleep(800 * time.Millisecond)
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("Connection", "close")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	host, port := splitServerAddress(t, server)
+	client, err := NewClient(host, port, "secret-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	response, err := client.Run("slow-request", "slow-lifecycle", map[string]any{"messages": []map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status: %d", response.StatusCode)
 	}
 }
 

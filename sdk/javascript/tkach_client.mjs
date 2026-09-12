@@ -26,7 +26,9 @@ export const MAX_HTTP_HEADER_BYTES = 16 * 1024;
 export const MAX_RUNTIME_AUTH_BYTES = 256;
 export const MAX_RUNTIME_ID_BYTES = 128;
 export const MAX_RUNTIME_RESPONSE_BYTES = 128 * 1024;
-export const HTTP_TIMEOUT_MS = 500;
+// Keep this above the Rust provider's 30-second default while remaining finite.
+export const HTTP_TIMEOUT_MS = 35_000;
+export const MAX_HTTP_TIMEOUT_MS = 120_000;
 
 export const ErrorCode = Object.freeze({
   CLOSED: "client_closed",
@@ -67,15 +69,19 @@ export class ClientResponse {
 }
 
 export class TkachClient {
-  constructor(host = "127.0.0.1", port = 8080, bearerToken = "") {
+  constructor(host = "127.0.0.1", port = 8080, bearerToken = "", timeoutMs = HTTP_TIMEOUT_MS) {
     if (typeof host !== "string" || !isLoopback(host)) {
       throw new TkachClientError(ErrorCode.NON_LOOPBACK_ADDRESS);
     }
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       throw new TkachClientError(ErrorCode.INVALID_REQUEST);
     }
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_HTTP_TIMEOUT_MS) {
+      throw new TkachClientError(ErrorCode.INVALID_REQUEST);
+    }
     this._host = host;
     this._port = port;
+    this._timeoutMs = timeoutMs;
     this._token = validatedToken(bearerToken);
     this._closed = false;
     this._requests = new Set();
@@ -146,11 +152,13 @@ export class TkachClient {
     return new Promise((resolve, reject) => {
       let settled = false;
       let request;
+      let deadlineTimer;
       const finish = (callback, value) => {
         if (settled) {
           return;
         }
         settled = true;
+        clearTimeout(deadlineTimer);
         this._requests.delete(request);
         callback(value);
       };
@@ -164,6 +172,7 @@ export class TkachClient {
         }
         finish(reject, safeError);
       };
+      deadlineTimer = setTimeout(() => fail(new TkachClientError(ErrorCode.IO)), this._timeoutMs);
       try {
         request = http.request(
           {
@@ -210,7 +219,7 @@ export class TkachClient {
           },
         );
         this._requests.add(request);
-        request.setTimeout(HTTP_TIMEOUT_MS, () => fail(new TkachClientError(ErrorCode.IO)));
+        request.setTimeout(this._timeoutMs, () => fail(new TkachClientError(ErrorCode.IO)));
         request.on("error", () => fail(new TkachClientError(ErrorCode.IO)));
         request.end(body);
       } catch (_error) {

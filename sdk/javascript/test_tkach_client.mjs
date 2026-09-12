@@ -50,6 +50,12 @@ test("configuration is loopback-only and string output redacts the token", () =>
     () => new TkachClient("127.0.0.1", 8080, "bad token"),
     (error) => error instanceof TkachClientError && error.code === ErrorCode.INVALID_AUTHENTICATION,
   );
+  for (const timeoutMs of [0, -1, 120_001, 1.5]) {
+    assert.throws(
+      () => new TkachClient("127.0.0.1", 8080, "secret", timeoutMs),
+      (error) => error instanceof TkachClientError && error.code === ErrorCode.INVALID_REQUEST,
+    );
+  }
   const client = new TkachClient("127.0.0.1", 8080, "secret-token");
   assert.doesNotMatch(client.toString(), /secret-token/);
   client.close();
@@ -103,6 +109,38 @@ test("run sends one bounded request and returns transport observation", async ()
   assert.equal(received.headers.authorization, "Bearer secret-token");
   assert.equal(received.headers["content-type"], "application/json");
   assert.match(received.body.toString("utf8"), /"request_id":"request-1"/);
+});
+
+test("run accepts a bounded slow response without retry", async () => {
+  await withHttpServer((_request, response) => {
+    setTimeout(() => {
+      const body = "{}";
+      response.writeHead(200, {
+        "Content-Type": "application/json",
+        "Content-Length": String(Buffer.byteLength(body)),
+        Connection: "close",
+      });
+      response.end(body);
+    }, 800);
+  }, async (port) => {
+    const client = new TkachClient("127.0.0.1", port, "secret-token");
+    const result = await client.run("slow-request", "slow-lifecycle", { messages: [] });
+    client.close();
+    assert.equal(result.statusCode, 200);
+  });
+});
+
+test("an explicit short deadline rejects a slow response", async () => {
+  await withHttpServer((_request, response) => {
+    setTimeout(() => response.end("{}"), 800);
+  }, async (port) => {
+    const client = new TkachClient("127.0.0.1", port, "secret-token", 100);
+    await assert.rejects(
+      client.run("short-request", "short-lifecycle", { messages: [] }),
+      (error) => error.code === ErrorCode.IO,
+    );
+    client.close();
+  });
 });
 
 test("chunked and duplicate response framing fail closed", async () => {

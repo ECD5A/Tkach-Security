@@ -101,11 +101,10 @@ Tkach Security does not:
   TLS terminator, process supervisor, or generic executor;
 - provide generic production-executor, transaction, or concurrent filesystem
   race guarantees;
-- provide streaming, Streamable HTTP, Anthropic, a published multi-language SDK
-  suite, hosted UI, or cloud orchestration; the local CLI has a terminal dashboard,
-  the source-level Python/Node/Go carriers
-  remain thin local HTTP adapters, the MCP implementation is stdio-only, and
-  the Rust client is only a local HTTP carrier.
+- provide streaming, Streamable HTTP, Anthropic, a hosted UI, or cloud
+  orchestration; Python and Node clients are published thin local HTTP
+  adapters, the Go client remains source-level, the MCP implementation is
+  stdio-only, and the Rust client is only a local HTTP carrier.
 - provide TLS, OS/process isolation, core-dump prevention, or protection from
   a same-privilege out-of-band application path.
 

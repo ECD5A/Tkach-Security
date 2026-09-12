@@ -247,6 +247,17 @@ response framing, reject ambiguous/chunked/oversized responses, and never
 retry effects. Responses are transport observations; policy and authority stay
 inside the Rust runtime.
 
+In the current source tree, the next adapter release uses a finite 35-second
+total client exchange deadline across Rust, Python, Node.js, Go, and MCP (which
+uses the Rust client). This covers the provider runtime's default 30-second
+request budget with bounded headroom and also limits slow-trickle responses. A
+timeout is a transport failure, not proof that an effect did not happen, and no
+adapter retries the request. The Python and Node.js constructors accept an
+optional finite timeout up to 120 seconds; keep it within the trusted local
+deployment budget and never derive it from model-controlled input. Published
+`0.1.1` client artifacts retain their original 500ms transport budget; this
+hardening is unreleased until the next coordinated package version.
+
 Installation and usage live with each adapter:
 
 - [Python](../sdk/python/README.md): standard-library runtime, published on PyPI.

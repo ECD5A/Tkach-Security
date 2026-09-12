@@ -20,6 +20,8 @@ from __future__ import annotations
 import http.client
 import ipaddress
 import json
+import math
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -33,7 +35,9 @@ MAX_HTTP_HEADER_BYTES = 16 * 1024
 MAX_RUNTIME_AUTH_BYTES = 256
 MAX_RUNTIME_ID_BYTES = 128
 MAX_RUNTIME_RESPONSE_BYTES = 128 * 1024
-HTTP_TIMEOUT_SECONDS = 0.5
+# Keep this above the Rust provider's 30-second default while remaining finite.
+HTTP_TIMEOUT_SECONDS = 35.0
+MAX_HTTP_TIMEOUT_SECONDS = 120.0
 
 _ID_BYTES = frozenset(b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:-")
 _AUTH_BYTES = _ID_BYTES
@@ -85,7 +89,13 @@ class TkachClient:
     local boundary. Requests are sent once and are never retried.
     """
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 8080, bearer_token: str = ""):
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8080,
+        bearer_token: str = "",
+        timeout: float = HTTP_TIMEOUT_SECONDS,
+    ):
         if not isinstance(host, str) or not host:
             raise TkachClientError(ErrorCode.NON_LOOPBACK_ADDRESS)
         try:
@@ -96,8 +106,17 @@ class TkachClient:
             raise TkachClientError(ErrorCode.NON_LOOPBACK_ADDRESS)
         if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
             raise TkachClientError(ErrorCode.INVALID_REQUEST)
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, (int, float))
+            or not math.isfinite(timeout)
+            or timeout <= 0
+            or timeout > MAX_HTTP_TIMEOUT_SECONDS
+        ):
+            raise TkachClientError(ErrorCode.INVALID_REQUEST)
         self._host = host
         self._port = port
+        self._timeout = float(timeout)
         self._bearer_token = _validated_token(bearer_token)
         self._closed = False
 
@@ -168,17 +187,29 @@ class TkachClient:
         connection = http.client.HTTPConnection(
             self._host,
             self._port,
-            timeout=HTTP_TIMEOUT_SECONDS,
+            timeout=self._timeout,
         )
+        deadline = time.monotonic() + self._timeout
         try:
+            connection.connect()
+            _set_socket_deadline(connection, deadline)
             connection.request(method, path, body=body, headers=headers)
-            return _read_response(connection.getresponse())
+            _set_socket_deadline(connection, deadline)
+            response = connection.getresponse()
+            return _read_response(response)
         except TkachClientError:
             raise
         except (http.client.HTTPException, OSError, UnicodeError) as error:
             raise TkachClientError(ErrorCode.IO) from error
         finally:
             connection.close()
+
+
+def _set_socket_deadline(connection: http.client.HTTPConnection, deadline: float) -> None:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0 or connection.sock is None:
+        raise TkachClientError(ErrorCode.IO)
+    connection.sock.settimeout(remaining)
 
 
 def _validated_token(value: str) -> bytearray:

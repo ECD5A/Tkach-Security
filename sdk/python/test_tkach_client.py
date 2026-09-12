@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import socketserver
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -49,6 +50,7 @@ class _JsonHandler(BaseHTTPRequestHandler):
 
 class _RawHandler(socketserver.BaseRequestHandler):
     response = b""
+    delay = 0.0
 
     def handle(self) -> None:
         self.request.settimeout(1.0)
@@ -58,6 +60,7 @@ class _RawHandler(socketserver.BaseRequestHandler):
             if not chunk:
                 break
             received.extend(chunk)
+        time.sleep(self.delay)
         self.request.sendall(self.response)
 
 
@@ -96,6 +99,10 @@ class PythonClientTests(unittest.TestCase):
         client = TkachClient("127.0.0.1", 8080, "secret-token")
         self.addCleanup(client.close)
         self.assertNotIn("secret-token", repr(client))
+        for timeout in (0, -1, 120.1, float("inf"), True):
+            with self.subTest(timeout=timeout):
+                with self.assertRaisesRegex(TkachClientError, ErrorCode.INVALID_REQUEST.value):
+                    TkachClient("127.0.0.1", 8080, "secret", timeout=timeout)
 
     def test_health_requires_exact_static_response(self) -> None:
         server, _thread = self._json_server()
@@ -128,6 +135,30 @@ class PythonClientTests(unittest.TestCase):
         self.assertEqual(headers["Content-Type"], "application/json")
         self.assertIn(b'"request_id":"request-1"', body)
         self.assertNotIn("secret-token", repr(response))
+
+    def test_run_accepts_a_bounded_slow_response_without_retry(self) -> None:
+        response = (
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+            b"Content-Length: 2\r\nConnection: close\r\n\r\n{}"
+        )
+        handler = type("DelayedRawHandler", (_RawHandler,), {"response": response, "delay": 0.8})
+        server = socketserver.TCPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        client = TkachClient("127.0.0.1", server.server_address[1], "secret-token")
+        self.addCleanup(client.close)
+        result = client.run("slow-request", "slow-lifecycle", {"messages": []})
+        self.assertEqual(result.status_code, 200)
+
+        short_client = TkachClient(
+            "127.0.0.1", server.server_address[1], "secret-token", timeout=0.1
+        )
+        self.addCleanup(short_client.close)
+        with self.assertRaisesRegex(TkachClientError, ErrorCode.IO.value):
+            short_client.run("short-request", "short-lifecycle", {"messages": []})
 
     def test_invalid_response_fails_closed_without_retry(self) -> None:
         raw = (

@@ -15,6 +15,7 @@ export declare const MAX_RUNTIME_AUTH_BYTES: number;
 export declare const MAX_RUNTIME_ID_BYTES: number;
 export declare const MAX_RUNTIME_RESPONSE_BYTES: number;
 export declare const HTTP_TIMEOUT_MS: number;
+export declare const MAX_HTTP_TIMEOUT_MS: number;
 
 export declare const ErrorCode: {
   readonly CLOSED: "client_closed";
@@ -42,7 +43,7 @@ export declare class ClientResponse {
 }
 
 export declare class TkachClient {
-  constructor(host?: string, port?: number, bearerToken?: string);
+  constructor(host?: string, port?: number, bearerToken?: string, timeoutMs?: number);
   readonly address: { readonly host: string; readonly port: number };
   close(): void;
   health(): Promise<void>;

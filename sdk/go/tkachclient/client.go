@@ -36,7 +36,8 @@ const (
 	MaxRuntimeIDBytes = 128
 	// MaxRuntimeResponseBytes is the published v0.1 response budget.
 	MaxRuntimeResponseBytes = 128 * 1024
-	clientTimeout           = 500 * time.Millisecond
+	// Keep this above the Rust provider's 30-second default while remaining finite.
+	clientTimeout = 35 * time.Second
 )
 
 // ErrorCode is a stable, payload-free client failure category.
