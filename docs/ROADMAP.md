@@ -46,7 +46,8 @@ direction; the Core remains frozen.
   `/v1/run` and static `/healthz` contracts plus transport regression tests.
 - Local Python wheel and Node package metadata for the thin HTTP carriers,
   including clean-machine bundle checks without runtime dependencies or
-  install hooks; external PyPI/npm publication remains deferred.
+  install hooks; the thin Node adapter is published as
+  `tkach-security-client@0.1.0`, while PyPI publication remains deferred.
 - Deterministic cross-platform release archive helper with fixed metadata,
   source-epoch inputs, checksums, and regression tests; binary reproducibility
   across toolchains remains explicitly unclaimed.

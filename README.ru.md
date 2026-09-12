@@ -11,6 +11,7 @@
 **Граница безопасности с fail-closed поведением для AI-агентов и скомпрометированного вывода модели.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+<a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Лицензия Apache 2.0">
 <img src="https://img.shields.io/badge/status-Strong%20Core%20release%20candidate-5b6ee1" alt="Кандидат Strong Core release">
@@ -77,6 +78,12 @@ tkach run --demo
 
 Текущий CLI устанавливается локально из исходников. Публикации в crates.io,
 готовых бинарников и публичного production-сервиса пока нет.
+
+Тонкий JavaScript/TypeScript-транспортный адаптер уже опубликован в npm:
+
+```console
+npm install tkach-security-client
+```
 
 ## Превью CLI
 
@@ -242,8 +249,8 @@ service.
 - опубликованные Docker/OCI-образы;
 - готовый публичный HTTP gateway или TLS termination;
 - Streamable HTTP, streaming release или публичный network service;
-- опубликованные multi-language SDK-пакеты для Python, JavaScript/TypeScript,
-  Go и других языков;
+- опубликованные SDK-пакеты для Python, Go и других языков (тонкий
+  JavaScript/TypeScript-адаптер опубликован отдельно в npm);
 - UI, cloud control plane, generic executor или регистрация в MCP Registry.
 
 Это факты текущего scope, а не скрытые обещания. HTTP JSON-контракт является

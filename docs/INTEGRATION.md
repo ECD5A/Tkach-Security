@@ -239,7 +239,8 @@ Installation and usage live with each adapter:
 
 - [Python](../sdk/python/README.md): standard-library runtime and local wheel.
 - [JavaScript / TypeScript](../sdk/javascript/README.md): dependency-free Node
-  runtime, TypeScript declarations, and local npm package.
+  runtime, TypeScript declarations, and the published `tkach-security-client`
+  npm package.
 - [Go](../sdk/go/README.md): dependency-free local module.
 
 The [`examples/`](../examples/) directory contains copyable end-to-end

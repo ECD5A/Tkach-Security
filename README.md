@@ -11,6 +11,7 @@
 **A fail-closed security boundary for AI agents and compromised model output.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+<a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache 2.0 license">
 <img src="https://img.shields.io/badge/status-Strong%20Core%20release%20candidate-5b6ee1" alt="Strong Core release candidate">
@@ -72,6 +73,13 @@ network call or a real side effect.
 
 The current CLI onboarding is local and source-installed. crates.io packages,
 prebuilt binaries, and a public production service have not been published.
+
+The JavaScript/TypeScript transport adapter is available as a thin public npm
+package:
+
+```console
+npm install tkach-security-client
+```
 
 ## CLI preview
 
@@ -236,7 +244,8 @@ Not claimed yet:
 - published Docker/OCI images;
 - a ready-to-run public HTTP gateway or TLS termination;
 - Streamable HTTP, streaming release, or a public network service;
-- published Python, JavaScript/TypeScript, Go, or other multi-language SDK packages;
+- published Python, Go, or other multi-language SDK packages (the thin
+  JavaScript/TypeScript adapter is published separately on npm);
 - UI, cloud control plane, generic executor, or MCP Registry registration.
 
 These are scope facts, not hidden promises. The HTTP JSON contract is the

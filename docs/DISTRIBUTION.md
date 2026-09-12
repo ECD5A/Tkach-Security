@@ -99,9 +99,9 @@ The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
 are included under `sdk/`. None of
 these adapters may duplicate Core policy, authority, provider, executor, or
-secret-handling logic. The Python and Node adapters include local package
-metadata and are checked as installable source bundles; no Python, npm, or Go
-package has been published.
+secret-handling logic. The thin Node.js/TypeScript adapter is now published as
+[`tkach-security-client`](https://www.npmjs.com/package/tkach-security-client)
+`0.1.0`; the Python and Go adapters remain source/local packages.
 
 ## MCP Registry readiness gate
 
@@ -137,7 +137,11 @@ attempted during local development.
 
 ## External publication status
 
-Not performed in this workspace:
+Completed:
+
+- public npm publication of `tkach-security-client@0.1.0`;
+
+Not performed yet:
 
 - crates.io publication;
 - signed GitHub Release binaries;

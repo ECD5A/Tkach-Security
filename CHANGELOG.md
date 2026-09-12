@@ -5,6 +5,8 @@ release candidate description, not a claim that a public release exists.
 
 ## [Unreleased]
 
+- Publish the dependency-free JavaScript/TypeScript HTTP adapter as the public
+  `tkach-security-client@0.1.0` npm package and verify its four-file bundle.
 - Refresh the bilingual README showcase, verification scope, contributor
   workflow, issue template, and private-repository metadata/topics without
   changing the security contract.
