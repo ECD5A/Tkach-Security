@@ -76,6 +76,44 @@ this catches archive-layout and filename regressions before signing. Future
 public release publication remains a maintainer action; the workflow never
 publishes a draft automatically.
 
+## Verify a v0.1.0 archive
+
+Download the chosen archive and its adjacent `.sha256` file from the
+[v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0).
+Verify the checksum before extraction:
+
+~~~console
+# Linux
+sha256sum -c tkach-0.1.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+
+# macOS
+shasum -a 256 -c tkach-0.1.0-aarch64-apple-darwin.tar.gz.sha256
+~~~
+
+On Windows PowerShell, compare the expected digest with `Get-FileHash`:
+
+~~~powershell
+$expected = ((Get-Content -Raw tkach-0.1.0-x86_64-pc-windows-msvc.zip.sha256).Trim() -split '\s+')[0]
+$actual = (Get-FileHash tkach-0.1.0-x86_64-pc-windows-msvc.zip -Algorithm SHA256).Hash
+if ($actual -ine $expected) { throw "SHA-256 mismatch" }
+~~~
+
+Then verify GitHub build provenance for the downloaded file with GitHub CLI:
+
+~~~console
+gh attestation verify <archive> \
+  --repo ECD5A/Tkach-Security \
+  --signer-workflow ECD5A/Tkach-Security/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.1.0 \
+  --deny-self-hosted-runners
+~~~
+
+Successful `gh attestation verify` is intentionally silent unless an output
+format is requested. It verifies the GitHub provenance claim; it does not
+replace checksum verification. The release also includes matching keyless
+Sigstore bundles for users whose deployment policy requires independent
+bundle verification.
+
 The repository also contains a local multi-stage `Dockerfile`. It builds the
 CLI from the locked workspace, runs as a non-root UID, keeps `TKACH_HTTP_ADDR`
 loopback-only, and checks `/healthz` through the CLI's bounded `health`
