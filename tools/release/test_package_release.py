@@ -173,6 +173,13 @@ class ReleasePackageTests(unittest.TestCase):
             'cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked',
             crates,
         )
+        self.assertEqual(
+            crates.count(
+                '--user-agent "tkach-release/${version} '
+                '(https://github.com/ECD5A/Tkach-Security)"'
+            ),
+            2,
+        )
         self.assertLess(
             crates.index("Package the root crate before authentication"),
             crates.index("Authenticate with crates.io Trusted Publishing"),

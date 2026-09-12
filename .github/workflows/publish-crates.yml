@@ -65,7 +65,7 @@ jobs:
           set -euo pipefail
           version="${RELEASE_TAG#v}"
           for crate in tkach-core tkach-gateway tkach-http tkach-client tkach-provider-openai tkach-mcp tkach-cli; do
-            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/${crate}/${version}")"
+            status="$(curl --silent --show-error --user-agent "tkach-release/${version} (https://github.com/ECD5A/Tkach-Security)" --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/${crate}/${version}")"
             case "${status}" in
               200)
                 echo "${crate}@${version} already exists; skipping duplicate publish."
@@ -74,7 +74,7 @@ jobs:
                 cargo +"${RUST_TOOLCHAIN}" package --package "${crate}" --locked
                 cargo +"${RUST_TOOLCHAIN}" publish --package "${crate}" --locked
                 for attempt in $(seq 1 24); do
-                  status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/${crate}/${version}")"
+                  status="$(curl --silent --show-error --user-agent "tkach-release/${version} (https://github.com/ECD5A/Tkach-Security)" --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/${crate}/${version}")"
                   [[ "${status}" = 200 ]] && break
                   [[ "${status}" = 404 ]] || { echo "unexpected crates.io status ${status}" >&2; exit 1; }
                   sleep 5
