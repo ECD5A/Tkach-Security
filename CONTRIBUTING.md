@@ -64,6 +64,21 @@ node --test sdk/javascript/test_tkach_client.mjs
 (cd sdk/go && go test ./... && go vet ./...)
 ```
 
+The regular fuzz smoke is a Linux/WSL job because `libfuzzer-sys` needs the
+libFuzzer entry point supplied by the Unix toolchain. Run all four targets
+there with a bounded local sample when changing parsers:
+
+```sh
+for target in canonical_text domain_wire gateway_wire openai_response; do
+  cargo +1.85.1 run --manifest-path fuzz/Cargo.toml --bin "$target" --locked -- -runs=1000
+done
+```
+
+On the Windows MSVC host, `cargo check --manifest-path fuzz/Cargo.toml
+--bins --locked` is the supported build gate; direct execution can fail at
+link time with `LNK1561` because MSVC does not provide the libFuzzer entry
+point. This is why the authoritative bounded execution job runs on Ubuntu.
+
 For a focused change, state exactly which checks were run and why any check
 was not applicable. Do not report a check as passing when it was skipped,
 inconclusive, or unavailable.
