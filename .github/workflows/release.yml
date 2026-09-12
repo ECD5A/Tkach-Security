@@ -142,9 +142,9 @@ jobs:
             --binary "tkach-mcp=target/${TARGET}/release/tkach-mcp"
           name="tkach-${version}-${TARGET}"
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum "release/${name}.tar.gz" > "release/${name}.tar.gz.sha256"
+            (cd release && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
           else
-            shasum -a 256 "release/${name}.tar.gz" > "release/${name}.tar.gz.sha256"
+            (cd release && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256")
           fi
       - name: Package Windows release assets
         if: runner.os == 'Windows'
