@@ -10,9 +10,9 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 serde_json = "1"
-tkach-core = { path = "../crates/tkach-core", version = "0.1.0" }
-tkach-gateway = { path = "../crates/tkach-gateway", version = "0.1.0" }
-tkach-provider-openai = { path = "../crates/tkach-provider-openai", version = "0.1.0", features = ["fuzzing"] }
+tkach-core = { path = "../crates/tkach-core", version = "0.1.1" }
+tkach-gateway = { path = "../crates/tkach-gateway", version = "0.1.1" }
+tkach-provider-openai = { path = "../crates/tkach-provider-openai", version = "0.1.1", features = ["fuzzing"] }
 
 [[bin]]
 name = "canonical_text"
