@@ -167,10 +167,20 @@ curl --fail --silent --show-error \
 The placeholder token must be supplied by trusted host configuration. Do not
 put it in model-controlled request data, shell history, or committed examples.
 
-### Private OCI image
+### OCI image (GHCR and local)
 
-The repository includes a multi-stage `Dockerfile` for a local/private image.
-It contains only the `tkach` CLI, runs as UID 10001, defaults to the same
+The repository includes a multi-stage `Dockerfile` for local or private
+deployment. The v0.1.0 image was built for `linux/amd64` and `linux/arm64`,
+pushed to GHCR, and attached to GitHub build provenance. The package is
+currently private; after the owner changes its visibility in GitHub Package
+Settings, the immutable release tag can be pulled with:
+
+```text
+docker pull ghcr.io/ecd5a/tkach-security:v0.1.0
+```
+
+Prefer the attested digest shown by the release workflow for deployment. The
+image contains only the `tkach` CLI, runs as UID 10001, defaults to the same
 loopback address, and uses `tkach health` for the bounded container
 healthcheck:
 

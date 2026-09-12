@@ -100,16 +100,16 @@ this order:
 - SemVer crate/package metadata, crates.io publication, changelog, release
   notes, licensing, supply-chain and reproducible-build checks (the seven
   `0.1.0` crates, npm adapter, and signed GitHub archives are published;
-  the protected GHCR workflow is prepared, while public OCI publication
-  remains deferred);
+  the v0.1.0 GHCR image is built, pushed, and attested; package visibility
+  remains an owner-controlled GitHub Package Settings action);
 - signed/versioned Linux, macOS, and Windows binaries with GitHub Releases,
   OCI/Docker distribution, and CI build/test/security/release publishing
-  (GitHub Release v0.1.0 is published; GHCR publication is prepared but
-  remains deferred);
+  (GitHub Release v0.1.0 is published; the multi-arch GHCR image is pushed
+  and attested, with public visibility pending owner action);
 - MCP stdio adapter (done); Streamable HTTP and, only after current
   requirements are researched and met, Official MCP Registry publication
-  (adapter, public package, and manifest are done; Registry publication remains
-  workflow is prepared but publication remains deferred);
+  (adapter, public package, manifest, and active Registry registration are
+  done; Streamable HTTP remains intentionally out of scope);
 - production configuration, safe defaults, diagnostics and health checks are
   done for the local profile; structured logging, public TLS/service operation,
   and process supervision remain separate deployment work. Integration

@@ -137,11 +137,15 @@ server — адаптеры вокруг Core; ни один из них не с
   x86_64, macOS x86_64/aarch64 и Windows x86_64.
 - Hosted release matrix собрал и проверил Linux, macOS, Windows, OCI smoke,
   checksums, keyless Sigstore и GitHub attestations.
+- `tkach-mcp@0.1.0` зарегистрирован в Official MCP Registry как
+  `io.github.ECD5A/tkach-security` для локального stdio-сценария.
+- Multi-arch OCI-образ отправлен в GHCR и attested; пакет пока приватный, пока
+  владелец репозитория не изменит видимость в GitHub Package Settings.
 
 Tkach **не** заявляет публичный internet gateway, TLS termination, публичный
-OCI image, PyPI-пакет, Streamable HTTP, cloud control plane, generic executor
-или регистрацию в MCP Registry. Runtime по умолчанию только loopback; выход за
-эту границу — явное решение интегратора.
+OCI image до выполнения владельцем контролируемого шага видимости, PyPI-пакет,
+Streamable HTTP, cloud control plane или generic executor. Runtime по умолчанию
+только loopback; выход за эту границу — явное решение интегратора.
 
 ## Документация
 

@@ -136,11 +136,17 @@ untrusted model/provider output
   x86_64/aarch64, and Windows x86_64 CLI archives.
 - The hosted release matrix built and tested Linux, macOS, Windows, OCI smoke,
   checksum, keyless Sigstore, and GitHub attestation paths.
+- `tkach-mcp@0.1.0` is registered in the Official MCP Registry as
+  `io.github.ECD5A/tkach-security` for local stdio use.
+- The multi-arch OCI image was pushed to GHCR and attested; its package is
+  currently private until the repository owner changes visibility in GitHub
+  Package Settings.
 
 Tkach does **not** claim a public internet gateway, TLS termination, a public
-OCI image, a PyPI package, Streamable HTTP, a cloud control plane, a generic
-executor, or MCP Registry registration. The runtime is loopback-only by
-default; deployment beyond that boundary is an explicit integrator decision.
+OCI image until that owner-controlled visibility step is completed, a PyPI
+package, Streamable HTTP, a cloud control plane, or a generic executor. The
+runtime is loopback-only by default; deployment beyond that boundary is an
+explicit integrator decision.
 
 ## Documentation
 

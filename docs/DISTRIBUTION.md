@@ -126,18 +126,19 @@ The GHCR publication boundary is now encoded in
 It runs only for a published GitHub Release or an explicit manual dispatch,
 requires the protected `ghcr-publish` environment, builds `linux/amd64` and
 `linux/arm64`, publishes only version and commit-SHA tags (never `latest`), and
-attaches GitHub build provenance to the pushed digest. After the successful
-attestation, the workflow changes the package to public for a release event or
-an explicit `public` manual-dispatch choice; `private` remains available for a
-review-only push. The image remains
+attaches GitHub build provenance to the pushed digest. The image remains
 non-root and loopback-only. GHCR creates a package as private on first
-publication, so this workflow makes the visibility transition explicit and
-review-gated. Consumers should pin the published digest rather than trust a
-mutable tag.
+publication; package visibility is a deliberate owner action in GitHub
+Package Settings and is not changed by this workflow. Consumers should pin
+the published digest rather than trust a mutable tag.
 
-The v0.1.0 image has been built and attested, but its first package is still
-private until the updated visibility step runs. The existing `container` job in
-`release.yml` remains a build-and-health smoke gate and does not push.
+The v0.1.0 image was built for both supported Linux architectures, pushed, and
+attested successfully. Its package is still private until the repository owner
+changes visibility at the [GHCR package page](https://github.com/ECD5A/Tkach-Security/packages/container/tkach-security).
+The verified multi-arch index is
+`ghcr.io/ecd5a/tkach-security@sha256:6e9f7e815a24385ca8e2ed6a3851ca7ab55d48410aad0167a63402149c64ed0f`.
+The existing `container` job in `release.yml` remains a build-and-health smoke
+gate and does not push.
 
 ## Artifact and integration boundaries
 
@@ -152,8 +153,9 @@ generic executor.
 `tkach-mcp` is a stdio adapter over an already running loopback Tkach HTTP
 runtime. `tkach-http` remains a library boundary, not a production server
 binary. Consequently this repository does not yet claim a ready-to-run public
-HTTP service, TLS termination, process supervisor, or published OCI image. The
-local image is a private deployment artifact, not a public network gateway.
+HTTP service, TLS termination, process supervisor, or public OCI image. The
+GHCR image is currently a private deployment artifact, not a public network
+gateway.
 
 The HTTP JSON contract is the language-neutral integration point. Source-level
 standard-library Python, dependency-free Node.js/TypeScript, and Go adapters
@@ -182,8 +184,8 @@ runtime and a locally supplied bearer token. That operational prerequisite is
 documented in the package README and must remain visible to MCP users; Registry
 publication does not turn it into a hosted service.
 
-The adapter is not registered yet. The gated publication workflow is now
-encoded in
+The adapter is registered as `io.github.ECD5A/tkach-security` in the Official
+MCP Registry. The gated publication workflow is encoded in
 [`.github/workflows/publish-mcp.yml`](../.github/workflows/publish-mcp.yml).
 It checks out the exact published tag, runs the repository version contract,
 downloads a pinned official `mcp-publisher` release with a SHA-256 check, runs
@@ -191,12 +193,13 @@ the official `validate` command before authentication, then uses GitHub OIDC
 from the protected `mcp-publish` environment for publication. No Registry
 credential is stored in the repository.
 
-The exact current manifest was also accepted locally by the official
-`mcp-publisher v1.8.1 validate` command. This proves metadata/schema and
-package-verification readiness only; it is not a Registry publication result.
+The exact current manifest was accepted locally by the official
+`mcp-publisher v1.8.1 validate` command and was then published through the
+protected workflow. The authoritative record is queryable through the
+[Official MCP Registry API](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security).
 
-When that boundary is ready, the release owner must use the current official
-Registry workflow rather than hand-editing registry data:
+For future versions, the release owner must use the current official Registry
+workflow rather than hand-editing registry data:
 
 1. configure protection/review rules for the `mcp-publish` GitHub Environment;
 2. verify the installable `tkach-mcp` Cargo package and its release artifact;
@@ -205,16 +208,17 @@ Registry workflow rather than hand-editing registry data:
 4. verify the returned Registry record through the official API.
 
 The manifest uses the current Cargo package contract and the visible
-`mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. It is
-not evidence of Registry publication or turnkey hosted operation.
+`mcp-name: io.github.ECD5A/tkach-security` marker in the crate README. Registry
+registration is not turnkey hosted operation: the adapter remains a local
+stdio process over an already-running loopback runtime.
 
 The authoritative workflow and schema are maintained by the
 [MCP Registry publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/quickstart.mdx),
 the [publisher CLI reference](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/cli/commands.md),
 and the [official Registry API documentation](https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/official-registry-api.md).
-The Registry is currently in preview, so publication is still a deliberate
-release-owner action. No Registry credentials are stored in this repository,
-and no publication was attempted during local development.
+The Registry is currently in preview, so future publication remains a
+deliberate release-owner action. No Registry credentials are stored in this
+repository.
 
 The regular version-contract CI gate also binds `server.json` to the
 `tkach-mcp` Cargo package, the visible ownership marker, the loopback address,
@@ -231,20 +235,21 @@ Completed:
 - the public [v0.1.0 GitHub Release](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.0)
   with Linux x86_64, macOS x86_64/aarch64, and Windows x86_64 archives,
   SHA-256 manifests, keyless Sigstore bundles, and GitHub attestations.
+- the v0.1.0 multi-arch GHCR image, pushed with immutable release/SHA tags and
+  GitHub build provenance; the package is currently private pending owner
+  visibility approval;
+- `tkach-mcp@0.1.0` registered as `io.github.ECD5A/tkach-security` in the
+  Official MCP Registry.
 
 Not performed yet:
 
-- GHCR/OCI publication;
-- MCP Registry registration.
+- public GHCR visibility (owner action in GitHub Package Settings);
+- PyPI publication, Streamable HTTP, and public gateway operation.
 
-Prepared but not executed:
-
-- protected GHCR publication with multi-arch image provenance;
-- protected MCP Registry publication with official validation and GitHub OIDC.
-
-Those actions require owner-controlled credentials, reviewed deployment
-boundaries, and final platform/registry verification. This runbook describes
-release work; it does not grant publication authority.
+Public GHCR visibility requires an explicit owner action because the
+repository's `GITHUB_TOKEN` cannot use the user-scoped package-visibility API
+in this workflow. This runbook describes release work; it does not grant
+publication authority.
 
 ### v0.1.0 Windows archive note
 
