@@ -16,6 +16,10 @@ All notable Tkach Security changes are recorded here.
   visibility change in GitHub Package Settings.
 - Register `tkach-mcp@0.1.0` as `io.github.ECD5A/tkach-security` in the
   Official MCP Registry through the protected OIDC workflow.
+- Harden the cross-platform real-network regression harness against the macOS
+  half-close race and repeat the authorized loopback test sixteen times.
+- Gate future npm and PyPI publication on a published GitHub Release and add a
+  protected crates.io OIDC workflow with dependency-ordered publishing.
 
 ## [0.1.0] — 2026-09-12
 

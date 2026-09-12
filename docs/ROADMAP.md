@@ -47,7 +47,8 @@ boundaries, and release quality; the Core remains frozen.
   including clean-machine bundle checks without runtime dependencies or
   install hooks; the thin Node adapter is published as
   `tkach-security-client@0.1.0`; all seven Rust crates are published at
-  `0.1.0`, while PyPI publication remains deferred.
+  `0.1.0`, while the protected PyPI publication workflow is prepared for
+  `v0.1.1`.
 - Deterministic cross-platform release archive helper with fixed metadata,
   source-epoch inputs, checksums, and regression tests; binary reproducibility
   across toolchains remains explicitly unclaimed.
@@ -61,11 +62,13 @@ boundaries, and release quality; the Core remains frozen.
 ## NEXT
 
 The initial public release is complete: shared package metadata, release
-artifacts, hosted tag verification, examples, Golden Case, crates.io, npm, and
-the signed GitHub archives are live. Remaining work is clean-machine onboarding
-across supported platforms, an independent security/reliability/performance
-review, and only deployment or registry work that preserves the existing
-boundary. It must not duplicate policy, authority, or execution logic.
+artifacts, hosted tag verification, examples, Golden Case, crates.io, npm, OCI,
+MCP Registry, and the signed GitHub archives are live. The `v0.1.1` candidate
+closes the macOS network-test race, gates npm/PyPI on a published GitHub
+Release, and adds protected crates.io publication. Remaining work is the
+green cross-platform candidate run, one-time registry Trusted Publisher setup,
+clean-machine onboarding, and the independent final review. It must not
+duplicate policy, authority, or execution logic.
 
 The core remains frozen unless a concrete reproducible security or product
 defect appears. Any selected phase must add adversarial regression coverage,
@@ -109,6 +112,9 @@ this order:
   requirements are researched and met, Official MCP Registry publication
   (adapter, public package, manifest, and active Registry registration are
   done; Streamable HTTP remains intentionally out of scope);
+- release automation for `v0.1.1` is prepared: npm/PyPI publish only after a
+  published GitHub Release, and crates.io publication is a protected,
+  manually approved dependency-ordered gate;
 - production configuration, safe defaults, diagnostics and health checks are
   done for the local profile; structured logging, public TLS/service operation,
   and process supervision remain separate deployment work. Integration

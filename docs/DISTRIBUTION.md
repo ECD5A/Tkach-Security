@@ -168,11 +168,30 @@ Future npm releases use `.github/workflows/publish-npm.yml` with GitHub OIDC
 and direct npm publishing. The package's Trusted Publisher must be configured
 for GitHub user `ECD5A`, repository `Tkach-Security`, workflow filename
 `publish-npm.yml`, and environment `npm-publish`; direct `npm publish` must be
-allowed for this workflow. The workflow is tag-only, runs the package tests,
-prints the exact package contents, attaches npm provenance, and skips an
-already published version instead of attempting a duplicate upload. The
-environment must not have unreviewed workflows or untrusted branches attached
-to it; tag protection remains the release authorization boundary.
+allowed for this workflow. The workflow is release-published-only, checks out
+the exact release tag, runs the package tests, prints the exact package
+contents, attaches npm provenance, and skips an already published version
+instead of attempting a duplicate upload. The environment must not have
+unreviewed workflows or untrusted branches attached to it; the verified tag
+and published-release event remain the release authorization boundary.
+
+The Python adapter uses `.github/workflows/publish-pypi.yml`. Its build job
+tests and builds an sdist plus wheel, then passes an immutable artifact to a
+separate OIDC-only publish job. Configure a PyPI Trusted Publisher for project
+`tkach-security-client` with repository owner `ECD5A`, repository
+`Tkach-Security`, workflow filename `publish-pypi.yml`, and environment
+`pypi-publish`. A pending publisher can create the project on its first
+successful release; no PyPI token belongs in GitHub secrets. The package is
+not public until that workflow has completed successfully.
+
+Rust crate publication is an explicit pre-release gate in
+`.github/workflows/publish-crates.yml`. After all release checks pass, dispatch
+it for the exact tag and approve the protected `crates-publish` environment.
+Configure crates.io Trusted Publishing for each of the seven crates with
+repository `ECD5A/Tkach-Security`, workflow `publish-crates.yml`, and
+environment `crates-publish`. The workflow authenticates with short-lived
+OIDC credentials and publishes in dependency order, skipping only a version
+that the registry already confirms as present.
 
 ## MCP Registry readiness gate
 

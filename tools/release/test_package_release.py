@@ -135,6 +135,40 @@ class ReleasePackageTests(unittest.TestCase):
         self.assertLess(validate_at, login_at)
         self.assertLess(login_at, publish_at)
 
+    def test_external_package_publication_is_gated_and_pinned(self) -> None:
+        root = Path(__file__).parents[2]
+        npm = (root / ".github/workflows/publish-npm.yml").read_text(encoding="utf-8")
+        pypi = (root / ".github/workflows/publish-pypi.yml").read_text(encoding="utf-8")
+        crates = (root / ".github/workflows/publish-crates.yml").read_text(encoding="utf-8")
+
+        self.assertIn("types: [published]", npm)
+        self.assertNotIn("  push:", npm)
+        self.assertIn("ref: ${{ github.event.release.tag_name }}", npm)
+        self.assertIn("id-token: write", npm)
+
+        self.assertIn("types: [published]", pypi)
+        self.assertIn("name: pypi-publish", pypi)
+        self.assertIn("id-token: write", pypi)
+        self.assertIn(
+            "pypa/gh-action-pypi-publish@a892a5a61159132606e93a2fa6f4358831b04d26",
+            pypi,
+        )
+        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", pypi)
+        self.assertIn("actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c", pypi)
+
+        self.assertIn("workflow_dispatch:", crates)
+        self.assertIn("environment: crates-publish", crates)
+        self.assertIn("id-token: write", crates)
+        self.assertIn(
+            "rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18",
+            crates,
+        )
+        self.assertIn(
+            "for crate in tkach-core tkach-gateway tkach-http tkach-client "
+            "tkach-provider-openai tkach-mcp tkach-cli",
+            crates,
+        )
+
     def test_source_epoch_changes_archive_and_existing_output_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
