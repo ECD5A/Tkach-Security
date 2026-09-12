@@ -73,6 +73,12 @@ impl Receiver {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let address = listener.local_addr().unwrap();
         listener.set_nonblocking(true).unwrap();
+        let expected_head = format!(
+            "POST {REAL_NETWORK_PATH} HTTP/1.1\r\nHost: {address}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            REAL_NETWORK_PAYLOAD.len()
+        );
+        let mut expected = expected_head.into_bytes();
+        expected.extend_from_slice(REAL_NETWORK_PAYLOAD);
         let handle = thread::spawn(move || {
             let deadline = Instant::now() + Duration::from_millis(1_500);
             loop {
@@ -91,15 +97,20 @@ impl Receiver {
                                         break;
                                     }
                                     request.extend_from_slice(&chunk[..count]);
+                                    // The harness knows the exact bounded request it
+                                    // expects. Respond as soon as it is complete rather
+                                    // than waiting for the peer's half-close; this keeps
+                                    // the real-effect test deterministic on macOS while
+                                    // retaining exact-request verification below.
+                                    if request.len() >= expected.len() {
+                                        break;
+                                    }
                                 }
                             }
+                            if request.len() >= expected.len() {
+                                break;
+                            }
                         }
-                        let expected_head = format!(
-                            "POST {REAL_NETWORK_PATH} HTTP/1.1\r\nHost: {address}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                            REAL_NETWORK_PAYLOAD.len()
-                        );
-                        let mut expected = expected_head.into_bytes();
-                        expected.extend_from_slice(REAL_NETWORK_PAYLOAD);
                         if request.is_empty() {
                             return ReceiverReport {
                                 requests_received: 0,
