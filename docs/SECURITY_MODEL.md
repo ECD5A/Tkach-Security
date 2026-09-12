@@ -109,5 +109,6 @@ carrier. None of these adapters widens the Core authority boundary.
 The executable proof uses deterministic hostile providers, bounded fake
 effects, real fixed local effects, and offline OpenAI fixtures. It demonstrates
 the typed boundaries and declared workloads, not semantic model safety or
-production deployment availability. Run the workspace test, lint, audit, and
-fuzz-build commands from the contributor guide to reproduce the local checks.
+production deployment availability. Run the workspace test, lint, audit,
+fuzz-build, and bounded four-target fuzz-smoke commands from the contributor
+guide to reproduce the local checks.
