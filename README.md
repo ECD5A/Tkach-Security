@@ -144,7 +144,7 @@ If Tkach Security is useful to your work, support its continued maintenance:
 
 ## Contact
 
-Questions about Tkach Security, integration, security research, or
+Questions about Tkach Security, integrations, security research, or
 collaboration:
 
 <p>
