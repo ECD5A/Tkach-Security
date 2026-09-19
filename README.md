@@ -13,7 +13,7 @@
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
 <a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.2"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
-<a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi" alt="PyPI package"></a>
+<a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi&amp;cacheSeconds=300" alt="PyPI package"></a>
 <a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli on crates.io"></a>
 <img src="https://img.shields.io/badge/MSRV-1.85-orange?logo=rust" alt="MSRV 1.85">
 <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache 2.0 license">
