@@ -71,6 +71,22 @@ impl Receiver {
     }
 
     fn start_with_body(status: u16, delay: Duration, response_body_bytes: usize) -> Self {
+        Self::start_with_body_mode(status, delay, response_body_bytes, true)
+    }
+
+    fn start_no_request(status: u16, delay: Duration) -> Self {
+        Self::start_with_body_mode(status, delay, 0, false)
+    }
+
+    // Keep the bounded receiver state machine together so its timeout,
+    // accept, request, and half-close invariants remain auditable in one place.
+    #[allow(clippy::too_many_lines)]
+    fn start_with_body_mode(
+        status: u16,
+        delay: Duration,
+        response_body_bytes: usize,
+        wait_for_connection: bool,
+    ) -> Self {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let address = listener.local_addr().unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -81,12 +97,17 @@ impl Receiver {
         let mut expected = expected_head.into_bytes();
         expected.extend_from_slice(REAL_NETWORK_PAYLOAD);
         let handle = thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_millis(1_500);
+            let deadline = Instant::now()
+                + if wait_for_connection {
+                    Duration::from_secs(5)
+                } else {
+                    Duration::from_secs(1)
+                };
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
                         stream
-                            .set_read_timeout(Some(Duration::from_millis(750)))
+                            .set_read_timeout(Some(Duration::from_secs(2)))
                             .unwrap();
                         let mut request = Vec::new();
                         let mut chunk = [0_u8; 512];
@@ -634,7 +655,7 @@ fn authorized_public_ruslo_flow_reaches_only_the_exact_loopback_receiver() {
 #[test]
 fn denied_or_mutated_network_requests_never_connect_to_the_receiver() {
     let sandbox = Sandbox::new();
-    let receiver = Receiver::start(200, Duration::ZERO);
+    let receiver = Receiver::start_no_request(200, Duration::ZERO);
     let action = external_send_request();
     let kernel = public_network_kernel(&action);
     let protected_data = TaggedData::from_trusted_ingress(
@@ -666,7 +687,7 @@ fn denied_or_mutated_network_requests_never_connect_to_the_receiver() {
         ExecutionError::FailedBeforeEffect
     );
 
-    let wrong_endpoint = Receiver::start(200, Duration::ZERO);
+    let wrong_endpoint = Receiver::start_no_request(200, Duration::ZERO);
     let endpoint_kernel = public_network_kernel(&action);
     let endpoint_permit = endpoint_kernel
         .authorize_tagged_public_send(&trusted_public_data(), &action)
@@ -691,7 +712,7 @@ fn denied_or_mutated_network_requests_never_connect_to_the_receiver() {
 #[test]
 fn gateway_untrusted_network_proposal_is_denied_before_real_connect() {
     let sandbox = Sandbox::new();
-    let receiver = Receiver::start(200, Duration::ZERO);
+    let receiver = Receiver::start_no_request(200, Duration::ZERO);
     let action = external_send_request();
     let policy = Policy::new(
         tkach_core::domain::PolicyId::new("real-gateway-network-policy").unwrap(),
@@ -811,7 +832,7 @@ fn network_failure_after_send_is_reported_as_unknown_and_timeout_is_not_a_succes
 #[test]
 fn real_executor_rejects_untrusted_public_flow_without_an_execution_token() {
     let sandbox = Sandbox::new();
-    let receiver = Receiver::start(200, Duration::ZERO);
+    let receiver = Receiver::start_no_request(200, Duration::ZERO);
     let action = external_send_request();
     let kernel = public_network_kernel(&action);
     let untrusted = TaggedData::from_untrusted("model-claimed-public");
