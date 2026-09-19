@@ -28,9 +28,8 @@ service, or a published Go module yet.
 `other`. These are observations only; the client never retries, and
 `outcome_unknown` must not be used to repeat an action.
 
-The next release will give each exchange a finite 35-second total deadline,
-with no retry on timeout. The `v0.1.1` source remains documented with its
-original 500ms budget until that release. A timeout is a transport observation
+Each exchange has a finite 35-second total deadline, with no retry on timeout.
+The `v0.1.2` source includes this bounded deadline and readiness hardening. A timeout is a transport observation
 and does not prove that an effect did not happen.
 
 `Health` is liveness only. `Ready` checks the unauthenticated `/readyz`

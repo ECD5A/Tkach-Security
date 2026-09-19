@@ -7,7 +7,7 @@ TypeScript declarations without reimplementing Tkach Core.
 Install the published package from npm:
 
 ```console
-npm install tkach-security-client@0.1.1
+npm install tkach-security-client@0.1.2
 ```
 
 For repository development, the same package can be installed from the
@@ -43,18 +43,17 @@ process boundary, public service, or policy engine.
 `other`. These are observations only; the client never retries, and
 `outcome_unknown` must not be used to repeat an action.
 
-The next release will give each exchange a 35-second total deadline by default.
+Each exchange now has a 35-second total deadline by default.
 The current source also accepts a trusted integer `timeoutMs` from 1 to 120000
 when a different finite budget is required; a timeout is not a retry signal and
-does not prove that an effect did not happen. The published `0.1.1` package
-retains its original 500ms budget.
+does not prove that an effect did not happen. The `0.1.2` package carries the
+bounded deadline and slow-response hardening.
 
 `health()` is liveness only. `ready()` checks the unauthenticated `/readyz`
 admission signal; it becomes non-ready when the runtime is shutting down or
 its non-evicting replay ledger is full. It does not prove provider
 connectivity or effect availability. This readiness method is part of the
-current source candidate and will ship in the next coordinated adapter
-release.
+`0.1.2` adapter release.
 
 Run the offline contract tests with Node.js 20 or newer:
 

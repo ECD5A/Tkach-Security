@@ -11,7 +11,7 @@
 **Fail-closed граница безопасности для AI-агентов и скомпрометированного вывода модели.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
+<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.2"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
 <a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi" alt="PyPI package"></a>
 <a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli на crates.io"></a>
@@ -45,7 +45,7 @@ Rust проверяет полномочия и потоки данных пер
 Установите из crates.io с Rust 1.85 или новее:
 
 ```console
-cargo install tkach-cli --version 0.1.1 --locked
+cargo install tkach-cli --version 0.1.2 --locked
 tkach init my-agent
 tkach check my-agent/.tkach/request.json
 tkach run --demo
@@ -57,15 +57,15 @@ tkach run --demo
 
 Не хотите устанавливать Rust? Скачайте готовый бинарник ниже и начните с `tkach init`.
 
-## Пакеты и загрузки · v0.1.1
+## Пакеты и загрузки · v0.1.2
 
 | Канал | Что доступно | Установка / следующий шаг |
 | --- | --- | --- |
-| [GitHub Releases](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1) | `tkach` + `tkach-mcp`; Linux x86_64, macOS x86_64/arm64, Windows x86_64 | [Проверка архивов](docs/DISTRIBUTION.md#verify-a-v011-archive) |
-| [crates.io](https://crates.io/crates/tkach-cli) | Семь Rust-крейтов `0.1.1`: Core, Gateway, HTTP, клиент, MCP, CLI, адаптер провайдера | [Список пакетов](docs/DISTRIBUTION.md#version-and-package-contract) |
-| [npm](https://www.npmjs.com/package/tkach-security-client) | Тонкий HTTP-клиент для JavaScript / TypeScript | `npm install tkach-security-client@0.1.1` |
-| [PyPI](https://pypi.org/project/tkach-security-client/) | Тонкий HTTP-клиент для Python | `python -m pip install tkach-security-client==0.1.1` |
-| [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security) | `io.github.ECD5A/tkach-security@0.1.1`, локальный stdio | [Настройка MCP](docs/INTEGRATION.md#mcp-stdio-adapter--v01) |
+| [GitHub Releases](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.2) | `tkach` + `tkach-mcp`; Linux x86_64, macOS x86_64/arm64, Windows x86_64 | [Проверка архивов](docs/DISTRIBUTION.md#verify-a-v012-archive) |
+| [crates.io](https://crates.io/crates/tkach-cli) | Семь Rust-крейтов `0.1.2`: Core, Gateway, HTTP, клиент, MCP, CLI, адаптер провайдера | [Список пакетов](docs/DISTRIBUTION.md#version-and-package-contract) |
+| [npm](https://www.npmjs.com/package/tkach-security-client) | Тонкий HTTP-клиент для JavaScript / TypeScript | `npm install tkach-security-client@0.1.2` |
+| [PyPI](https://pypi.org/project/tkach-security-client/) | Тонкий HTTP-клиент для Python | `python -m pip install tkach-security-client==0.1.2` |
+| [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security) | `io.github.ECD5A/tkach-security@0.1.2`, локальный stdio | [Настройка MCP](docs/INTEGRATION.md#mcp-stdio-adapter--v01) |
 | [GHCR](https://github.com/ECD5A/Tkach-Security/pkgs/container/tkach-security) | OCI-образ для Linux amd64 / arm64 | [Digest и развёртывание](docs/DISTRIBUTION.md#oci-image) |
 
 К бинарным архивам приложены SHA-256, keyless Sigstore bundles и подтверждения
@@ -119,7 +119,7 @@ GOLDEN_CASE|safe_output=released|allowed_write=committed|out_of_scope=denied|com
 Позитивный путь использует доверенную настройку политики, назначения и
 executor; провайдер передаёт только недоверенное предложение. Путь проверок
 описан в [архитектуре](docs/ARCHITECTURE.md), проверки релиза и оставшиеся ограничения —
-в [заметках к v0.1.1](docs/releases/v0.1.1.md).
+в [заметках к v0.1.2](docs/releases/v0.1.2.md).
 
 ## Документация
 

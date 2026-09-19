@@ -1,6 +1,6 @@
 {
   "name": "tkach-security-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Thin, bounded Node.js client for the Tkach Security loopback HTTP contract",
   "type": "module",
   "exports": {

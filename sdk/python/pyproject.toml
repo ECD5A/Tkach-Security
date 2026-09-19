@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tkach-security-client"
-version = "0.1.1"
+version = "0.1.2"
 description = "Thin, bounded Python client for the Tkach Security loopback HTTP contract"
 readme = "README.md"
 requires-python = ">=3.10"

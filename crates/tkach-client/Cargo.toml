@@ -1,6 +1,6 @@
 [package]
 name = "tkach-client"
-version = "0.1.1"
+version = "0.1.2"
 description = "Bounded Rust client for the Tkach Security local HTTP contract"
 edition.workspace = true
 license.workspace = true
@@ -14,12 +14,12 @@ keywords.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 thiserror = "2"
-tkach-gateway = { path = "../tkach-gateway", version = "0.1.1" }
-tkach-http = { path = "../tkach-http", version = "0.1.1" }
+tkach-gateway = { path = "../tkach-gateway", version = "0.1.2" }
+tkach-http = { path = "../tkach-http", version = "0.1.2" }
 zeroize = "1"
 
 [dev-dependencies]
-tkach-core = { path = "../tkach-core", version = "0.1.1" }
+tkach-core = { path = "../tkach-core", version = "0.1.2" }
 
 [lints]
 workspace = true

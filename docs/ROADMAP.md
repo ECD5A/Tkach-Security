@@ -6,18 +6,19 @@ executable tests. This page tracks direction, not a second release checklist.
 
 ## Current release
 
-Public **v0.1.1** completes the initial distribution cycle. Installation channels
-are listed in the [README](../README.md#packages-and-downloads--v011);
-[release notes](releases/v0.1.1.md) record checks and limitations.
+Public **v0.1.2** completes the first coordinated hardening release. Installation
+channels are listed in the [README](../README.md#packages-and-downloads--v012);
+[release notes](releases/v0.1.2.md) record checks and limitations.
 
 The Core security contract remains frozen. A change needs a reproducible
 security or product defect; new integrations must stay thin and must not
 duplicate policy, authority, or execution logic.
 
-The current main branch contains an unreleased adapter/runtime hardening
-candidate that aligns bounded client deadlines, adds slow-response coverage,
-and separates liveness from replay-capacity admission readiness. It is not
-part of the published `v0.1.1` artifacts until a coordinated package release.
+The published `v0.1.2` artifacts include the adapter/runtime hardening that
+aligns bounded client deadlines, adds slow-response coverage, and separates
+liveness from replay-capacity admission readiness. CI also executes the
+protected-effect Golden Case on every supported platform and runs bounded fuzz
+smoke after all targets are built.
 
 ## Delivered
 
@@ -40,7 +41,7 @@ part of the published `v0.1.1` artifacts until a coordinated package release.
   dependencies or install hooks; Go remains a source-level module.
 - **Distribution:** seven Rust crates, npm and PyPI clients, signed/attested
   Linux/macOS/Windows archives, public Linux amd64/arm64 OCI image, and
-  Official MCP Registry registration, all at `0.1.1`. Publishing workflows
+  Official MCP Registry registration, all at `0.1.2`. Publishing workflows
   use OIDC and reviewed GitHub environments.
 - **Verification and examples:** hostile-provider, composition and integration
   coverage; transport and filesystem boundary regressions; contributor/CI

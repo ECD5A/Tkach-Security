@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Published Git tag to package (for example, v0.1.0)"
+        description: "Published Git tag to package (for example, v0.1.2)"
         required: true
         type: string
 

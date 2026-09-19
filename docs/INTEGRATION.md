@@ -177,12 +177,12 @@ put it in model-controlled request data, shell history, or committed examples.
 ### OCI image (GHCR and local)
 
 The repository includes a multi-stage `Dockerfile` for local or private
-deployment. The v0.1.1 image was built for `linux/amd64` and `linux/arm64`,
+deployment. The v0.1.2 image was built for `linux/amd64` and `linux/arm64`,
 pushed to GHCR, attached to GitHub build provenance, and made public. The
 versioned tag can be pulled anonymously with:
 
 ```text
-docker pull ghcr.io/ecd5a/tkach-security:v0.1.1
+docker pull ghcr.io/ecd5a/tkach-security:v0.1.2
 ```
 
 For deployment, pin the [attested digest](DISTRIBUTION.md#oci-image), not the
@@ -218,7 +218,7 @@ Add the published [Rust client](https://crates.io/crates/tkach-client) under
 `[dependencies]` in your `Cargo.toml`:
 
 ~~~text
-tkach-client = "0.1.1"
+tkach-client = "0.1.2"
 ~~~
 
 The smallest call path is:
@@ -286,20 +286,15 @@ The cross-carrier regression matrix is kept aligned for each adapter:
 5. MCP lifecycle, oversized input, invalid fields, one delegated call, and
    static failure behavior are tested over the same Rust client contract.
 
-The published `0.1.1` packages retain their original 500 ms transport budget;
-the source-candidate timeout and classification additions require one
-coordinated package release.
-
-In the current source tree, the next adapter release uses a finite 35-second
+The `0.1.2` packages use a finite 35-second
 total client exchange deadline across Rust, Python, Node.js, Go, and MCP (which
 uses the Rust client). This covers the provider runtime's default 30-second
 request budget with bounded headroom and also limits slow-trickle responses. A
 timeout is a transport failure, not proof that an effect did not happen, and no
 adapter retries the request. The Python and Node.js constructors accept an
 optional finite timeout up to 120 seconds; keep it within the trusted local
-deployment budget and never derive it from model-controlled input. Published
-`0.1.1` client artifacts retain their original 500ms transport budget; this
-hardening is unreleased until the next coordinated package version.
+deployment budget and never derive it from model-controlled input. This
+hardening is part of the coordinated `0.1.2` package release.
 
 Installation and usage live with each adapter:
 
@@ -348,7 +343,7 @@ TKACH_BEARER_TOKEN=trusted-runtime-token
 tkach-mcp
 ~~~
 
-The matching `tkach-mcp@0.1.1` crate is published on crates.io, so an MCP host
+The matching `tkach-mcp@0.1.2` crate is published on crates.io, so an MCP host
 can launch it as a stdio server. For example, a Claude-compatible host config
 uses the adapter command and trusted environment values (replace the token
 through the host's secret-management mechanism; do not commit a real token):
@@ -377,7 +372,7 @@ environment configuration; normal operation uses no arguments and stdio.
 
 This is stdio only. It is not Streamable HTTP, TLS, process isolation, a
 public service or a replacement for human consent in the MCP host. Version
-`0.1.1` is registered in the Official MCP Registry for local stdio use. The
+`0.1.2` is registered in the Official MCP Registry for local stdio use. The
 host remains responsible for consent and for
 protecting its environment and subprocess.
 

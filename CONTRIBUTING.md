@@ -157,7 +157,7 @@ generated build output and local scan files out of the repository.
 
 Documentation must describe the current implementation, not an intended future
 integration. Clearly label partial, local-only, opt-in, unavailable, or
-unverified features. At v0.1.1, the seven Rust crates, npm and PyPI thin
+unverified features. At v0.1.2, the seven Rust crates, npm and PyPI thin
 carriers, signed/attested GitHub CLI archives, Linux multi-arch OCI image, and
 MCP Registry registration are published. The Go adapter remains a source-level
 module, and the local image/HTTP runtime is not a hosted gateway. Do not claim

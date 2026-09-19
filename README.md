@@ -11,7 +11,7 @@
 **A fail-closed security boundary for AI agents and compromised model output.**
 
 <a href="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml"><img src="https://github.com/ECD5A/Tkach-Security/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
+<a href="https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.2"><img src="https://img.shields.io/github/v/release/ECD5A/Tkach-Security?display_name=tag&sort=semver" alt="GitHub release"></a>
 <a href="https://www.npmjs.com/package/tkach-security-client"><img src="https://img.shields.io/npm/v/tkach-security-client?logo=npm" alt="npm package"></a>
 <a href="https://pypi.org/project/tkach-security-client/"><img src="https://img.shields.io/pypi/v/tkach-security-client?logo=pypi" alt="PyPI package"></a>
 <a href="https://crates.io/crates/tkach-cli"><img src="https://img.shields.io/crates/v/tkach-cli?logo=rust" alt="tkach-cli on crates.io"></a>
@@ -45,7 +45,7 @@ model trustworthy, detect every prompt injection, or protect a compromised host.
 Install from crates.io with Rust 1.85 or newer:
 
 ```console
-cargo install tkach-cli --version 0.1.1 --locked
+cargo install tkach-cli --version 0.1.2 --locked
 tkach init my-agent
 tkach check my-agent/.tkach/request.json
 tkach run --demo
@@ -57,15 +57,15 @@ boundary without a model connection. Use `tkach ui` for the interactive panel.
 
 Prefer no Rust toolchain? Download a binary below and start with `tkach init`.
 
-## Packages and downloads · v0.1.1
+## Packages and downloads · v0.1.2
 
 | Channel | What you get | Install / next step |
 | --- | --- | --- |
-| [GitHub Releases](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.1) | `tkach` + `tkach-mcp`; Linux x86_64, macOS x86_64/arm64, Windows x86_64 | [Verify downloads](docs/DISTRIBUTION.md#verify-a-v011-archive) |
-| [crates.io](https://crates.io/crates/tkach-cli) | Seven Rust crates at `0.1.1`: Core, Gateway, HTTP, client, MCP, CLI, provider adapter | [Package list](docs/DISTRIBUTION.md#version-and-package-contract) |
-| [npm](https://www.npmjs.com/package/tkach-security-client) | Thin JavaScript / TypeScript HTTP client | `npm install tkach-security-client@0.1.1` |
-| [PyPI](https://pypi.org/project/tkach-security-client/) | Thin Python HTTP client | `python -m pip install tkach-security-client==0.1.1` |
-| [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security) | `io.github.ECD5A/tkach-security@0.1.1`, local stdio | [Configure MCP](docs/INTEGRATION.md#mcp-stdio-adapter--v01) |
+| [GitHub Releases](https://github.com/ECD5A/Tkach-Security/releases/tag/v0.1.2) | `tkach` + `tkach-mcp`; Linux x86_64, macOS x86_64/arm64, Windows x86_64 | [Verify downloads](docs/DISTRIBUTION.md#verify-a-v012-archive) |
+| [crates.io](https://crates.io/crates/tkach-cli) | Seven Rust crates at `0.1.2`: Core, Gateway, HTTP, client, MCP, CLI, provider adapter | [Package list](docs/DISTRIBUTION.md#version-and-package-contract) |
+| [npm](https://www.npmjs.com/package/tkach-security-client) | Thin JavaScript / TypeScript HTTP client | `npm install tkach-security-client@0.1.2` |
+| [PyPI](https://pypi.org/project/tkach-security-client/) | Thin Python HTTP client | `python -m pip install tkach-security-client==0.1.2` |
+| [Official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ECD5A%2Ftkach-security) | `io.github.ECD5A/tkach-security@0.1.2`, local stdio | [Configure MCP](docs/INTEGRATION.md#mcp-stdio-adapter--v01) |
 | [GHCR](https://github.com/ECD5A/Tkach-Security/pkgs/container/tkach-security) | OCI image for Linux amd64 / arm64 | [Digest and deployment](docs/DISTRIBUTION.md#oci-image) |
 
 Binary archives include SHA-256 manifests, keyless Sigstore bundles, and GitHub
@@ -118,7 +118,7 @@ GOLDEN_CASE|safe_output=released|allowed_write=committed|out_of_scope=denied|com
 The positive path uses trusted host configuration for the exact policy,
 destination, and executor binding; the provider supplies only an untrusted
 proposal. Read the [architecture](docs/ARCHITECTURE.md) for the enforcement
-path and the [release notes](docs/releases/v0.1.1.md) for the release checks and
+path and the [release notes](docs/releases/v0.1.2.md) for the release checks and
 remaining limitations.
 
 ## Documentation
