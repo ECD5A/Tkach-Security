@@ -4,6 +4,8 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+- Refresh transitive `rustls` to `0.23.45` in both locked dependency graphs,
+  closing RUSTSEC-2026-0285 before the next release build.
 - Execute the protected-effect Golden Case in every Linux/macOS/Windows CI
   run. Build all fuzz targets before their bounded execution budgets, cap
   per-input time and RSS, and collect the performance baseline in release mode.
