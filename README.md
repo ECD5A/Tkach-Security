@@ -144,8 +144,7 @@ If Tkach Security is useful to your work, support its continued maintenance:
 
 ## Contact
 
-For inquiries about Tkach Security, integrations, security research, or
-collaboration:
+For inquiries about Tkach Security, integrations, security research, or collaboration:
 
 <p>
   <a href="mailto:stelmak159@gmail.com" aria-label="Email"><img alt="Email" height="24" src="https://cdn.simpleicons.org/gmail/EA4335"></a>
