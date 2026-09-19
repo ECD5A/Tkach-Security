@@ -4,6 +4,10 @@ All notable Tkach Security changes are recorded here.
 
 ## [Unreleased]
 
+- Execute the protected-effect Golden Case in every Linux/macOS/Windows CI
+  run. Build all fuzz targets before their bounded execution budgets, cap
+  per-input time and RSS, and collect the performance baseline in release mode.
+  Short uninstrumented fuzz smoke is explicitly not a coverage or sanitizer claim.
 - Align source-candidate Rust, Python, Node.js, Go, and MCP result
   classification (`success`, `refused`, `provider_failure`, `outcome_unknown`,
   replay/cancelled, unavailable, invalid, effect-failed, and other) without

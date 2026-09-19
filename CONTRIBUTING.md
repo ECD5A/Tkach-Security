@@ -79,6 +79,14 @@ On the Windows MSVC host, `cargo check --manifest-path fuzz/Cargo.toml
 link time with `LNK1561` because MSVC does not provide the libFuzzer entry
 point. This is why the authoritative bounded execution job runs on Ubuntu.
 
+CI builds all fuzz executables before starting each target's 90-second run
+budget, limits individual inputs to 10 seconds and RSS to 1024 MB, and retains
+logs and failure inputs. These short, uninstrumented smoke runs are not
+coverage-guided fuzzing or a sanitizer audit. The Golden Case is also executed
+on Linux, macOS, and Windows; compiling an example alone does not exercise its
+assertions. Performance observations use the optimized release build and
+remain host-dependent measurements, not an SLA.
+
 For a focused change, state exactly which checks were run and why any check
 was not applicable. Do not report a check as passing when it was skipped,
 inconclusive, or unavailable.
